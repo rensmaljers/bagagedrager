@@ -988,82 +988,165 @@ $('btn-save-results').addEventListener('click', async () => {
 // ADMIN: IMPORT
 // =====================
 
-// --- PCS STAGES SYNC ---
-let syncedStages = null;
+// --- PCS CONSOLE SCRIPTS ---
+const PCS_STAGES_SCRIPT = `// Plak dit in de console op een PCS /stages pagina
+(() => {
+  const rows = document.querySelectorAll('table.basic tbody tr');
+  const stages = [];
+  const year = location.pathname.match(/(\\d{4})/)?.[1] || new Date().getFullYear();
+  rows.forEach(row => {
+    const cells = row.querySelectorAll('td');
+    if (cells.length < 4) return;
+    const dateText = cells[0]?.textContent?.trim() || '';
+    const link = cells[3]?.querySelector('a');
+    const name = link?.textContent?.trim() || '';
+    if (!name || name.toLowerCase().includes('rest') || !link?.getAttribute('href')) return;
+    const m = name.match(/Stage\\s+(\\d+)/i);
+    if (!m) return;
+    const icon = cells[2]?.querySelector('span')?.className || '';
+    let type = 'flat';
+    if (name.includes('ITT') || name.includes('(TT)')) type = 'tt';
+    else if (icon.includes('p5') || icon.includes('p4') || icon.includes('p3')) type = 'mountain';
+    else if (icon.includes('p2')) type = 'sprint';
+    const dp = dateText.split('/');
+    const date = dp.length === 2 ? year + '-' + dp[1].padStart(2,'0') + '-' + dp[0].padStart(2,'0') : '';
+    const route = name.includes('|') ? name.split('|')[1].trim() : name;
+    stages.push(m[1] + ', ' + route + ', ' + date + ', ' + type);
+  });
+  copy('---ETAPPES---\\n' + stages.join('\\n'));
+  console.log(stages.length + ' etappes gekopieerd naar clipboard!');
+})();`;
 
-$('btn-sync-stages').addEventListener('click', async () => {
-  const url = $('pcs-stages-url').value.trim();
-  const compId = parseInt($('sync-stages-comp').value);
-  const status = $('sync-stages-status');
-  const preview = $('sync-stages-preview');
-
-  if (!url) { status.textContent = 'Voer een PCS URL in'; status.className = 'text-danger'; return; }
-  if (!compId) { status.textContent = 'Selecteer een competitie'; status.className = 'text-danger'; return; }
-
-  status.textContent = '🔄 Ophalen van PCS...';
-  status.className = 'text-muted';
-  preview.innerHTML = '';
-  $('sync-stages-actions').style.display = 'none';
-
-  try {
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/sync-pcs-stages`, {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ pcs_url: url }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Sync mislukt');
-
-    syncedStages = { compId, stages: data.stages };
-    const typeLabels = { flat: 'Vlak', mountain: 'Berg', tt: 'Tijdrit', sprint: 'Sprint' };
-
-    status.textContent = `✅ ${data.count} etappes gevonden`;
-    status.className = 'text-success';
-
-    preview.innerHTML = `<table class="table table-sm mb-0">
-      <thead><tr><th>#</th><th>Naam</th><th>Datum</th><th>Type</th></tr></thead>
-      <tbody>${data.stages.map(s => `<tr>
-        <td>${s.stage_number}</td>
-        <td>${escapeHtml(s.name)}</td>
-        <td>${s.date}</td>
-        <td>${typeLabels[s.stage_type] || s.stage_type}</td>
-      </tr>`).join('')}</tbody></table>`;
-
-    $('sync-stages-actions').style.display = 'block';
-
-  } catch (e) {
-    status.textContent = `❌ ${e.message}`;
-    status.className = 'text-danger';
-  }
+// Copy script buttons
+$('btn-copy-stages-script').addEventListener('click', () => {
+  navigator.clipboard.writeText(PCS_STAGES_SCRIPT);
+  $('btn-copy-stages-script').textContent = '✅ Gekopieerd!';
+  setTimeout(() => { $('btn-copy-stages-script').textContent = '📅 Kopieer etappes-script'; }, 2000);
 });
 
-$('btn-save-synced-stages').addEventListener('click', async () => {
-  if (!syncedStages) return;
-  const status = $('sync-stages-save-status');
-  const { compId, stages: stgs } = syncedStages;
+$('btn-copy-riders-script').addEventListener('click', () => {
+  navigator.clipboard.writeText(PCS_SCRIPT);
+  $('btn-copy-riders-script').textContent = '✅ Gekopieerd!';
+  setTimeout(() => { $('btn-copy-riders-script').textContent = '🚴 Kopieer renners-script'; }, 2000);
+});
 
-  status.textContent = `Opslaan van ${stgs.length} etappes...`;
+// Universal import: detect data type and import
+$('btn-race-import').addEventListener('click', async () => {
+  const raw = $('race-sync-data').value.trim();
+  const compId = parseInt($('race-sync-comp').value);
+  const status = $('race-sync-status');
+  const log = $('race-sync-log');
+
+  if (!raw) { status.textContent = 'Plak eerst data'; status.className = 'text-danger'; return; }
+  if (!compId) { status.textContent = 'Selecteer een competitie'; status.className = 'text-danger'; return; }
+
+  status.textContent = '⏳ Importeren...';
   status.className = 'text-muted';
+  log.innerHTML = '';
+  const lines = [];
 
-  let ok = 0, skip = 0;
-  for (const s of stgs) {
-    const deadlineDate = new Date(s.date);
-    deadlineDate.setDate(deadlineDate.getDate() - 1);
-    deadlineDate.setHours(23, 0, 0, 0);
-    try {
-      await supaRest('stages', {
-        method: 'POST',
-        body: { ...s, deadline: deadlineDate.toISOString(), locked: false, competition_id: compId },
-      });
-      ok++;
-    } catch (e) { skip++; }
+  // Detect and import stages
+  if (raw.includes('---ETAPPES---')) {
+    const stageText = raw.split('---ETAPPES---')[1].split('---')[0].trim();
+    const parsed = parseStageLines(stageText);
+    if (parsed.length) {
+      let ok = 0, skip = 0;
+      for (const s of parsed) {
+        const deadlineDate = new Date(s.date);
+        deadlineDate.setDate(deadlineDate.getDate() - 1);
+        deadlineDate.setHours(23, 0, 0, 0);
+        try {
+          await supaRest('stages', {
+            method: 'POST',
+            body: { ...s, deadline: deadlineDate.toISOString(), locked: false, competition_id: compId },
+          });
+          ok++;
+        } catch (e) { skip++; }
+      }
+      lines.push(`📅 Etappes: ${ok} geïmporteerd, ${skip} overgeslagen`);
+      loadAdminStages();
+    }
   }
 
-  status.textContent = `✅ ${ok} opgeslagen, ${skip} overgeslagen`;
-  status.className = 'text-success';
-  syncedStages = null;
-  $('sync-stages-actions').style.display = 'none';
-  loadAdminStages();
+  // Detect and import riders + shirts
+  if (raw.includes('---RENNERS---')) {
+    let riderText = raw.split('---RENNERS---')[1];
+    if (riderText.includes('---SHIRTS---')) {
+      const parts = riderText.split('---SHIRTS---');
+      riderText = parts[0];
+      try {
+        const shirts = JSON.parse(parts[1].trim());
+        teamShirts = { ...teamShirts, ...shirts };
+        localStorage.setItem('bagagedrager_shirts', JSON.stringify(teamShirts));
+        lines.push(`👕 ${Object.keys(shirts).length} team shirts opgeslagen`);
+      } catch (e) { /* ignore */ }
+    }
+    if (riderText.includes('---ETAPPES---')) riderText = riderText.split('---ETAPPES---')[0];
+    const parsed = parseRiderLines(riderText);
+    if (parsed.length) {
+      let ok = 0, skip = 0;
+      for (const r of parsed) {
+        try {
+          await supaRest('riders', { method: 'POST', body: { ...r, competition_id: compId } });
+          ok++;
+        } catch (e) { skip++; }
+      }
+      lines.push(`🚴 Renners: ${ok} geïmporteerd, ${skip} overgeslagen`);
+      loadAdminRiders();
+      await loadRidersForComp();
+    }
+  }
+
+  // Fallback: try plain CSV (stages or riders)
+  if (!raw.includes('---')) {
+    // Guess based on content
+    const firstLine = raw.split('\n')[0];
+    if (firstLine.match(/^\d+\s*,.*,\s*\d{4}-\d{2}-\d{2}/)) {
+      // Looks like stages
+      const parsed = parseStageLines(raw);
+      if (parsed.length) {
+        let ok = 0, skip = 0;
+        for (const s of parsed) {
+          const deadlineDate = new Date(s.date);
+          deadlineDate.setDate(deadlineDate.getDate() - 1);
+          deadlineDate.setHours(23, 0, 0, 0);
+          try {
+            await supaRest('stages', {
+              method: 'POST',
+              body: { ...s, deadline: deadlineDate.toISOString(), locked: false, competition_id: compId },
+            });
+            ok++;
+          } catch (e) { skip++; }
+        }
+        lines.push(`📅 Etappes: ${ok} geïmporteerd, ${skip} overgeslagen`);
+        loadAdminStages();
+      }
+    } else {
+      // Assume riders
+      const parsed = parseRiderLines(raw);
+      if (parsed.length) {
+        let ok = 0, skip = 0;
+        for (const r of parsed) {
+          try {
+            await supaRest('riders', { method: 'POST', body: { ...r, competition_id: compId } });
+            ok++;
+          } catch (e) { skip++; }
+        }
+        lines.push(`🚴 Renners: ${ok} geïmporteerd, ${skip} overgeslagen`);
+        loadAdminRiders();
+        await loadRidersForComp();
+      }
+    }
+  }
+
+  if (lines.length) {
+    status.textContent = '✅ Klaar!';
+    status.className = 'text-success';
+    log.innerHTML = lines.join('<br>');
+  } else {
+    status.textContent = 'Geen geldige data gevonden';
+    status.className = 'text-danger';
+  }
 });
 
 // =====================
@@ -1229,53 +1312,7 @@ function loadImportCompSelect() {
   });
 }
 
-// --- FULL RACE SYNC ---
-$('btn-race-sync').addEventListener('click', async () => {
-  const url = $('race-sync-url').value.trim();
-  const compId = parseInt($('race-sync-comp').value);
-  const log = $('race-sync-log');
-  const btn = $('btn-race-sync');
-
-  if (!url) { log.innerHTML = '<span class="text-danger">Voer een PCS URL in</span>'; return; }
-  if (!compId) { log.innerHTML = '<span class="text-danger">Selecteer een competitie</span>'; return; }
-
-  btn.disabled = true;
-  btn.textContent = '⏳ Bezig...';
-  log.innerHTML = '🔄 Race data ophalen van PCS...<br>Dit kan even duren...';
-
-  try {
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/sync-pcs-race`, {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ pcs_url: url, competition_id: compId }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Sync mislukt');
-
-    // Save shirts to localStorage
-    if (data.shirts && Object.keys(data.shirts).length) {
-      teamShirts = { ...teamShirts, ...data.shirts };
-      localStorage.setItem('bagagedrager_shirts', JSON.stringify(teamShirts));
-    }
-
-    log.innerHTML = data.log.map(l => l + '<br>').join('') +
-      `<br><strong>✅ Klaar! ${data.stages_count} etappes + ${data.riders_count} renners geïmporteerd.</strong>` +
-      (Object.keys(data.shirts || {}).length ? `<br>👕 ${Object.keys(data.shirts).length} team shirts opgeslagen.` : '');
-
-    // Reload admin data
-    await loadAdminCompetitions();
-    loadImportCompSelect();
-    loadAdminRiders();
-    loadAdminStages();
-    await loadRidersForComp();
-
-  } catch (e) {
-    log.innerHTML = `<span class="text-danger">❌ ${escapeHtml(e.message)}</span>`;
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '🚀 Sync';
-  }
-});
+// Edge Function race sync removed — using console script approach instead
 
 // --- BOOT ---
 (async () => {

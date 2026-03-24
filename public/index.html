@@ -895,27 +895,43 @@
       </div>
 
       <!-- Admin: Import -->
-      <div class="admin-sub" id="admin-import">
-        <!-- Full Race Sync -->
+      <div class="admin-sub" id="admin-import"><!-- Full Race Sync via console scripts -->
         <div class="card mb-3" style="border-color: var(--accent);">
-          <div class="card-header" style="background: var(--accent-bg);"><h5 class="mb-0" style="font-size:0.95rem;">🚀 Volledige Race Sync</h5></div>
+          <div class="card-header" style="background: var(--accent-bg);"><h5 class="mb-0" style="font-size:0.95rem;">🚀 PCS Import</h5></div>
           <div class="card-body">
             <p class="text-muted" style="font-size:0.8rem;">
-              Importeer alles in één keer: etappes, renners en team shirts vanuit PCS.<br>
-              Voer de hoofd-URL van de race in, bijv: <code>https://www.procyclingstats.com/race/tour-de-france/2026</code>
+              Importeer etappes, renners en shirts vanuit ProCyclingStats in 3 stappen:
             </p>
-            <div class="row g-2 mb-2">
-              <div class="col-md-4">
-                <select id="race-sync-comp" class="form-select form-select-sm"></select>
-              </div>
-              <div class="col-md-6">
-                <input type="text" id="race-sync-url" class="form-control form-control-sm" placeholder="PCS race-URL..." />
-              </div>
-              <div class="col-md-2">
-                <button id="btn-race-sync" class="btn btn-accent btn-sm w-100">🚀 Sync</button>
-              </div>
+
+            <!-- Stap 1: Competitie kiezen -->
+            <div class="mb-3">
+              <label class="form-label" style="font-size:0.8rem;"><strong>Stap 1:</strong> Kies competitie</label>
+              <select id="race-sync-comp" class="form-select form-select-sm"></select>
             </div>
-            <div id="race-sync-log" style="font-size:0.8rem; line-height:1.8;"></div>
+
+            <!-- Stap 2: Script kopiëren -->
+            <div class="mb-3">
+              <label class="form-label" style="font-size:0.8rem;"><strong>Stap 2:</strong> Open de PCS pagina en plak het juiste script in de console (F12)</label>
+              <div class="d-flex gap-2 flex-wrap mb-2">
+                <button id="btn-copy-stages-script" class="btn btn-ghost btn-sm">📅 Kopieer etappes-script</button>
+                <button id="btn-copy-riders-script" class="btn btn-ghost btn-sm">🚴 Kopieer renners-script</button>
+              </div>
+              <p class="text-muted" style="font-size:0.75rem; margin-bottom:0;">
+                Etappes: gebruik op de <code>/stages</code> pagina &mdash; Renners: gebruik op de <code>/startlist</code> pagina<br>
+                Type eerst <code>allow pasting</code> in de console als Chrome dat vraagt.
+              </p>
+            </div>
+
+            <!-- Stap 3: Data plakken -->
+            <div class="mb-2">
+              <label class="form-label" style="font-size:0.8rem;"><strong>Stap 3:</strong> Plak het resultaat hier</label>
+              <textarea id="race-sync-data" class="form-control form-control-sm" rows="6" placeholder="Plak hier de gekopieerde data..."></textarea>
+            </div>
+            <div class="d-flex gap-2 align-items-center">
+              <button id="btn-race-import" class="btn btn-accent btn-sm">🚀 Importeer</button>
+              <span id="race-sync-status" style="font-size:0.8rem;"></span>
+            </div>
+            <div id="race-sync-log" class="mt-2" style="font-size:0.8rem; line-height:1.8;"></div>
           </div>
         </div>
 
@@ -940,33 +956,6 @@
               <span id="import-riders-status" style="font-size:0.8rem;"></span>
             </div>
             <div id="import-riders-preview" class="mt-2" style="font-size:0.8rem;"></div>
-          </div>
-        </div>
-
-        <div class="card mb-3">
-          <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">🔄 PCS Etappes Sync</h5></div>
-          <div class="card-body">
-            <p class="text-muted" style="font-size:0.8rem;">
-              Voer een PCS race-URL in om alle etappes automatisch op te halen.<br>
-              Bijv: <code>https://www.procyclingstats.com/race/tour-de-france/2025</code>
-            </p>
-            <div class="row g-2 mb-2">
-              <div class="col-md-4">
-                <select id="sync-stages-comp" class="form-select form-select-sm"></select>
-              </div>
-              <div class="col-md-6">
-                <input type="text" id="pcs-stages-url" class="form-control form-control-sm" placeholder="PCS race-URL..." />
-              </div>
-              <div class="col-md-2">
-                <button id="btn-sync-stages" class="btn btn-accent btn-sm w-100">🔄 Sync</button>
-              </div>
-            </div>
-            <span id="sync-stages-status" style="font-size:0.8rem;"></span>
-            <div id="sync-stages-preview" class="mt-2" style="font-size:0.8rem; max-height:300px; overflow-y:auto;"></div>
-            <div id="sync-stages-actions" style="display:none;" class="mt-2">
-              <button id="btn-save-synced-stages" class="btn btn-success btn-sm">Opslaan naar database</button>
-              <span id="sync-stages-save-status" class="ms-2" style="font-size:0.8rem;"></span>
-            </div>
           </div>
         </div>
 
