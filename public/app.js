@@ -977,6 +977,88 @@ $('btn-save-results').addEventListener('click', async () => {
 // ADMIN: IMPORT
 // =====================
 
+// --- PCS STAGES SYNC ---
+let syncedStages = null;
+
+$('btn-sync-stages').addEventListener('click', async () => {
+  const url = $('pcs-stages-url').value.trim();
+  const compId = parseInt($('sync-stages-comp').value);
+  const status = $('sync-stages-status');
+  const preview = $('sync-stages-preview');
+
+  if (!url) { status.textContent = 'Voer een PCS URL in'; status.className = 'text-danger'; return; }
+  if (!compId) { status.textContent = 'Selecteer een competitie'; status.className = 'text-danger'; return; }
+
+  status.textContent = '🔄 Ophalen van PCS...';
+  status.className = 'text-muted';
+  preview.innerHTML = '';
+  $('sync-stages-actions').style.display = 'none';
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/sync-pcs-stages`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ pcs_url: url }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Sync mislukt');
+
+    syncedStages = { compId, stages: data.stages };
+    const typeLabels = { flat: 'Vlak', mountain: 'Berg', tt: 'Tijdrit', sprint: 'Sprint' };
+
+    status.textContent = `✅ ${data.count} etappes gevonden`;
+    status.className = 'text-success';
+
+    preview.innerHTML = `<table class="table table-sm mb-0">
+      <thead><tr><th>#</th><th>Naam</th><th>Datum</th><th>Type</th></tr></thead>
+      <tbody>${data.stages.map(s => `<tr>
+        <td>${s.stage_number}</td>
+        <td>${escapeHtml(s.name)}</td>
+        <td>${s.date}</td>
+        <td>${typeLabels[s.stage_type] || s.stage_type}</td>
+      </tr>`).join('')}</tbody></table>`;
+
+    $('sync-stages-actions').style.display = 'block';
+
+  } catch (e) {
+    status.textContent = `❌ ${e.message}`;
+    status.className = 'text-danger';
+  }
+});
+
+$('btn-save-synced-stages').addEventListener('click', async () => {
+  if (!syncedStages) return;
+  const status = $('sync-stages-save-status');
+  const { compId, stages: stgs } = syncedStages;
+
+  status.textContent = `Opslaan van ${stgs.length} etappes...`;
+  status.className = 'text-muted';
+
+  let ok = 0, skip = 0;
+  for (const s of stgs) {
+    const deadlineDate = new Date(s.date);
+    deadlineDate.setDate(deadlineDate.getDate() - 1);
+    deadlineDate.setHours(23, 0, 0, 0);
+    try {
+      await supaRest('stages', {
+        method: 'POST',
+        body: { ...s, deadline: deadlineDate.toISOString(), locked: false, competition_id: compId },
+      });
+      ok++;
+    } catch (e) { skip++; }
+  }
+
+  status.textContent = `✅ ${ok} opgeslagen, ${skip} overgeslagen`;
+  status.className = 'text-success';
+  syncedStages = null;
+  $('sync-stages-actions').style.display = 'none';
+  loadAdminStages();
+});
+
+// =====================
+// ADMIN: IMPORT (handmatig)
+// =====================
+
 function parseRiderLines(text) {
   return text.trim().split('\n').map(line => {
     line = line.trim();
@@ -1110,10 +1192,10 @@ if ($('pcs-script')) $('pcs-script').textContent = PCS_SCRIPT;
 // Populate import stage competition selector
 function loadImportCompSelect() {
   const opts = competitions.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-  const sel1 = $('import-stage-comp');
-  const sel2 = $('import-rider-comp');
-  if (sel1) sel1.innerHTML = opts;
-  if (sel2) sel2.innerHTML = opts;
+  ['import-stage-comp', 'import-rider-comp', 'sync-stages-comp'].forEach(id => {
+    const sel = $(id);
+    if (sel) sel.innerHTML = opts;
+  });
 }
 
 // --- BOOT ---

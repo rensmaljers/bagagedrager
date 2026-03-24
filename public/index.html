@@ -914,7 +914,34 @@
         </div>
 
         <div class="card mb-3">
-          <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">Etappes Importeren</h5></div>
+          <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">🔄 PCS Etappes Sync</h5></div>
+          <div class="card-body">
+            <p class="text-muted" style="font-size:0.8rem;">
+              Voer een PCS race-URL in om alle etappes automatisch op te halen.<br>
+              Bijv: <code>https://www.procyclingstats.com/race/tour-de-france/2025</code>
+            </p>
+            <div class="row g-2 mb-2">
+              <div class="col-md-4">
+                <select id="sync-stages-comp" class="form-select form-select-sm"></select>
+              </div>
+              <div class="col-md-6">
+                <input type="text" id="pcs-stages-url" class="form-control form-control-sm" placeholder="PCS race-URL..." />
+              </div>
+              <div class="col-md-2">
+                <button id="btn-sync-stages" class="btn btn-accent btn-sm w-100">🔄 Sync</button>
+              </div>
+            </div>
+            <span id="sync-stages-status" style="font-size:0.8rem;"></span>
+            <div id="sync-stages-preview" class="mt-2" style="font-size:0.8rem; max-height:300px; overflow-y:auto;"></div>
+            <div id="sync-stages-actions" style="display:none;" class="mt-2">
+              <button id="btn-save-synced-stages" class="btn btn-success btn-sm">Opslaan naar database</button>
+              <span id="sync-stages-save-status" class="ms-2" style="font-size:0.8rem;"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mb-3">
+          <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">Etappes Importeren (handmatig)</h5></div>
           <div class="card-body">
             <p class="text-muted" style="font-size:0.8rem;">
               Formaat per regel: <code>nummer, naam, datum (YYYY-MM-DD), type (flat/mountain/tt/sprint)</code><br>
