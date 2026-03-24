@@ -1,4 +1,4 @@
-# 🚴 Bagagedrager Tour
+# Bagagedrager
 
 Een wielerspel waarin spelers per etappe één renner kiezen en strijden om het beste klassement. Geschikt voor Tour de France, Giro d'Italia, Vuelta a España en voorjaarsklassiekers.
 
@@ -14,9 +14,9 @@ Een wielerspel waarin spelers per etappe één renner kiezen en strijden om het 
 
 | Klassement | Trui | Criteria |
 |---|---|---|
-| Algemeen | 🟡 Geel | Laagste totale tijd |
-| Punten | 🟢 Groen | Meeste punten |
-| Berg | 🔴 Bolletjes | Meeste bergpunten |
+| Algemeen | Geel | Laagste totale tijd |
+| Punten | Groen | Meeste punten |
+| Berg | Bolletjes | Meeste bergpunten |
 
 ## Tech Stack
 
@@ -76,7 +76,7 @@ UPDATE profiles SET is_admin = true WHERE display_name = 'JouwNaam';
 
 ### 5. Deployen
 
-Push naar GitHub en koppel aan Netlify — klaar.
+Push naar GitHub en koppel aan Netlify.
 
 ## Admin Panel
 

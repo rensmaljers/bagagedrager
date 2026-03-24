@@ -1,60 +1,261 @@
 <!DOCTYPE html>
-<html lang="nl">
+<html lang="nl" data-bs-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bagagedrager Tour</title>
+  <title>Bagagedrager</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    :root { --yellow: #FFD700; --green: #00A651; --polka: #FF4444; }
-    body { background: #f8f9fa; }
-    .navbar { background: var(--yellow) !important; }
-    .navbar-brand { font-weight: 800; color: #333 !important; }
-    .jersey-gc { background: var(--yellow); color: #333; }
-    .jersey-points { background: var(--green); color: #fff; }
-    .jersey-mountain { background: #fff; color: var(--polka); border: 2px solid var(--polka); }
-    .stage-locked { opacity: 0.6; }
-    .pick-card { transition: transform 0.1s; cursor: pointer; }
-    .pick-card:hover { transform: scale(1.02); }
-    .pick-card.selected { border: 3px solid #0d6efd; }
-    .pick-card.used { opacity: 0.4; pointer-events: none; }
+    :root {
+      --bg: #0f1117;
+      --bg-card: #181a20;
+      --bg-card-hover: #1e2028;
+      --border: #2a2d37;
+      --text: #e4e4e7;
+      --text-muted: #71717a;
+      --accent: #facc15;
+      --accent-hover: #eab308;
+      --green: #22c55e;
+      --green-dim: rgba(34,197,94,0.12);
+      --red: #ef4444;
+      --red-dim: rgba(239,68,68,0.12);
+      --pink: #ec4899;
+      --blue: #3b82f6;
+      --blue-dim: rgba(59,130,246,0.1);
+    }
+
+    * { font-family: 'Inter', system-ui, sans-serif; }
+    body { background: var(--bg); color: var(--text); }
+
+    /* --- NAVBAR --- */
+    .navbar {
+      background: var(--bg-card) !important;
+      border-bottom: 1px solid var(--border);
+      padding: .75rem 0;
+    }
+    .navbar-brand {
+      font-weight: 800;
+      font-size: 1.15rem;
+      color: var(--accent) !important;
+      letter-spacing: -0.5px;
+    }
+
+    /* --- CARDS --- */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .card-header {
+      background: transparent;
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 1.25rem;
+    }
+
+    /* --- JERSEY HEADERS --- */
+    .jersey-gc {
+      background: linear-gradient(135deg, rgba(250,204,21,0.15), rgba(250,204,21,0.05));
+      border-bottom: 2px solid var(--accent) !important;
+    }
+    .jersey-gc h5 { color: var(--accent); }
+    .jersey-points {
+      background: linear-gradient(135deg, rgba(34,197,94,0.15), rgba(34,197,94,0.05));
+      border-bottom: 2px solid var(--green) !important;
+    }
+    .jersey-points h5 { color: var(--green); }
+    .jersey-mountain {
+      background: linear-gradient(135deg, rgba(239,68,68,0.15), rgba(239,68,68,0.05));
+      border-bottom: 2px solid var(--red) !important;
+    }
+    .jersey-mountain h5 { color: var(--red); }
+
+    /* --- TABLES --- */
+    .table { color: var(--text); --bs-table-bg: transparent; --bs-table-striped-bg: rgba(255,255,255,0.02); }
+    .table thead th {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      border-bottom-color: var(--border);
+      font-weight: 600;
+    }
+    .table td { border-bottom-color: var(--border); vertical-align: middle; }
+    .table-striped > tbody > tr:nth-of-type(odd) > * { --bs-table-bg-type: rgba(255,255,255,0.02); }
+    .time { font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; font-size: 0.85rem; }
+
+    /* --- NAV PILLS --- */
+    .nav-pills .nav-link {
+      color: var(--text-muted);
+      border-radius: 8px;
+      padding: 0.5rem 1rem;
+      font-weight: 600;
+      font-size: 0.875rem;
+      transition: all 0.15s;
+    }
+    .nav-pills .nav-link:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+    .nav-pills .nav-link.active {
+      background: var(--accent);
+      color: #0f1117;
+    }
+
+    /* --- NAV TABS (admin) --- */
+    .nav-tabs { border-bottom-color: var(--border); }
+    .nav-tabs .nav-link {
+      color: var(--text-muted);
+      border: none;
+      font-weight: 500;
+      font-size: 0.85rem;
+      padding: 0.6rem 1rem;
+    }
+    .nav-tabs .nav-link:hover { color: var(--text); border-color: transparent; }
+    .nav-tabs .nav-link.active {
+      color: var(--accent);
+      background: transparent;
+      border-bottom: 2px solid var(--accent);
+    }
+
+    /* --- FORMS --- */
+    .form-control, .form-select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 0.55rem 0.85rem;
+      font-size: 0.875rem;
+    }
+    .form-control:focus, .form-select:focus {
+      background: var(--bg);
+      border-color: var(--accent);
+      color: var(--text);
+      box-shadow: 0 0 0 2px rgba(250,204,21,0.15);
+    }
+    .form-control::placeholder { color: var(--text-muted); }
+    .form-control-sm { padding: 0.35rem 0.65rem; font-size: 0.8rem; }
+    .form-check-input { background-color: var(--bg); border-color: var(--border); }
+    .form-check-input:checked { background-color: var(--accent); border-color: var(--accent); }
+
+    /* --- BUTTONS --- */
+    .btn { border-radius: 8px; font-weight: 600; font-size: 0.875rem; padding: 0.5rem 1.15rem; transition: all 0.15s; }
+    .btn-accent {
+      background: var(--accent);
+      color: #0f1117;
+      border: none;
+    }
+    .btn-accent:hover { background: var(--accent-hover); color: #0f1117; transform: translateY(-1px); }
+    .btn-accent:disabled { opacity: 0.4; transform: none; }
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,0.05); color: var(--text); border-color: var(--text-muted); }
+    .btn-outline-danger { border-color: var(--red); color: var(--red); }
+    .btn-outline-danger:hover { background: var(--red-dim); color: var(--red); border-color: var(--red); }
+    .btn-success { background: var(--green); border-color: var(--green); color: #0f1117; }
+    .btn-success:hover { background: #16a34a; border-color: #16a34a; color: #0f1117; }
+    .btn-primary { background: var(--blue); border-color: var(--blue); }
+    .btn-primary:hover { background: #2563eb; border-color: #2563eb; }
+
+    /* --- PICK CARDS --- */
+    .pick-card {
+      transition: all 0.15s;
+      cursor: pointer;
+      border-color: var(--border);
+    }
+    .pick-card:hover {
+      border-color: var(--text-muted);
+      background: var(--bg-card-hover);
+      transform: translateY(-2px);
+    }
+    .pick-card.selected {
+      border: 2px solid var(--accent) !important;
+      background: rgba(250,204,21,0.06);
+    }
+    .pick-card.used {
+      opacity: 0.3;
+      pointer-events: none;
+    }
+
+    /* --- BADGES --- */
+    .badge { font-weight: 600; font-size: 0.7rem; letter-spacing: 0.3px; border-radius: 6px; }
+    .badge.bg-secondary { background: rgba(255,255,255,0.08) !important; color: var(--text-muted); }
+    .badge.bg-danger { background: var(--red-dim) !important; color: var(--red); }
+    .badge.bg-success { background: var(--green-dim) !important; color: var(--green); }
+    .badge.bg-warning { background: rgba(250,204,21,0.12) !important; color: var(--accent); }
+
+    .comp-badge { font-size: 0.7rem; padding: 3px 8px; border-radius: 6px; font-weight: 600; }
+    .comp-tour { background: rgba(250,204,21,0.15); color: var(--accent); }
+    .comp-giro { background: rgba(236,72,153,0.15); color: var(--pink); }
+    .comp-vuelta { background: var(--red-dim); color: var(--red); }
+    .comp-classic { background: rgba(255,255,255,0.08); color: var(--text-muted); }
+
+    /* --- SECTIONS --- */
     .tab-section { display: none; }
     .tab-section.active { display: block; }
     .admin-sub { display: none; }
     .admin-sub.active { display: block; }
-    .time { font-family: monospace; }
     #app { display: none; }
-    .comp-badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 3px; }
-    .comp-tour { background: var(--yellow); color: #333; }
-    .comp-giro { background: #FF69B4; color: #fff; }
-    .comp-vuelta { background: #CC0000; color: #fff; }
-    .comp-classic { background: #666; color: #fff; }
+
+    /* --- ALERT --- */
+    .alert-warning {
+      background: rgba(250,204,21,0.08);
+      border: 1px solid rgba(250,204,21,0.2);
+      color: var(--accent);
+      border-radius: 10px;
+    }
+
+    /* --- AUTH CARD --- */
+    .auth-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+    }
+    .auth-card h1 { color: var(--accent); font-size: 2rem; letter-spacing: -1px; }
+
+    /* --- RANK NUMBER --- */
+    .rank-1 { color: var(--accent); font-weight: 700; }
+    .rank-2 { color: #a8a29e; font-weight: 600; }
+    .rank-3 { color: #b45309; font-weight: 600; }
+
+    /* --- SCROLLBAR --- */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* --- FORM SWITCH --- */
+    .form-switch .form-check-input { border-color: var(--border); }
+    .form-switch .form-check-input:checked { background-color: var(--green); border-color: var(--green); }
+
+    .text-success { color: var(--green) !important; }
+    .text-danger { color: var(--red) !important; }
+    .text-warning { color: var(--accent) !important; }
+    .text-muted { color: var(--text-muted) !important; }
   </style>
 </head>
 <body>
 
 <!-- Auth Screen -->
 <div id="auth-screen" class="container py-5">
-  <div class="row justify-content-center">
-    <div class="col-md-5">
-      <div class="card shadow">
-        <div class="card-body text-center">
-          <h1 class="mb-1" style="font-size:2.5rem;">🚴 Bagagedrager Tour</h1>
-          <p class="text-muted mb-4">Wielerspel</p>
-          <div id="auth-form">
-            <div class="mb-3">
-              <input type="text" id="auth-name" class="form-control" placeholder="Weergavenaam" />
-            </div>
-            <div class="mb-3">
-              <input type="email" id="auth-email" class="form-control" placeholder="Email" />
-            </div>
-            <div class="mb-3">
-              <input type="password" id="auth-password" class="form-control" placeholder="Wachtwoord" />
-            </div>
-            <button id="btn-login" class="btn btn-warning w-100 mb-2 fw-bold">Inloggen</button>
-            <button id="btn-signup" class="btn btn-outline-dark w-100">Aanmelden</button>
-            <div id="auth-error" class="text-danger mt-2" style="display:none;"></div>
+  <div class="row justify-content-center" style="min-height:80vh; align-items:center;">
+    <div class="col-md-4">
+      <div class="auth-card p-4 text-center">
+        <h1 class="mb-1">Bagagedrager</h1>
+        <p class="text-muted mb-4" style="font-size:0.9rem;">Het wielerspel</p>
+        <div id="auth-form">
+          <div class="mb-3">
+            <input type="text" id="auth-name" class="form-control" placeholder="Weergavenaam" />
           </div>
+          <div class="mb-3">
+            <input type="email" id="auth-email" class="form-control" placeholder="Email" />
+          </div>
+          <div class="mb-3">
+            <input type="password" id="auth-password" class="form-control" placeholder="Wachtwoord" />
+          </div>
+          <button id="btn-login" class="btn btn-accent w-100 mb-2">Inloggen</button>
+          <button id="btn-signup" class="btn btn-ghost w-100">Aanmelden</button>
+          <div id="auth-error" class="text-danger mt-3" style="display:none; font-size:0.85rem;"></div>
         </div>
       </div>
     </div>
@@ -63,20 +264,18 @@
 
 <!-- Main App -->
 <div id="app">
-  <nav class="navbar navbar-expand-lg mb-4">
+  <nav class="navbar mb-4">
     <div class="container">
-      <span class="navbar-brand">🚴 Bagagedrager Tour</span>
-      <div class="d-flex align-items-center gap-2">
-        <!-- Competition selector -->
+      <span class="navbar-brand">Bagagedrager</span>
+      <div class="d-flex align-items-center gap-3">
         <select id="comp-select" class="form-select form-select-sm" style="width:auto;"></select>
-        <span id="user-name" class="fw-bold"></span>
-        <button id="btn-logout" class="btn btn-sm btn-outline-dark">Logout</button>
+        <span class="text-muted" style="font-size:0.85rem;" id="user-name"></span>
+        <button id="btn-logout" class="btn btn-ghost btn-sm">Logout</button>
       </div>
     </div>
   </nav>
 
   <div class="container">
-    <!-- Navigation Tabs -->
     <ul class="nav nav-pills mb-4" id="main-tabs">
       <li class="nav-item">
         <a class="nav-link active" href="#" data-tab="dashboard">Klassement</a>
@@ -97,10 +296,10 @@
       <div class="row g-4">
         <div class="col-lg-4">
           <div class="card">
-            <div class="card-header jersey-gc"><h5 class="mb-0">Algemeen Klassement</h5></div>
+            <div class="card-header jersey-gc"><h5 class="mb-0" style="font-size:0.95rem;">Algemeen Klassement</h5></div>
             <div class="card-body p-0">
               <table class="table table-sm table-striped mb-0">
-                <thead><tr><th>#</th><th>Speler</th><th>Tijd</th></tr></thead>
+                <thead><tr><th>#</th><th>Speler</th><th class="text-end">Tijd</th></tr></thead>
                 <tbody id="gc-table"></tbody>
               </table>
             </div>
@@ -108,10 +307,10 @@
         </div>
         <div class="col-lg-4">
           <div class="card">
-            <div class="card-header jersey-points"><h5 class="mb-0">Puntenklassement</h5></div>
+            <div class="card-header jersey-points"><h5 class="mb-0" style="font-size:0.95rem;">Puntenklassement</h5></div>
             <div class="card-body p-0">
               <table class="table table-sm table-striped mb-0">
-                <thead><tr><th>#</th><th>Speler</th><th>Pts</th></tr></thead>
+                <thead><tr><th>#</th><th>Speler</th><th class="text-end">Pts</th></tr></thead>
                 <tbody id="points-table"></tbody>
               </table>
             </div>
@@ -119,10 +318,10 @@
         </div>
         <div class="col-lg-4">
           <div class="card">
-            <div class="card-header jersey-mountain"><h5 class="mb-0">Bergklassement</h5></div>
+            <div class="card-header jersey-mountain"><h5 class="mb-0" style="font-size:0.95rem;">Bergklassement</h5></div>
             <div class="card-body p-0">
               <table class="table table-sm table-striped mb-0">
-                <thead><tr><th>#</th><th>Speler</th><th>Pts</th></tr></thead>
+                <thead><tr><th>#</th><th>Speler</th><th class="text-end">Pts</th></tr></thead>
                 <tbody id="mountain-table"></tbody>
               </table>
             </div>
@@ -137,14 +336,14 @@
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-center">
             <div>
-              <h4 id="pick-stage-name">Kies een etappe</h4>
-              <span id="pick-deadline" class="text-muted"></span>
+              <h4 id="pick-stage-name" style="font-size:1.1rem; font-weight:700;">Kies een etappe</h4>
+              <span id="pick-deadline" class="text-muted" style="font-size:0.8rem;"></span>
             </div>
-            <select id="stage-select" class="form-select" style="width:auto;"></select>
+            <select id="stage-select" class="form-select form-select-sm" style="width:auto;"></select>
           </div>
         </div>
       </div>
-      <div id="pick-locked-msg" class="alert alert-warning" style="display:none;">
+      <div id="pick-locked-msg" class="alert alert-warning" style="display:none; font-size:0.85rem;">
         Deze etappe is vergrendeld. Keuzes worden niet meer geaccepteerd (te laat straf geldt).
       </div>
       <div class="mb-3">
@@ -152,8 +351,8 @@
       </div>
       <div id="rider-grid" class="row g-2"></div>
       <div class="mt-3">
-        <button id="btn-submit-pick" class="btn btn-warning btn-lg fw-bold" disabled>Keuze Bevestigen</button>
-        <span id="pick-status" class="ms-3"></span>
+        <button id="btn-submit-pick" class="btn btn-accent btn-lg" disabled>Keuze Bevestigen</button>
+        <span id="pick-status" class="ms-3" style="font-size:0.85rem;"></span>
       </div>
     </div>
 
@@ -163,7 +362,7 @@
         <div class="card-body p-0">
           <table class="table table-striped mb-0">
             <thead>
-              <tr><th>Etappe</th><th>Renner</th><th>Tijd</th><th>Pts</th><th>Berg</th><th>Te laat</th></tr>
+              <tr><th>Etappe</th><th>Renner</th><th class="text-end">Tijd</th><th class="text-end">Pts</th><th class="text-end">Berg</th><th>Status</th></tr>
             </thead>
             <tbody id="history-table"></tbody>
           </table>
@@ -173,35 +372,24 @@
 
     <!-- Admin -->
     <div class="tab-section" id="section-admin">
-      <!-- Admin Sub-tabs -->
       <ul class="nav nav-tabs mb-3" id="admin-tabs">
-        <li class="nav-item">
-          <a class="nav-link active" href="#" data-admin="admin-users">Gebruikers</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="#" data-admin="admin-competitions">Competities</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="#" data-admin="admin-riders">Renners</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="#" data-admin="admin-stages">Etappes</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="#" data-admin="admin-results">Resultaten</a>
-        </li>
+        <li class="nav-item"><a class="nav-link active" href="#" data-admin="admin-users">Gebruikers</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" data-admin="admin-competitions">Competities</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" data-admin="admin-riders">Renners</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" data-admin="admin-stages">Etappes</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" data-admin="admin-results">Resultaten</a></li>
       </ul>
 
       <!-- Admin: Gebruikers -->
       <div class="admin-sub active" id="admin-users">
         <div class="card">
           <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Gebruikers</h5>
+            <h5 class="mb-0" style="font-size:0.95rem;">Gebruikers</h5>
             <span id="user-count" class="badge bg-secondary"></span>
           </div>
           <div class="card-body p-0">
             <table class="table table-sm table-striped mb-0">
-              <thead><tr><th>Naam</th><th>Admin</th><th>Aangemeld</th><th>Acties</th></tr></thead>
+              <thead><tr><th>Naam</th><th>Rol</th><th>Aangemeld</th><th>Acties</th></tr></thead>
               <tbody id="admin-users-table"></tbody>
             </table>
           </div>
@@ -211,17 +399,17 @@
       <!-- Admin: Competities -->
       <div class="admin-sub" id="admin-competitions">
         <div class="card mb-3">
-          <div class="card-header"><h5 class="mb-0">Competitie Toevoegen</h5></div>
+          <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">Competitie Toevoegen</h5></div>
           <div class="card-body">
             <div class="row g-2">
               <div class="col-md-4">
-                <input type="text" id="new-comp-name" class="form-control" placeholder="Naam (bijv. Tour de France 2025)" />
+                <input type="text" id="new-comp-name" class="form-control form-control-sm" placeholder="Naam (bijv. Tour de France 2025)" />
               </div>
               <div class="col-md-2">
-                <input type="text" id="new-comp-slug" class="form-control" placeholder="slug (bijv. tour-2025)" />
+                <input type="text" id="new-comp-slug" class="form-control form-control-sm" placeholder="slug (bijv. tour-2025)" />
               </div>
               <div class="col-md-2">
-                <select id="new-comp-type" class="form-select">
+                <select id="new-comp-type" class="form-select form-select-sm">
                   <option value="tour">Tour de France</option>
                   <option value="giro">Giro d'Italia</option>
                   <option value="vuelta">Vuelta a Espana</option>
@@ -229,10 +417,10 @@
                 </select>
               </div>
               <div class="col-md-2">
-                <input type="number" id="new-comp-year" class="form-control" placeholder="Jaar" value="2025" />
+                <input type="number" id="new-comp-year" class="form-control form-control-sm" placeholder="Jaar" value="2025" />
               </div>
               <div class="col-md-2">
-                <button id="btn-add-comp" class="btn btn-primary w-100">Toevoegen</button>
+                <button id="btn-add-comp" class="btn btn-primary btn-sm w-100">Toevoegen</button>
               </div>
             </div>
           </div>
@@ -250,27 +438,27 @@
       <!-- Admin: Renners -->
       <div class="admin-sub" id="admin-riders">
         <div class="card mb-3">
-          <div class="card-header"><h5 class="mb-0">Renner Toevoegen</h5></div>
+          <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">Renner Toevoegen</h5></div>
           <div class="card-body">
             <div class="row g-2">
               <div class="col-md-2">
-                <input type="number" id="new-rider-bib" class="form-control" placeholder="Rugnr" />
+                <input type="number" id="new-rider-bib" class="form-control form-control-sm" placeholder="Rugnr" />
               </div>
               <div class="col-md-4">
-                <input type="text" id="new-rider-name" class="form-control" placeholder="Naam" />
+                <input type="text" id="new-rider-name" class="form-control form-control-sm" placeholder="Naam" />
               </div>
               <div class="col-md-4">
-                <input type="text" id="new-rider-team" class="form-control" placeholder="Team" />
+                <input type="text" id="new-rider-team" class="form-control form-control-sm" placeholder="Team" />
               </div>
               <div class="col-md-2">
-                <button id="btn-add-rider" class="btn btn-primary w-100">Toevoegen</button>
+                <button id="btn-add-rider" class="btn btn-primary btn-sm w-100">Toevoegen</button>
               </div>
             </div>
           </div>
         </div>
         <div class="card">
           <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Renners</h5>
+            <h5 class="mb-0" style="font-size:0.95rem;">Renners</h5>
             <input type="text" id="admin-rider-search" class="form-control form-control-sm" style="width:200px;" placeholder="Zoek..." />
           </div>
           <div class="card-body p-0" style="max-height:500px; overflow-y:auto;">
@@ -285,20 +473,20 @@
       <!-- Admin: Etappes -->
       <div class="admin-sub" id="admin-stages">
         <div class="card mb-3">
-          <div class="card-header"><h5 class="mb-0">Etappe Toevoegen</h5></div>
+          <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">Etappe Toevoegen</h5></div>
           <div class="card-body">
             <div class="row g-2">
               <div class="col-md-1">
-                <input type="number" id="new-stage-num" class="form-control" placeholder="#" />
+                <input type="number" id="new-stage-num" class="form-control form-control-sm" placeholder="#" />
               </div>
               <div class="col-md-3">
-                <input type="text" id="new-stage-name" class="form-control" placeholder="Naam (bijv. Lille → Dunkerque)" />
+                <input type="text" id="new-stage-name" class="form-control form-control-sm" placeholder="Naam (bijv. Lille → Dunkerque)" />
               </div>
               <div class="col-md-2">
-                <input type="date" id="new-stage-date" class="form-control" />
+                <input type="date" id="new-stage-date" class="form-control form-control-sm" />
               </div>
               <div class="col-md-2">
-                <select id="new-stage-type" class="form-select">
+                <select id="new-stage-type" class="form-select form-select-sm">
                   <option value="flat">Vlak</option>
                   <option value="mountain">Berg</option>
                   <option value="tt">Tijdrit</option>
@@ -306,10 +494,10 @@
                 </select>
               </div>
               <div class="col-md-2">
-                <select id="new-stage-comp" class="form-select"></select>
+                <select id="new-stage-comp" class="form-select form-select-sm"></select>
               </div>
               <div class="col-md-2">
-                <button id="btn-add-stage" class="btn btn-primary w-100">Toevoegen</button>
+                <button id="btn-add-stage" class="btn btn-primary btn-sm w-100">Toevoegen</button>
               </div>
             </div>
           </div>
@@ -327,15 +515,15 @@
       <!-- Admin: Resultaten -->
       <div class="admin-sub" id="admin-results">
         <div class="card">
-          <div class="card-header"><h5 class="mb-0">Etappe Resultaten Invoeren</h5></div>
+          <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">Etappe Resultaten Invoeren</h5></div>
           <div class="card-body">
             <div class="mb-3">
-              <label class="form-label">Etappe</label>
-              <select id="admin-stage-select" class="form-select"></select>
+              <label class="form-label" style="font-size:0.8rem; color:var(--text-muted);">Etappe</label>
+              <select id="admin-stage-select" class="form-select form-select-sm"></select>
             </div>
             <div id="admin-results-form"></div>
             <button id="btn-save-results" class="btn btn-success mt-3">Resultaten Opslaan</button>
-            <span id="admin-status" class="ms-3"></span>
+            <span id="admin-status" class="ms-3" style="font-size:0.85rem;"></span>
           </div>
         </div>
       </div>
