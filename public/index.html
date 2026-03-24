@@ -85,6 +85,10 @@
       background: var(--bg-card) !important;
       border-bottom: 1px solid var(--border);
       padding: .75rem 0;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(12px);
     }
     .navbar-brand {
       font-weight: 800;
@@ -99,6 +103,10 @@
       border: 1px solid var(--border);
       border-radius: 12px;
       overflow: hidden;
+      transition: border-color 0.15s;
+    }
+    .card:not(.pick-card):hover {
+      border-color: var(--text-muted);
     }
     .card-header {
       background: transparent;
@@ -215,19 +223,45 @@
       transition: all 0.15s;
       cursor: pointer;
       border-color: var(--border);
+      position: relative;
     }
-    .pick-card:hover {
-      border-color: var(--text-muted);
+    .pick-card:not(.used):not(.selected):hover {
+      border-color: var(--accent);
       background: var(--bg-card-hover);
       transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
     .pick-card.selected {
       border: 2px solid var(--accent) !important;
       background: var(--accent-bg);
     }
+    .pick-card.selected::after {
+      content: '✓';
+      position: absolute;
+      top: 6px; right: 8px;
+      background: var(--accent);
+      color: var(--accent-text);
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.65rem; font-weight: 700;
+    }
     .pick-card.used {
       opacity: 0.3;
       pointer-events: none;
+    }
+    .pick-card .bib-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 26px;
+      height: 20px;
+      border-radius: 4px;
+      background: var(--badge-muted-bg);
+      color: var(--text-muted);
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 0 4px;
     }
 
     /* --- BADGES --- */
@@ -263,8 +297,19 @@
       background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    .auth-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--accent), var(--green), var(--red));
     }
     .auth-card h1 { color: var(--accent); font-size: 2rem; letter-spacing: -1px; }
+    .auth-logo { font-size: 2.5rem; margin-bottom: 0.5rem; }
+    .auth-subtitle { font-size: 0.85rem; line-height: 1.5; }
 
     /* --- RANK NUMBER --- */
     .rank-1 { color: var(--accent); font-weight: 700; }
@@ -294,6 +339,22 @@
       letter-spacing: 0.5px;
       color: var(--text-muted);
     }
+
+    /* --- ANIMATIONS --- */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .tab-section.active { animation: fadeIn 0.2s ease-out; }
+
+    /* --- EMPTY STATE --- */
+    .empty-state {
+      text-align: center;
+      padding: 2.5rem 1rem;
+      color: var(--text-muted);
+    }
+    .empty-state-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+    .empty-state-text { font-size: 0.85rem; }
 
     /* --- SCROLLBAR --- */
     ::-webkit-scrollbar { width: 6px; }
@@ -431,8 +492,9 @@
   <div class="row justify-content-center" style="min-height:80vh; align-items:center;">
     <div class="col-sm-8 col-md-5 col-lg-4">
       <div class="auth-card p-4 text-center">
+        <div class="auth-logo">🚴‍♂️</div>
         <h1 class="mb-1">Bagagedrager</h1>
-        <p class="text-muted mb-4" style="font-size:0.9rem;">Het wielerspel</p>
+        <p class="text-muted auth-subtitle mb-4">Kies je renner, verdien de trui.<br>Het wielerspel voor echte ploegleiders.</p>
         <div id="auth-form">
           <div class="mb-3">
             <input type="email" id="auth-email" class="form-control" placeholder="Email" />
@@ -453,7 +515,7 @@
 <div id="app">
   <nav class="navbar mb-4">
     <div class="container">
-      <span class="navbar-brand">Bagagedrager</span>
+      <span class="navbar-brand">🚴 Bagagedrager</span>
       <div class="d-flex align-items-center gap-3">
         <select id="comp-select" class="form-select form-select-sm" style="width:auto;"></select>
         <span class="text-muted" style="font-size:0.85rem;" id="user-name"></span>
@@ -490,7 +552,7 @@
       <div class="row g-4">
         <div class="col-lg-4">
           <div class="card">
-            <div class="card-header jersey-gc"><h5 class="mb-0" style="font-size:0.95rem;">Algemeen Klassement</h5></div>
+            <div class="card-header jersey-gc"><h5 class="mb-0" style="font-size:0.95rem;">🟡 Algemeen Klassement</h5></div>
             <div class="card-body p-0 table-responsive-wrapper">
               <table class="table table-sm table-striped mb-0">
                 <thead><tr><th>#</th><th>Speler</th><th class="text-end">Tijd</th></tr></thead>
@@ -501,7 +563,7 @@
         </div>
         <div class="col-lg-4">
           <div class="card">
-            <div class="card-header jersey-points"><h5 class="mb-0" style="font-size:0.95rem;">Puntenklassement</h5></div>
+            <div class="card-header jersey-points"><h5 class="mb-0" style="font-size:0.95rem;">🟢 Puntenklassement</h5></div>
             <div class="card-body p-0 table-responsive-wrapper">
               <table class="table table-sm table-striped mb-0">
                 <thead><tr><th>#</th><th>Speler</th><th class="text-end">Pts</th></tr></thead>
@@ -512,7 +574,7 @@
         </div>
         <div class="col-lg-4">
           <div class="card">
-            <div class="card-header jersey-mountain"><h5 class="mb-0" style="font-size:0.95rem;">Bergklassement</h5></div>
+            <div class="card-header jersey-mountain"><h5 class="mb-0" style="font-size:0.95rem;">🔴 Bergklassement</h5></div>
             <div class="card-body p-0 table-responsive-wrapper">
               <table class="table table-sm table-striped mb-0">
                 <thead><tr><th>#</th><th>Speler</th><th class="text-end">Pts</th></tr></thead>
@@ -538,7 +600,7 @@
         </div>
       </div>
       <div id="pick-locked-msg" class="alert alert-warning" style="display:none; font-size:0.85rem;">
-        Deze etappe is vergrendeld. Keuzes worden niet meer geaccepteerd (te laat straf geldt).
+        🔒 Deze etappe is vergrendeld. Je kunt nog wel kiezen, maar krijgt de slechtste tijd + 0 punten (te laat straf).
       </div>
       <div class="mb-3">
         <input type="text" id="rider-search" class="form-control" placeholder="Zoek renner..." />
@@ -584,20 +646,52 @@
 
     <!-- Account -->
     <div class="tab-section" id="section-account">
-      <div class="card" style="max-width: 480px;">
-        <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">Account Instellingen</h5></div>
-        <div class="card-body">
-          <div class="mb-3">
-            <label class="form-label" style="font-size:0.8rem; color:var(--text-muted);">Weergavenaam</label>
-            <input type="text" id="account-name" class="form-control form-control-sm" placeholder="Jouw naam" />
+      <div class="row g-4">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">⚙️ Account Instellingen</h5></div>
+            <div class="card-body">
+              <div class="mb-3">
+                <label class="form-label" style="font-size:0.8rem; color:var(--text-muted);">Weergavenaam</label>
+                <input type="text" id="account-name" class="form-control form-control-sm" placeholder="Jouw naam" />
+              </div>
+              <div class="mb-3">
+                <label class="form-label" style="font-size:0.8rem; color:var(--text-muted);">Email</label>
+                <input type="email" id="account-email" class="form-control form-control-sm" disabled />
+              </div>
+              <div class="d-flex gap-2 align-items-center">
+                <button id="btn-save-account" class="btn btn-accent btn-sm">Opslaan</button>
+                <span id="account-status" style="font-size:0.8rem;"></span>
+              </div>
+            </div>
           </div>
-          <div class="mb-3">
-            <label class="form-label" style="font-size:0.8rem; color:var(--text-muted);">Email</label>
-            <input type="email" id="account-email" class="form-control form-control-sm" disabled />
+        </div>
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">📖 Spelregels</h5></div>
+            <div class="card-body" style="font-size:0.83rem; line-height:1.7;">
+              <ul class="mb-0 ps-3">
+                <li><strong>Kies 1 renner per etappe</strong> — voor de deadline van die etappe.</li>
+                <li><strong>Elke renner mag maar 1x</strong> gebruikt worden per competitie.</li>
+                <li><strong>Te laat?</strong> Je keuze telt, maar je krijgt de slechtste tijd + 0 punten.</li>
+                <li><strong>DNF?</strong> Dezelfde straf als te laat: slechtste tijd van de etappe.</li>
+                <li><strong>🟡 Gele trui:</strong> laagste totaaltijd wint.</li>
+                <li><strong>🟢 Groene trui:</strong> meeste sprintpunten.</li>
+                <li><strong>🔴 Bolletjestrui:</strong> meeste bergpunten.</li>
+              </ul>
+            </div>
           </div>
-          <div class="d-flex gap-2 align-items-center">
-            <button id="btn-save-account" class="btn btn-accent btn-sm">Opslaan</button>
-            <span id="account-status" style="font-size:0.8rem;"></span>
+          <div class="card mt-3">
+            <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">🏅 Rollen</h5></div>
+            <div class="card-body" style="font-size:0.83rem; line-height:1.7;">
+              <ul class="mb-0 ps-3">
+                <li>🚗 <strong>Ploegleider</strong> — Admin</li>
+                <li>👑 <strong>Kopman</strong> — 15+ etappes gespeeld</li>
+                <li>⭐ <strong>Luitenant</strong> — 5+ etappes gespeeld</li>
+                <li>💪 <strong>Knecht</strong> — 1+ etappe gespeeld</li>
+                <li>🚲 <strong>Stagiair</strong> — Nieuw lid</li>
+              </ul>
+            </div>
           </div>
         </div>
       </div>

@@ -295,7 +295,7 @@ async function loadRidersForComp() {
 // --- DASHBOARD ---
 async function loadStandings() {
   if (!activeCompId) {
-    const empty = '<tr><td colspan="3" class="text-muted">Geen competitie geselecteerd</td></tr>';
+    const empty = '<tr><td colspan="3"><div class="empty-state"><div class="empty-state-icon">🏁</div><div class="empty-state-text">Selecteer een competitie om het klassement te zien</div></div></td></tr>';
     $('gc-table').innerHTML = empty;
     $('points-table').innerHTML = empty;
     $('mountain-table').innerHTML = empty;
@@ -306,21 +306,22 @@ async function loadStandings() {
     filters: `competition_id=eq.${activeCompId}`
   });
 
-  const emptyRow = '<tr><td colspan="3" class="text-muted">Nog geen resultaten</td></tr>';
+  const emptyRow = '<tr><td colspan="3" class="text-muted text-center py-3">Nog geen resultaten — wordt zichtbaar na de eerste etappe</td></tr>';
+  const medal = ['🥇', '🥈', '🥉'];
 
   const gc = [...standings].sort((a, b) => a.total_time - b.total_time);
   $('gc-table').innerHTML = gc.map((s, i) =>
-    `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${i + 1}</td><td>${escapeHtml(s.display_name)}</td><td class="time text-end">${formatTime(s.total_time)}</td></tr>`
+    `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td>${escapeHtml(s.display_name)}</td><td class="time text-end">${formatTime(s.total_time)}</td></tr>`
   ).join('') || emptyRow;
 
   const pts = [...standings].sort((a, b) => b.total_points - a.total_points);
   $('points-table').innerHTML = pts.map((s, i) =>
-    `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${i + 1}</td><td>${escapeHtml(s.display_name)}</td><td class="text-end">${s.total_points}</td></tr>`
+    `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td>${escapeHtml(s.display_name)}</td><td class="text-end">${s.total_points}</td></tr>`
   ).join('') || emptyRow;
 
   const mt = [...standings].sort((a, b) => b.total_mountain_points - a.total_mountain_points);
   $('mountain-table').innerHTML = mt.map((s, i) =>
-    `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${i + 1}</td><td>${escapeHtml(s.display_name)}</td><td class="text-end">${s.total_mountain_points}</td></tr>`
+    `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td>${escapeHtml(s.display_name)}</td><td class="text-end">${s.total_mountain_points}</td></tr>`
   ).join('') || emptyRow;
 }
 
@@ -371,7 +372,7 @@ function renderRiderGrid(usedInOtherStages, fullyLocked) {
     r.name.toLowerCase().includes(search) || r.team.toLowerCase().includes(search)
   );
 
-  $('rider-grid').innerHTML = filtered.map(r => {
+  $('rider-grid').innerHTML = filtered.length ? filtered.map(r => {
     const used = usedInOtherStages.has(r.id);
     const selected = r.id === selectedRiderId;
     return `
@@ -379,16 +380,18 @@ function renderRiderGrid(usedInOtherStages, fullyLocked) {
         <div class="card pick-card ${selected ? 'selected' : ''} ${used ? 'used' : ''}"
              data-rider-id="${r.id}" ${fullyLocked || used ? '' : `onclick="selectRider(${r.id})"`}>
           <div class="card-body py-2 px-3">
-            <div class="fw-bold">${r.name}</div>
+            <div class="d-flex justify-content-between align-items-start">
+              <div class="fw-bold" style="font-size:0.88rem;">${escapeHtml(r.name)}</div>
+              <span class="bib-badge">${r.bib_number}</span>
+            </div>
             <div class="d-flex align-items-center gap-1 mt-1">
               ${teamBadge(r.team)}
-              <small class="text-muted">#${r.bib_number}</small>
             </div>
-            ${used ? '<small class="text-danger">Al gebruikt</small>' : ''}
+            ${used ? '<small class="text-danger mt-1 d-block">Al gebruikt</small>' : ''}
           </div>
         </div>
       </div>`;
-  }).join('');
+  }).join('') : '<div class="col-12"><p class="text-muted text-center py-4">Geen renners gevonden</p></div>';
 }
 
 function selectRider(riderId) {
@@ -449,7 +452,11 @@ async function loadHistory() {
       <td class="text-end">${result ? (pick.is_late ? '0' : result.mountain_points) : '-'}</td>
       <td>${pick.is_late ? '<span class="badge bg-warning">Te laat</span>' : ''}</td>
     </tr>`;
-  }).join('') || '<tr><td colspan="6" class="text-muted">Nog geen keuzes</td></tr>';
+  }).join('') || `<tr><td colspan="6">
+    <div class="empty-state">
+      <div class="empty-state-icon">🎯</div>
+      <div class="empty-state-text">Nog geen keuzes gemaakt.<br>Ga naar de Keuze tab om je eerste renner te kiezen!</div>
+    </div></td></tr>`;
 }
 
 // --- DEELNEMERS (picks van iedereen, zichtbaar na deadline) ---
