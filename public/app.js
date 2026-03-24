@@ -931,13 +931,14 @@ $('btn-import-stages').addEventListener('click', async () => {
 // PCS browser console script (voor copy-paste)
 const PCS_SCRIPT = `// Plak dit in de console op een PCS startlijst-pagina
 (() => {
-  const rows = document.querySelectorAll('ul.startlist_v4 li.team');
+  const teams = document.querySelectorAll('ul.startlist_v4 > li');
   const result = [];
-  rows.forEach(team => {
-    const teamName = team.querySelector('.team_name a')?.textContent?.trim() || '';
-    team.querySelectorAll('ul li').forEach(rider => {
+  teams.forEach(li => {
+    const teamName = li.querySelector('a.team')?.textContent?.trim().replace(/\\s*\\(.*\\)/, '') || '';
+    li.querySelectorAll('.ridersCont ul li').forEach(rider => {
       const bib = rider.querySelector('.bib')?.textContent?.trim() || '';
-      const name = rider.querySelector('a')?.textContent?.trim() || '';
+      let name = rider.querySelector('a')?.textContent?.trim() || '';
+      name = name.replace(/\\s*\\(.*\\)$/, '');
       if (bib && name) result.push(bib + ', ' + name + ', ' + teamName);
     });
   });
