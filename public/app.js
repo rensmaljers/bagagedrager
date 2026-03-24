@@ -248,8 +248,9 @@ $('btn-logout').addEventListener('click', () => {
 });
 
 // --- COMPETITION SELECTOR ---
-$('comp-select').addEventListener('change', () => {
+$('comp-select').addEventListener('change', async () => {
   activeCompId = parseInt($('comp-select').value);
+  await loadRidersForComp();
   const activeTab = document.querySelector('#main-tabs .nav-link.active');
   if (activeTab) activeTab.click();
 });
@@ -268,7 +269,6 @@ async function initApp() {
   if (profile?.is_admin) $('admin-tab').style.display = 'block';
 
   competitions = await supaRest('competitions', { filters: 'order=year.desc,name' });
-  riders = await supaRest('riders', { filters: 'order=bib_number' });
   stages = await supaRest('stages', { filters: 'order=stage_number' });
 
   const sel = $('comp-select');
@@ -278,9 +278,18 @@ async function initApp() {
   const active = competitions.find(c => c.is_active) || competitions[0];
   if (active) { sel.value = active.id; activeCompId = active.id; }
 
+  await loadRidersForComp();
   myPicks = await supaRest('picks', { filters: `user_id=eq.${session.user.id}&order=stage_id` });
 
   loadStandings();
+}
+
+async function loadRidersForComp() {
+  if (activeCompId) {
+    riders = await supaRest('riders', { filters: `competition_id=eq.${activeCompId}&order=bib_number` });
+  } else {
+    riders = await supaRest('riders', { filters: 'order=bib_number' });
+  }
 }
 
 // --- DASHBOARD ---
@@ -637,15 +646,26 @@ window.deleteComp = async function(compId) {
 };
 
 // --- ADMIN: RENNERS ---
+let allRiders = [];
+
 async function loadAdminRiders() {
-  riders = await supaRest('riders', { filters: 'order=bib_number' });
+  allRiders = await supaRest('riders', { filters: 'order=bib_number' });
+
+  const sel = $('admin-rider-comp-filter');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Alle competities</option>' +
+    competitions.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  if (current) sel.value = current;
+
   renderAdminRiders();
 }
 
 function renderAdminRiders(filter = '') {
+  const compFilter = $('admin-rider-comp-filter').value;
+  let list = compFilter ? allRiders.filter(r => r.competition_id == compFilter) : allRiders;
   const filtered = filter
-    ? riders.filter(r => r.name.toLowerCase().includes(filter) || r.team.toLowerCase().includes(filter))
-    : riders;
+    ? list.filter(r => r.name.toLowerCase().includes(filter) || r.team.toLowerCase().includes(filter))
+    : list;
 
   $('admin-riders-table').innerHTML = filtered.map(r => `
     <tr>
@@ -659,6 +679,10 @@ function renderAdminRiders(filter = '') {
   `).join('') || '<tr><td colspan="4" class="text-muted">Geen renners gevonden</td></tr>';
 }
 
+$('admin-rider-comp-filter').addEventListener('change', () => {
+  renderAdminRiders($('admin-rider-search').value.toLowerCase());
+});
+
 $('admin-rider-search').addEventListener('input', (e) => {
   renderAdminRiders(e.target.value.toLowerCase());
 });
@@ -667,9 +691,11 @@ $('btn-add-rider').addEventListener('click', async () => {
   const bib = parseInt($('new-rider-bib').value);
   const name = $('new-rider-name').value.trim();
   const team = $('new-rider-team').value.trim();
+  const compId = parseInt($('admin-rider-comp-filter').value) || activeCompId;
   if (!bib || !name || !team) return alert('Vul alle velden in');
+  if (!compId) return alert('Selecteer eerst een competitie');
   try {
-    await supaRest('riders', { method: 'POST', body: { bib_number: bib, name, team } });
+    await supaRest('riders', { method: 'POST', body: { bib_number: bib, name, team, competition_id: compId } });
     $('new-rider-bib').value = '';
     $('new-rider-name').value = '';
     $('new-rider-team').value = '';
@@ -880,15 +906,17 @@ $('btn-preview-riders').addEventListener('click', () => {
 
 $('btn-import-riders').addEventListener('click', async () => {
   const parsed = parseRiderLines($('import-riders-text').value);
+  const compId = parseInt($('import-rider-comp').value);
   const status = $('import-riders-status');
   if (!parsed.length) { status.textContent = 'Geen geldige data'; status.className = 'text-danger'; return; }
+  if (!compId) { status.textContent = 'Kies een competitie'; status.className = 'text-danger'; return; }
 
   status.textContent = `Importeren van ${parsed.length} renners...`;
   status.className = 'text-muted';
   let ok = 0, skip = 0, errors = [];
   for (const r of parsed) {
     try {
-      await supaRest('riders', { method: 'POST', body: r });
+      await supaRest('riders', { method: 'POST', body: { ...r, competition_id: compId } });
       ok++;
     } catch (e) {
       skip++;
@@ -969,8 +997,11 @@ if ($('pcs-script')) $('pcs-script').textContent = PCS_SCRIPT;
 
 // Populate import stage competition selector
 function loadImportCompSelect() {
-  const sel = $('import-stage-comp');
-  if (sel) sel.innerHTML = competitions.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  const opts = competitions.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  const sel1 = $('import-stage-comp');
+  const sel2 = $('import-rider-comp');
+  if (sel1) sel1.innerHTML = opts;
+  if (sel2) sel2.innerHTML = opts;
 }
 
 // --- BOOT ---

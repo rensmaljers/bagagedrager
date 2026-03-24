@@ -691,9 +691,12 @@
           </div>
         </div>
         <div class="card">
-          <div class="card-header d-flex justify-content-between align-items-center">
+          <div class="card-header d-flex justify-content-between align-items-center gap-2">
             <h5 class="mb-0" style="font-size:0.95rem;">Renners</h5>
-            <input type="text" id="admin-rider-search" class="form-control form-control-sm" style="width:200px;" placeholder="Zoek..." />
+            <div class="d-flex gap-2">
+              <select id="admin-rider-comp-filter" class="form-select form-select-sm" style="width:auto;"></select>
+              <input type="text" id="admin-rider-search" class="form-control form-control-sm" style="width:200px;" placeholder="Zoek..." />
+            </div>
           </div>
           <div class="card-body p-0" style="max-height:500px; overflow-y:auto;">
             <table class="table table-sm table-striped mb-0">
@@ -772,6 +775,10 @@
               <code>rugnummer, naam, team</code> &mdash; bijv: <code>1, Tadej Pogačar, UAE Team Emirates</code><br>
               Of plak direct een startlijst-tabel (tab-separated) uit PCS.
             </p>
+            <div class="mb-2">
+              <label class="form-label" style="font-size:0.8rem; color:var(--text-muted);">Competitie</label>
+              <select id="import-rider-comp" class="form-select form-select-sm"></select>
+            </div>
             <textarea id="import-riders-text" class="form-control form-control-sm mb-2" rows="8"
               placeholder="1, Tadej Pogačar, UAE Team Emirates&#10;2, Adam Yates, UAE Team Emirates&#10;11, Jonas Vingegaard, Visma-Lease a Bike&#10;..."></textarea>
             <div class="d-flex gap-2 align-items-center">
