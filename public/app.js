@@ -87,6 +87,36 @@ async function signup(email, password, displayName) {
   return data;
 }
 
+// --- TEAM CONFIG ---
+const TEAMS = {
+  'UAE Team Emirates':        { abbr: 'UAE', color: '#e2001a', color2: '#000000' },
+  'Visma-Lease a Bike':       { abbr: 'VIS', color: '#ffcc00', color2: '#000000' },
+  'Soudal Quick-Step':        { abbr: 'SQS', color: '#0057b8', color2: '#ffffff' },
+  'Alpecin-Deceuninck':       { abbr: 'ADC', color: '#1d1d5e', color2: '#e31937' },
+  'INEOS Grenadiers':         { abbr: 'IGD', color: '#8b1a32', color2: '#1d428a' },
+  'Red Bull-BORA-hansgrohe':  { abbr: 'RBH', color: '#1a2b5f', color2: '#db0a40' },
+  'Lidl-Trek':                { abbr: 'LTR', color: '#e31937', color2: '#ffffff' },
+  'Intermarché-Wanty':        { abbr: 'IWG', color: '#0055a0', color2: '#ffd100' },
+  'Bahrain Victorious':       { abbr: 'TBV', color: '#cc0000', color2: '#ffffff' },
+  'Decathlon AG2R':           { abbr: 'DAT', color: '#5b3c28', color2: '#ffffff' },
+  'EF Education-EasyPost':    { abbr: 'EFE', color: '#ff69b4', color2: '#341f97' },
+  'Groupama-FDJ':             { abbr: 'GFC', color: '#0055a4', color2: '#ffffff' },
+  'Jayco-AlUla':              { abbr: 'JAY', color: '#00b140', color2: '#000000' },
+  'Movistar':                 { abbr: 'MOV', color: '#002855', color2: '#00b5e2' },
+  'Cofidis':                  { abbr: 'COF', color: '#cc0000', color2: '#ffffff' },
+  'Lotto-Dstny':              { abbr: 'LTD', color: '#e30613', color2: '#000000' },
+  'dsm-firmenich PostNL':     { abbr: 'DSM', color: '#ff6600', color2: '#000000' },
+  'Astana Qazaqstan':         { abbr: 'AST', color: '#00b5d6', color2: '#ffffff' },
+  'TotalEnergies':            { abbr: 'TEN', color: '#ffd100', color2: '#0055a4' },
+  'Uno-X Mobility':           { abbr: 'UXT', color: '#ff6600', color2: '#ffffff' },
+};
+
+function teamBadge(teamName) {
+  const t = TEAMS[teamName];
+  if (!t) return `<span class="team-badge"><span class="team-dot" style="background:var(--text-muted)"></span><span class="team-abbr">${teamName}</span></span>`;
+  return `<span class="team-badge"><span class="team-dot" style="background:${t.color};box-shadow:inset -3px -3px 0 ${t.color2}"></span><span class="team-abbr">${t.abbr}</span></span>`;
+}
+
 // --- HELPERS ---
 function formatTime(totalSeconds) {
   if (!totalSeconds) return '-';
@@ -296,8 +326,11 @@ function renderRiderGrid(usedInOtherStages, fullyLocked) {
              data-rider-id="${r.id}" ${fullyLocked || used ? '' : `onclick="selectRider(${r.id})"`}>
           <div class="card-body py-2 px-3">
             <div class="fw-bold">${r.name}</div>
-            <small class="text-muted">${r.team} · #${r.bib_number}</small>
-            ${used ? '<br><small class="text-danger">Al gebruikt</small>' : ''}
+            <div class="d-flex align-items-center gap-1 mt-1">
+              ${teamBadge(r.team)}
+              <small class="text-muted">#${r.bib_number}</small>
+            </div>
+            ${used ? '<small class="text-danger">Al gebruikt</small>' : ''}
           </div>
         </div>
       </div>`;
@@ -356,7 +389,7 @@ async function loadHistory() {
     const result = allResults.find(r => r.stage_id === pick.stage_id && r.rider_id === pick.rider_id);
     return `<tr>
       <td>Etappe ${stage?.stage_number || '?'}</td>
-      <td>${rider?.name || '?'} <small class="text-muted">#${rider?.bib_number || '?'}</small></td>
+      <td>${rider?.name || '?'} ${rider ? teamBadge(rider.team) : ''}</td>
       <td class="time text-end">${result ? formatTime(result.time_seconds) : '-'}</td>
       <td class="text-end">${result ? (pick.is_late ? '0' : result.points) : '-'}</td>
       <td class="text-end">${result ? (pick.is_late ? '0' : result.mountain_points) : '-'}</td>
@@ -401,12 +434,11 @@ async function loadParticipants() {
         </div>
         <div class="card-body p-0">
           <table class="table table-sm mb-0">
-            <thead><tr><th>Speler</th><th>Renner</th><th>Team</th><th class="text-end">Tijd</th><th class="text-end">Pts</th><th class="text-end">Berg</th><th>Status</th></tr></thead>
+            <thead><tr><th>Speler</th><th>Renner</th><th class="text-end">Tijd</th><th class="text-end">Pts</th><th class="text-end">Berg</th><th>Status</th></tr></thead>
             <tbody>
               ${picks.map(p => `<tr>
                 <td>${p.display_name}</td>
-                <td>${p.rider_name} <small class="text-muted">#${p.bib_number}</small></td>
-                <td class="text-muted">${p.rider_team}</td>
+                <td>${p.rider_name} ${teamBadge(p.rider_team)}</td>
                 <td class="time text-end">${p.time_seconds ? formatTime(p.time_seconds) : '-'}</td>
                 <td class="text-end">${p.points != null ? (p.is_late ? '0' : p.points) : '-'}</td>
                 <td class="text-end">${p.mountain_points != null ? (p.is_late ? '0' : p.mountain_points) : '-'}</td>
@@ -531,7 +563,7 @@ function renderAdminRiders(filter = '') {
     <tr>
       <td>${r.bib_number}</td>
       <td>${r.name}</td>
-      <td>${r.team}</td>
+      <td>${teamBadge(r.team)} ${r.team}</td>
       <td>
         <button class="btn btn-sm btn-outline-danger" onclick="deleteRider(${r.id})">Verwijder</button>
       </td>
@@ -661,7 +693,7 @@ function renderAdminResultsForm() {
         <tbody>
           ${riders.map(r => `
             <tr data-rider-id="${r.id}">
-              <td>${r.name} <small class="text-muted">#${r.bib_number}</small></td>
+              <td>${r.name} ${teamBadge(r.team)}</td>
               <td><input type="number" class="form-control form-control-sm res-time" value="0" /></td>
               <td><input type="number" class="form-control form-control-sm res-pts" value="0" /></td>
               <td><input type="number" class="form-control form-control-sm res-mt" value="0" /></td>

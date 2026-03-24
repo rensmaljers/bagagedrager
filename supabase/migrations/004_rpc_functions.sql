@@ -4,9 +4,13 @@
 
 -- Fix: maak trigger robuuster voor signup
 create or replace function handle_new_user()
-returns trigger as $$
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
 begin
-  insert into profiles (id, display_name)
+  insert into public.profiles (id, display_name)
   values (
     new.id,
     coalesce(
@@ -18,8 +22,12 @@ begin
   )
   on conflict (id) do nothing;
   return new;
+exception
+  when others then
+    raise log 'handle_new_user failed for %: %', new.id, sqlerrm;
+    return new;
 end;
-$$ language plpgsql security definer;
+$$;
 
 -- Maak rensmaljers@hotmail.com admin
 UPDATE profiles SET is_admin = true

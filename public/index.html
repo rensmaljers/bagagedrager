@@ -271,6 +271,30 @@
     .rank-2 { color: #a8a29e; font-weight: 600; }
     .rank-3 { color: #b45309; font-weight: 600; }
 
+    /* --- TEAM BADGE --- */
+    .team-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .team-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      border: 1px solid rgba(255,255,255,0.15);
+    }
+    [data-theme="light"] .team-dot { border-color: rgba(0,0,0,0.1); }
+    .team-abbr {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+    }
+
     /* --- SCROLLBAR --- */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -284,6 +308,107 @@
     .text-danger { color: var(--red) !important; }
     .text-warning { color: var(--accent) !important; }
     .text-muted { color: var(--text-muted) !important; }
+
+    /* --- MOBILE RESPONSIVE --- */
+    @media (max-width: 768px) {
+      .navbar .container {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      .navbar .d-flex {
+        flex-wrap: wrap;
+        gap: 0.4rem !important;
+        justify-content: flex-end;
+      }
+      .navbar .d-flex #comp-select {
+        width: 100% !important;
+        order: 10;
+      }
+
+      /* Scrollable tabs */
+      #main-tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        gap: 0;
+      }
+      #main-tabs::-webkit-scrollbar { display: none; }
+      #main-tabs .nav-link {
+        white-space: nowrap;
+        padding: 0.45rem 0.75rem;
+        font-size: 0.8rem;
+      }
+
+      /* Admin sub-tabs scroll */
+      #admin-tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+      }
+      #admin-tabs::-webkit-scrollbar { display: none; }
+      #admin-tabs .nav-link {
+        white-space: nowrap;
+        font-size: 0.75rem;
+        padding: 0.5rem 0.7rem;
+      }
+
+      /* Responsive tables */
+      .table-responsive-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .table th, .table td {
+        font-size: 0.78rem;
+        padding: 0.4rem 0.5rem;
+      }
+
+      /* Rider cards smaller on mobile */
+      .pick-card .card-body {
+        padding: 0.4rem 0.6rem !important;
+      }
+      .pick-card .fw-bold { font-size: 0.82rem; }
+      .pick-card small { font-size: 0.7rem; }
+
+      /* Dashboard cards stack full width */
+      .jersey-gc h5, .jersey-points h5, .jersey-mountain h5 {
+        font-size: 0.85rem !important;
+      }
+
+      /* Admin forms stack */
+      .admin-sub .row.g-2 > [class*="col-md"] {
+        flex: 0 0 100%;
+        max-width: 100%;
+      }
+
+      /* Stage select and pick header */
+      #section-pick .d-flex {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      #section-pick .d-flex .form-select {
+        width: 100% !important;
+      }
+
+      /* Full width buttons on mobile */
+      #btn-submit-pick {
+        width: 100%;
+      }
+
+      /* Participants table compact */
+      #participants-content .table th,
+      #participants-content .table td {
+        font-size: 0.72rem;
+        padding: 0.3rem 0.35rem;
+      }
+    }
+
+    @media (max-width: 400px) {
+      .navbar-brand { font-size: 1rem; }
+      #user-name { display: none; }
+      .pick-card .fw-bold { font-size: 0.75rem; }
+    }
   </style>
 </head>
 <body>
@@ -291,7 +416,7 @@
 <!-- Auth Screen -->
 <div id="auth-screen" class="container py-5">
   <div class="row justify-content-center" style="min-height:80vh; align-items:center;">
-    <div class="col-md-4">
+    <div class="col-sm-8 col-md-5 col-lg-4">
       <div class="auth-card p-4 text-center">
         <h1 class="mb-1">Bagagedrager</h1>
         <p class="text-muted mb-4" style="font-size:0.9rem;">Het wielerspel</p>
@@ -353,7 +478,7 @@
         <div class="col-lg-4">
           <div class="card">
             <div class="card-header jersey-gc"><h5 class="mb-0" style="font-size:0.95rem;">Algemeen Klassement</h5></div>
-            <div class="card-body p-0">
+            <div class="card-body p-0 table-responsive-wrapper">
               <table class="table table-sm table-striped mb-0">
                 <thead><tr><th>#</th><th>Speler</th><th class="text-end">Tijd</th></tr></thead>
                 <tbody id="gc-table"></tbody>
@@ -364,7 +489,7 @@
         <div class="col-lg-4">
           <div class="card">
             <div class="card-header jersey-points"><h5 class="mb-0" style="font-size:0.95rem;">Puntenklassement</h5></div>
-            <div class="card-body p-0">
+            <div class="card-body p-0 table-responsive-wrapper">
               <table class="table table-sm table-striped mb-0">
                 <thead><tr><th>#</th><th>Speler</th><th class="text-end">Pts</th></tr></thead>
                 <tbody id="points-table"></tbody>
@@ -375,7 +500,7 @@
         <div class="col-lg-4">
           <div class="card">
             <div class="card-header jersey-mountain"><h5 class="mb-0" style="font-size:0.95rem;">Bergklassement</h5></div>
-            <div class="card-body p-0">
+            <div class="card-body p-0 table-responsive-wrapper">
               <table class="table table-sm table-striped mb-0">
                 <thead><tr><th>#</th><th>Speler</th><th class="text-end">Pts</th></tr></thead>
                 <tbody id="mountain-table"></tbody>
@@ -415,7 +540,7 @@
     <!-- History -->
     <div class="tab-section" id="section-history">
       <div class="card">
-        <div class="card-body p-0">
+        <div class="card-body p-0 table-responsive-wrapper">
           <table class="table table-striped mb-0">
             <thead>
               <tr><th>Etappe</th><th>Renner</th><th class="text-end">Tijd</th><th class="text-end">Pts</th><th class="text-end">Berg</th><th>Status</th></tr>
