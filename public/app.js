@@ -747,6 +747,138 @@ $('btn-save-results').addEventListener('click', async () => {
   }
 });
 
+// =====================
+// ADMIN: IMPORT
+// =====================
+
+function parseRiderLines(text) {
+  return text.trim().split('\n').map(line => {
+    line = line.trim();
+    if (!line) return null;
+    // Support both comma and tab separated
+    const parts = line.includes('\t') ? line.split('\t') : line.split(',');
+    if (parts.length < 3) return null;
+    const bib = parseInt(parts[0].trim());
+    const name = parts[1].trim();
+    const team = parts[2].trim();
+    if (!bib || !name || !team) return null;
+    return { bib_number: bib, name, team };
+  }).filter(Boolean);
+}
+
+function parseStageLines(text) {
+  return text.trim().split('\n').map(line => {
+    line = line.trim();
+    if (!line) return null;
+    const parts = line.includes('\t') ? line.split('\t') : line.split(',');
+    if (parts.length < 3) return null;
+    const num = parseInt(parts[0].trim());
+    const name = parts[1].trim();
+    const date = parts[2].trim();
+    const type = (parts[3] || 'flat').trim().toLowerCase();
+    if (!num || !name || !date.match(/^\d{4}-\d{2}-\d{2}$/)) return null;
+    return { stage_number: num, name, date, stage_type: type };
+  }).filter(Boolean);
+}
+
+$('btn-preview-riders').addEventListener('click', () => {
+  const parsed = parseRiderLines($('import-riders-text').value);
+  const el = $('import-riders-preview');
+  if (!parsed.length) { el.innerHTML = '<span class="text-danger">Geen geldige regels gevonden</span>'; return; }
+  el.innerHTML = `<strong>${parsed.length} renners gevonden:</strong><br>` +
+    parsed.slice(0, 10).map(r => `#${r.bib_number} ${r.name} — ${r.team}`).join('<br>') +
+    (parsed.length > 10 ? `<br><span class="text-muted">...en ${parsed.length - 10} meer</span>` : '');
+});
+
+$('btn-import-riders').addEventListener('click', async () => {
+  const parsed = parseRiderLines($('import-riders-text').value);
+  const status = $('import-riders-status');
+  if (!parsed.length) { status.textContent = 'Geen geldige data'; status.className = 'text-danger'; return; }
+
+  status.textContent = `Importeren van ${parsed.length} renners...`;
+  status.className = 'text-muted';
+  let ok = 0, skip = 0;
+  for (const r of parsed) {
+    try {
+      await supaRest('riders', { method: 'POST', body: r });
+      ok++;
+    } catch (e) {
+      skip++; // duplicate bib_number
+    }
+  }
+  status.textContent = `${ok} geimporteerd, ${skip} overgeslagen (duplicaat)`;
+  status.className = 'text-success';
+  loadAdminRiders();
+});
+
+$('btn-preview-stages').addEventListener('click', () => {
+  const parsed = parseStageLines($('import-stages-text').value);
+  const el = $('import-stages-preview');
+  if (!parsed.length) { el.innerHTML = '<span class="text-danger">Geen geldige regels gevonden</span>'; return; }
+  const typeLabels = { flat: 'Vlak', mountain: 'Berg', tt: 'Tijdrit', sprint: 'Sprint' };
+  el.innerHTML = `<strong>${parsed.length} etappes gevonden:</strong><br>` +
+    parsed.map(s => `Etappe ${s.stage_number}: ${s.name} (${s.date}, ${typeLabels[s.stage_type] || s.stage_type})`).join('<br>');
+});
+
+$('btn-import-stages').addEventListener('click', async () => {
+  const parsed = parseStageLines($('import-stages-text').value);
+  const compId = parseInt($('import-stage-comp').value);
+  const status = $('import-stages-status');
+  if (!parsed.length) { status.textContent = 'Geen geldige data'; status.className = 'text-danger'; return; }
+  if (!compId) { status.textContent = 'Kies een competitie'; status.className = 'text-danger'; return; }
+
+  status.textContent = `Importeren van ${parsed.length} etappes...`;
+  status.className = 'text-muted';
+  let ok = 0, skip = 0;
+  for (const s of parsed) {
+    const deadlineDate = new Date(s.date);
+    deadlineDate.setDate(deadlineDate.getDate() - 1);
+    deadlineDate.setHours(23, 0, 0, 0);
+    try {
+      await supaRest('stages', {
+        method: 'POST',
+        body: { ...s, deadline: deadlineDate.toISOString(), locked: false, competition_id: compId },
+      });
+      ok++;
+    } catch (e) {
+      skip++;
+    }
+  }
+  status.textContent = `${ok} geimporteerd, ${skip} overgeslagen (duplicaat)`;
+  status.className = 'text-success';
+  loadAdminStages();
+});
+
+// PCS browser console script (voor copy-paste)
+const PCS_SCRIPT = `// Plak dit in de console op een PCS startlijst-pagina
+(() => {
+  const rows = document.querySelectorAll('ul.startlist_v4 li.team');
+  const result = [];
+  rows.forEach(team => {
+    const teamName = team.querySelector('.team_name a')?.textContent?.trim() || '';
+    team.querySelectorAll('ul li').forEach(rider => {
+      const bib = rider.querySelector('.bib')?.textContent?.trim() || '';
+      const name = rider.querySelector('a')?.textContent?.trim() || '';
+      if (bib && name) result.push(bib + ', ' + name + ', ' + teamName);
+    });
+  });
+  copy(result.join('\\n'));
+  console.log(result.length + ' renners gekopieerd naar clipboard!');
+})();`;
+
+document.addEventListener('DOMContentLoaded', () => {
+  const el = $('pcs-script');
+  if (el) el.textContent = PCS_SCRIPT;
+});
+// Also set immediately in case DOM is already loaded
+if ($('pcs-script')) $('pcs-script').textContent = PCS_SCRIPT;
+
+// Populate import stage competition selector
+function loadImportCompSelect() {
+  const sel = $('import-stage-comp');
+  if (sel) sel.innerHTML = competitions.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+}
+
 // --- BOOT ---
 (async () => {
   const saved = localStorage.getItem('bagagedrager_session');

@@ -566,6 +566,7 @@
         <li class="nav-item"><a class="nav-link" href="#" data-admin="admin-riders">Renners</a></li>
         <li class="nav-item"><a class="nav-link" href="#" data-admin="admin-stages">Etappes</a></li>
         <li class="nav-item"><a class="nav-link" href="#" data-admin="admin-results">Resultaten</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" data-admin="admin-import">Import</a></li>
       </ul>
 
       <!-- Admin: Gebruikers -->
@@ -712,6 +713,62 @@
             <div id="admin-results-form"></div>
             <button id="btn-save-results" class="btn btn-success mt-3">Resultaten Opslaan</button>
             <span id="admin-status" class="ms-3" style="font-size:0.85rem;"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin: Import -->
+      <div class="admin-sub" id="admin-import">
+        <div class="card mb-3">
+          <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">Renners Importeren</h5></div>
+          <div class="card-body">
+            <p class="text-muted" style="font-size:0.8rem;">
+              Plak rennerdata uit ProCyclingStats of FirstCycling. Formaat per regel:<br>
+              <code>rugnummer, naam, team</code> &mdash; bijv: <code>1, Tadej Pogačar, UAE Team Emirates</code><br>
+              Of plak direct een startlijst-tabel (tab-separated) uit PCS.
+            </p>
+            <textarea id="import-riders-text" class="form-control form-control-sm mb-2" rows="8"
+              placeholder="1, Tadej Pogačar, UAE Team Emirates&#10;2, Adam Yates, UAE Team Emirates&#10;11, Jonas Vingegaard, Visma-Lease a Bike&#10;..."></textarea>
+            <div class="d-flex gap-2 align-items-center">
+              <button id="btn-import-riders" class="btn btn-primary btn-sm">Importeer Renners</button>
+              <button id="btn-preview-riders" class="btn btn-ghost btn-sm">Preview</button>
+              <span id="import-riders-status" style="font-size:0.8rem;"></span>
+            </div>
+            <div id="import-riders-preview" class="mt-2" style="font-size:0.8rem;"></div>
+          </div>
+        </div>
+
+        <div class="card mb-3">
+          <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">Etappes Importeren</h5></div>
+          <div class="card-body">
+            <p class="text-muted" style="font-size:0.8rem;">
+              Formaat per regel: <code>nummer, naam, datum (YYYY-MM-DD), type (flat/mountain/tt/sprint)</code><br>
+              Bijv: <code>1, Lille → Dunkerque, 2025-07-05, flat</code>
+            </p>
+            <div class="mb-2">
+              <label class="form-label" style="font-size:0.8rem; color:var(--text-muted);">Competitie</label>
+              <select id="import-stage-comp" class="form-select form-select-sm"></select>
+            </div>
+            <textarea id="import-stages-text" class="form-control form-control-sm mb-2" rows="8"
+              placeholder="1, Lille → Dunkerque, 2025-07-05, flat&#10;2, Dunkerque → Boulogne-sur-Mer, 2025-07-06, sprint&#10;..."></textarea>
+            <div class="d-flex gap-2 align-items-center">
+              <button id="btn-import-stages" class="btn btn-primary btn-sm">Importeer Etappes</button>
+              <button id="btn-preview-stages" class="btn btn-ghost btn-sm">Preview</button>
+              <span id="import-stages-status" style="font-size:0.8rem;"></span>
+            </div>
+            <div id="import-stages-preview" class="mt-2" style="font-size:0.8rem;"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">PCS Startlijst Ophalen</h5></div>
+          <div class="card-body">
+            <p class="text-muted" style="font-size:0.8rem;">
+              Snel renners ophalen via een ProCyclingStats race-URL.<br>
+              Open de browser console (F12) op <a href="https://www.procyclingstats.com" target="_blank" style="color:var(--accent)">procyclingstats.com</a> en plak dit script:
+            </p>
+            <pre class="p-2" style="background:var(--bg); border:1px solid var(--border); border-radius:8px; font-size:0.72rem; overflow-x:auto; white-space:pre-wrap;"><code id="pcs-script"></code></pre>
+            <button class="btn btn-ghost btn-sm mt-1" onclick="navigator.clipboard.writeText($('pcs-script').textContent)">Kopieer script</button>
           </div>
         </div>
       </div>
