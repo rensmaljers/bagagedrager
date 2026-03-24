@@ -851,31 +851,30 @@
 
       <!-- Admin: Resultaten -->
       <div class="admin-sub" id="admin-results">
-        <!-- PCS Sync -->
+        <!-- PCS Resultaten via console script -->
         <div class="card mb-3">
-          <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">🔄 PCS Resultaten Sync</h5></div>
+          <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">🔄 PCS Resultaten Import</h5></div>
           <div class="card-body">
             <p class="text-muted" style="font-size:0.8rem;">
-              Voer een PCS etappe-URL in om resultaten automatisch op te halen.<br>
-              Bijv: <code>https://www.procyclingstats.com/race/tour-de-france/2025/stage-1</code>
+              Importeer etappe-resultaten van PCS in 3 stappen:
             </p>
-            <div class="row g-2 mb-2">
-              <div class="col-md-5">
-                <select id="sync-stage-select" class="form-select form-select-sm"></select>
-              </div>
-              <div class="col-md-5">
-                <input type="text" id="pcs-results-url" class="form-control form-control-sm" placeholder="PCS etappe-URL..." />
-              </div>
-              <div class="col-md-2">
-                <button id="btn-sync-pcs" class="btn btn-accent btn-sm w-100">🔄 Sync</button>
-              </div>
+            <div class="mb-2">
+              <label class="form-label" style="font-size:0.8rem;"><strong>Stap 1:</strong> Kies etappe</label>
+              <select id="sync-stage-select" class="form-select form-select-sm"></select>
             </div>
-            <span id="sync-status" style="font-size:0.8rem;"></span>
-            <div id="sync-preview" class="mt-2" style="font-size:0.8rem; max-height:200px; overflow-y:auto;"></div>
-            <div id="sync-actions" style="display:none;" class="mt-2">
-              <button id="btn-save-synced" class="btn btn-success btn-sm">Opslaan naar database</button>
-              <span id="sync-save-status" class="ms-2" style="font-size:0.8rem;"></span>
+            <div class="mb-2">
+              <label class="form-label" style="font-size:0.8rem;"><strong>Stap 2:</strong> Open de PCS etappe-pagina en plak dit script in de console (F12)</label>
+              <button id="btn-copy-results-script" class="btn btn-ghost btn-sm">📋 Kopieer resultaten-script</button>
             </div>
+            <div class="mb-2">
+              <label class="form-label" style="font-size:0.8rem;"><strong>Stap 3:</strong> Plak het resultaat hier</label>
+              <textarea id="results-sync-data" class="form-control form-control-sm" rows="5" placeholder="Plak hier de gekopieerde resultaten..."></textarea>
+            </div>
+            <div class="d-flex gap-2 align-items-center">
+              <button id="btn-import-results" class="btn btn-accent btn-sm">🚀 Importeer resultaten</button>
+              <span id="results-sync-status" style="font-size:0.8rem;"></span>
+            </div>
+            <div id="results-sync-preview" class="mt-2" style="font-size:0.8rem; max-height:200px; overflow-y:auto;"></div>
           </div>
         </div>
 

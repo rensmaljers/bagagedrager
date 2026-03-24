@@ -636,7 +636,10 @@ async function loadAdminCompetitions() {
 
   $('admin-comp-table').innerHTML = competitions.map(c => `
     <tr>
-      <td>${c.name}</td>
+      <td>
+        <input type="text" class="form-control form-control-sm comp-name-input" value="${escapeHtml(c.name)}"
+               data-comp-id="${c.id}" style="min-width:140px;" onchange="renameComp(${c.id}, this.value)">
+      </td>
       <td>${compBadge(c.competition_type)}</td>
       <td>${c.year}</td>
       <td>
@@ -666,6 +669,15 @@ $('btn-add-comp').addEventListener('click', async () => {
     loadAdminStages();
   } catch (e) { alert(e.message); }
 });
+
+window.renameComp = async function(compId, newName) {
+  newName = newName.trim();
+  if (!newName) return alert('Naam mag niet leeg zijn');
+  try {
+    await supaPatch('competitions', `id=eq.${compId}`, { name: newName });
+    loadAdminCompetitions();
+  } catch (e) { alert(e.message); }
+};
 
 window.toggleCompActive = async function(compId, active) {
   try {
@@ -819,10 +831,38 @@ window.deleteStage = async function(stageId) {
   } catch (e) { alert(e.message); }
 };
 
-// --- ADMIN: PCS SYNC ---
-let syncedResults = null;
+// --- ADMIN: PCS RESULTS via console script ---
+const PCS_RESULTS_SCRIPT = `// Plak dit in de console op een PCS etappe-resultaten pagina
+(() => {
+  const table = document.querySelector('table.results');
+  if (!table) { console.log('Geen resultaten-tabel gevonden!'); return; }
+  const rows = table.querySelectorAll('tbody tr');
+  const results = [];
+  let lastTime = '';
+  rows.forEach(row => {
+    const cells = row.querySelectorAll('td');
+    if (cells.length < 8) return;
+    let bib = 0, time = '', pts = 0, dnf = false;
+    cells.forEach(c => {
+      const cls = c.className || '';
+      const txt = c.textContent?.trim() || '';
+      if (cls.includes('bibs')) bib = parseInt(txt) || 0;
+      if (cls.includes('time') && cls.includes('ar')) {
+        const font = c.querySelector('font');
+        const t = font?.textContent?.trim() || txt;
+        if (t.match(/DNF|DNS|OTL/i)) { dnf = true; }
+        else if (t.match(/\\d+:\\d+/)) { time = t; lastTime = t; }
+        else { time = lastTime; }
+      }
+      if (cls.includes('pnt') && !cls.includes('uci')) pts = parseInt(txt) || 0;
+    });
+    if (bib > 0) results.push(bib + ',' + time + ',' + pts + ',' + (dnf ? 'DNF' : ''));
+  });
+  copy('---RESULTATEN---\\n' + results.join('\\n'));
+  console.log(results.length + ' resultaten gekopieerd naar clipboard!');
+})();`;
 
-async function loadSyncStageSelect() {
+function loadSyncStageSelect() {
   const compStages = activeStages();
   const sel = $('sync-stage-select');
   sel.innerHTML = compStages.map(s =>
@@ -830,93 +870,81 @@ async function loadSyncStageSelect() {
   ).join('');
 }
 
-$('btn-sync-pcs').addEventListener('click', async () => {
-  const url = $('pcs-results-url').value.trim();
-  const stageId = parseInt($('sync-stage-select').value);
-  const status = $('sync-status');
-  const preview = $('sync-preview');
-
-  if (!url) { status.textContent = 'Voer een PCS URL in'; status.className = 'text-danger'; return; }
-  if (!stageId) { status.textContent = 'Selecteer een etappe'; status.className = 'text-danger'; return; }
-
-  status.textContent = '🔄 Ophalen van PCS...';
-  status.className = 'text-muted';
-  preview.innerHTML = '';
-  $('sync-actions').style.display = 'none';
-
-  try {
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/sync-pcs-results`, {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ pcs_url: url }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Sync mislukt');
-
-    syncedResults = { stageId, results: data.results };
-
-    // Match bib numbers to riders in our database
-    let matched = 0, unmatched = 0;
-    const matchedResults = data.results.map(r => {
-      const rider = riders.find(rd => rd.bib_number === r.bib_number);
-      if (rider) { matched++; return { ...r, rider_id: rider.id, rider_name: rider.name }; }
-      unmatched++;
-      return { ...r, rider_id: null, rider_name: `Onbekend (bib #${r.bib_number})` };
-    });
-    syncedResults.results = matchedResults;
-
-    status.textContent = `✅ ${data.count} resultaten opgehaald (${matched} gekoppeld, ${unmatched} onbekend)`;
-    status.className = matched > 0 ? 'text-success' : 'text-warning';
-
-    // Show preview
-    const top10 = matchedResults.filter(r => r.rider_id).slice(0, 10);
-    preview.innerHTML = `<table class="table table-sm mb-0">
-      <thead><tr><th>#</th><th>Renner</th><th>Tijd</th><th>Pts</th><th>Berg</th><th>DNF</th></tr></thead>
-      <tbody>${top10.map((r, i) => `<tr>
-        <td>${i + 1}</td>
-        <td>${escapeHtml(r.rider_name)}</td>
-        <td class="time">${formatTime(r.time_seconds)}</td>
-        <td>${r.points}</td>
-        <td>${r.mountain_points}</td>
-        <td>${r.dnf ? '⚠️' : ''}</td>
-      </tr>`).join('')}
-      ${matchedResults.filter(r => r.rider_id).length > 10 ? `<tr><td colspan="6" class="text-muted">...en ${matchedResults.filter(r => r.rider_id).length - 10} meer</td></tr>` : ''}
-      </tbody></table>`;
-
-    if (matched > 0) $('sync-actions').style.display = 'block';
-
-  } catch (e) {
-    status.textContent = `❌ ${e.message}`;
-    status.className = 'text-danger';
-  }
+$('btn-copy-results-script').addEventListener('click', () => {
+  navigator.clipboard.writeText(PCS_RESULTS_SCRIPT);
+  $('btn-copy-results-script').textContent = '✅ Gekopieerd!';
+  setTimeout(() => { $('btn-copy-results-script').textContent = '📋 Kopieer resultaten-script'; }, 2000);
 });
 
-$('btn-save-synced').addEventListener('click', async () => {
-  if (!syncedResults) return;
-  const status = $('sync-save-status');
-  const matched = syncedResults.results.filter(r => r.rider_id);
+function parseTimeToSeconds(timeStr) {
+  const clean = timeStr.replace(/[^0-9:]/g, '').trim();
+  if (!clean) return 0;
+  const parts = clean.split(':').map(Number);
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  return parts[0];
+}
 
-  status.textContent = `Opslaan van ${matched.length} resultaten...`;
+$('btn-import-results').addEventListener('click', async () => {
+  const raw = $('results-sync-data').value.trim();
+  const stageId = parseInt($('sync-stage-select').value);
+  const status = $('results-sync-status');
+  const preview = $('results-sync-preview');
+
+  if (!raw) { status.textContent = 'Plak eerst data'; status.className = 'text-danger'; return; }
+  if (!stageId) { status.textContent = 'Selecteer een etappe'; status.className = 'text-danger'; return; }
+
+  const text = raw.replace('---RESULTATEN---', '').trim();
+  const lines = text.split('\n').filter(l => l.trim());
+
+  // Parse results: bib,time,pts,DNF
+  const parsed = lines.map(line => {
+    const parts = line.split(',');
+    if (parts.length < 2) return null;
+    const bib = parseInt(parts[0].trim());
+    const time = parseTimeToSeconds(parts[1].trim());
+    const pts = parseInt(parts[2]?.trim()) || 0;
+    const dnf = (parts[3]?.trim() || '').toUpperCase() === 'DNF';
+    if (!bib) return null;
+    return { bib_number: bib, time_seconds: time, points: pts, mountain_points: 0, dnf };
+  }).filter(Boolean);
+
+  if (!parsed.length) { status.textContent = 'Geen geldige resultaten gevonden'; status.className = 'text-danger'; return; }
+
+  // Match to riders
+  let matched = 0, unmatched = 0;
+  const payload = [];
+  for (const r of parsed) {
+    const rider = riders.find(rd => rd.bib_number === r.bib_number);
+    if (rider) {
+      matched++;
+      payload.push({ rider_id: rider.id, time_seconds: r.time_seconds, points: r.points, mountain_points: r.mountain_points, dnf: r.dnf });
+    } else { unmatched++; }
+  }
+
+  if (!matched) { status.textContent = `Geen renners gekoppeld (${unmatched} onbekende bibnummers)`; status.className = 'text-danger'; return; }
+
+  status.textContent = `⏳ ${matched} resultaten opslaan...`;
   status.className = 'text-muted';
 
   try {
-    const payload = matched.map(r => ({
-      rider_id: r.rider_id,
-      time_seconds: r.time_seconds,
-      points: r.points,
-      mountain_points: r.mountain_points,
-      dnf: r.dnf,
-    }));
-
-    const result = await supaRpc('admin_save_results', {
-      p_stage_id: syncedResults.stageId,
-      p_results: payload,
-    });
-
-    status.textContent = `✅ ${matched.length} resultaten opgeslagen!`;
+    await supaRpc('admin_save_results', { p_stage_id: stageId, p_results: payload });
+    status.textContent = `✅ ${matched} resultaten opgeslagen!` + (unmatched ? ` (${unmatched} onbekend)` : '');
     status.className = 'text-success';
-    syncedResults = null;
-    $('sync-actions').style.display = 'none';
+
+    // Preview top 10
+    const top10 = payload.slice(0, 10);
+    preview.innerHTML = `<table class="table table-sm mb-0">
+      <thead><tr><th>Renner</th><th>Tijd</th><th>Pts</th><th>DNF</th></tr></thead>
+      <tbody>${top10.map(r => {
+        const rider = riders.find(rd => rd.id === r.rider_id);
+        return `<tr>
+          <td>${rider ? escapeHtml(rider.name) : '?'}</td>
+          <td class="time">${formatTime(r.time_seconds)}</td>
+          <td>${r.points}</td>
+          <td>${r.dnf ? '⚠️' : ''}</td>
+        </tr>`;
+      }).join('')}</tbody></table>`;
   } catch (e) {
     status.textContent = `❌ ${e.message}`;
     status.className = 'text-danger';
