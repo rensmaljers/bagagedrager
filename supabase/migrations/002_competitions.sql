@@ -49,7 +49,8 @@ create policy "Admin update profiles" on profiles for update
   using (exists (select 1 from profiles where id = auth.uid() and is_admin = true));
 
 -- Update general_classification view to include competition_id
-create or replace view general_classification as
+drop view if exists general_classification;
+create view general_classification as
 with pick_times as (
   select
     p.user_id,
