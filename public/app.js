@@ -182,20 +182,33 @@ function activeStages() {
 }
 
 // --- TAB NAVIGATION ---
+function navigateToTab(tab) {
+  const link = document.querySelector(`[data-tab="${tab}"]`);
+  if (!link) return;
+  document.querySelectorAll('#main-tabs .nav-link').forEach(n => n.classList.remove('active'));
+  link.classList.add('active');
+  document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
+  $(`section-${tab}`).classList.add('active');
+  window.location.hash = tab;
+  if (tab === 'dashboard') loadStandings();
+  if (tab === 'pick') loadPickView();
+  if (tab === 'history') loadHistory();
+  if (tab === 'participants') { loadPeloton(); loadParticipants(); }
+  if (tab === 'account') loadAccountView();
+  if (tab === 'admin') loadAdminView();
+}
+
 document.querySelectorAll('[data-tab]').forEach(a => {
   a.addEventListener('click', (e) => {
     e.preventDefault();
-    document.querySelectorAll('#main-tabs .nav-link').forEach(n => n.classList.remove('active'));
-    a.classList.add('active');
-    document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
-    $(`section-${a.dataset.tab}`).classList.add('active');
-    if (a.dataset.tab === 'dashboard') loadStandings();
-    if (a.dataset.tab === 'pick') loadPickView();
-    if (a.dataset.tab === 'history') loadHistory();
-    if (a.dataset.tab === 'participants') { loadPeloton(); loadParticipants(); }
-    if (a.dataset.tab === 'account') loadAccountView();
-    if (a.dataset.tab === 'admin') loadAdminView();
+    navigateToTab(a.dataset.tab);
   });
+});
+
+// Handle browser back/forward and initial hash
+window.addEventListener('hashchange', () => {
+  const tab = window.location.hash.replace('#', '');
+  if (tab && document.querySelector(`[data-tab="${tab}"]`)) navigateToTab(tab);
 });
 
 // --- ACCOUNT SETTINGS ---
@@ -291,7 +304,13 @@ async function initApp() {
   await loadRidersForComp();
   myPicks = await supaRest('picks', { filters: `user_id=eq.${session.user.id}&order=stage_id` });
 
-  loadStandings();
+  // Navigate to hash tab or default to dashboard
+  const hashTab = window.location.hash.replace('#', '');
+  if (hashTab && document.querySelector(`[data-tab="${hashTab}"]`)) {
+    navigateToTab(hashTab);
+  } else {
+    loadStandings();
+  }
 }
 
 async function loadRidersForComp() {
