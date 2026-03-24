@@ -10,7 +10,7 @@ RETURNS trigger AS $$
 BEGIN
   INSERT INTO profiles (id, display_name, email)
   VALUES (
-    new.id,
+    new.id,k
     coalesce(new.raw_user_meta_data->>'display_name', split_part(new.email, '@', 1)),
     new.email
   );

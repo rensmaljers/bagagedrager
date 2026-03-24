@@ -1223,11 +1223,59 @@ if ($('pcs-script')) $('pcs-script').textContent = PCS_SCRIPT;
 // Populate import stage competition selector
 function loadImportCompSelect() {
   const opts = competitions.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-  ['import-stage-comp', 'import-rider-comp', 'sync-stages-comp'].forEach(id => {
+  ['import-stage-comp', 'import-rider-comp', 'sync-stages-comp', 'race-sync-comp'].forEach(id => {
     const sel = $(id);
     if (sel) sel.innerHTML = opts;
   });
 }
+
+// --- FULL RACE SYNC ---
+$('btn-race-sync').addEventListener('click', async () => {
+  const url = $('race-sync-url').value.trim();
+  const compId = parseInt($('race-sync-comp').value);
+  const log = $('race-sync-log');
+  const btn = $('btn-race-sync');
+
+  if (!url) { log.innerHTML = '<span class="text-danger">Voer een PCS URL in</span>'; return; }
+  if (!compId) { log.innerHTML = '<span class="text-danger">Selecteer een competitie</span>'; return; }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Bezig...';
+  log.innerHTML = '🔄 Race data ophalen van PCS...<br>Dit kan even duren...';
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/sync-pcs-race`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ pcs_url: url, competition_id: compId }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Sync mislukt');
+
+    // Save shirts to localStorage
+    if (data.shirts && Object.keys(data.shirts).length) {
+      teamShirts = { ...teamShirts, ...data.shirts };
+      localStorage.setItem('bagagedrager_shirts', JSON.stringify(teamShirts));
+    }
+
+    log.innerHTML = data.log.map(l => l + '<br>').join('') +
+      `<br><strong>✅ Klaar! ${data.stages_count} etappes + ${data.riders_count} renners geïmporteerd.</strong>` +
+      (Object.keys(data.shirts || {}).length ? `<br>👕 ${Object.keys(data.shirts).length} team shirts opgeslagen.` : '');
+
+    // Reload admin data
+    await loadAdminCompetitions();
+    loadImportCompSelect();
+    loadAdminRiders();
+    loadAdminStages();
+    await loadRidersForComp();
+
+  } catch (e) {
+    log.innerHTML = `<span class="text-danger">❌ ${escapeHtml(e.message)}</span>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🚀 Sync';
+  }
+});
 
 // --- BOOT ---
 (async () => {

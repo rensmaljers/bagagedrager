@@ -896,6 +896,30 @@
 
       <!-- Admin: Import -->
       <div class="admin-sub" id="admin-import">
+        <!-- Full Race Sync -->
+        <div class="card mb-3" style="border-color: var(--accent);">
+          <div class="card-header" style="background: var(--accent-bg);"><h5 class="mb-0" style="font-size:0.95rem;">🚀 Volledige Race Sync</h5></div>
+          <div class="card-body">
+            <p class="text-muted" style="font-size:0.8rem;">
+              Importeer alles in één keer: etappes, renners en team shirts vanuit PCS.<br>
+              Voer de hoofd-URL van de race in, bijv: <code>https://www.procyclingstats.com/race/tour-de-france/2026</code>
+            </p>
+            <div class="row g-2 mb-2">
+              <div class="col-md-4">
+                <select id="race-sync-comp" class="form-select form-select-sm"></select>
+              </div>
+              <div class="col-md-6">
+                <input type="text" id="race-sync-url" class="form-control form-control-sm" placeholder="PCS race-URL..." />
+              </div>
+              <div class="col-md-2">
+                <button id="btn-race-sync" class="btn btn-accent btn-sm w-100">🚀 Sync</button>
+              </div>
+            </div>
+            <div id="race-sync-log" style="font-size:0.8rem; line-height:1.8;"></div>
+          </div>
+        </div>
+
+        <p class="text-muted mb-3" style="font-size:0.75rem;">Of importeer handmatig per onderdeel:</p>
         <div class="card mb-3">
           <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">Renners Importeren</h5></div>
           <div class="card-body">
