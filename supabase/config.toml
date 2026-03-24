@@ -1,0 +1,16 @@
+[project]
+id = "your-project-id"
+
+[api]
+port = 54321
+
+[db]
+port = 54322
+
+[auth]
+site_url = "http://localhost:8888"
+additional_redirect_urls = ["http://localhost:8888"]
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false
