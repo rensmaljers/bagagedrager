@@ -309,6 +309,19 @@
     .text-warning { color: var(--accent) !important; }
     .text-muted { color: var(--text-muted) !important; }
 
+    /* --- Force text color for Bootstrap overrides --- */
+    .card-body, .card-header, .card-header h5, .card-header h6,
+    .modal-body, .list-group-item, .dropdown-item,
+    p, label, h1, h2, h3, h4, h5, h6,
+    .form-label { color: var(--text); }
+    td, th, li:not([class]) { color: var(--text); }
+    span:not(.badge):not(.team-abbr):not(.team-dot):not([class*="text-"]):not([class*="comp-"]) { color: var(--text); }
+    .btn-outline-secondary { color: var(--text-muted); border-color: var(--border); }
+    .btn-outline-secondary:hover { color: var(--text); background: var(--hover-overlay); }
+    a:not(.nav-link):not(.btn):not([class*="comp-"]) { color: var(--accent); }
+    .table-striped > tbody > tr > * { color: var(--text); }
+    code, pre { color: var(--text); }
+
     /* --- MOBILE RESPONSIVE --- */
     @media (max-width: 768px) {
       .navbar .container {
