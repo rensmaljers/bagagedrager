@@ -111,10 +111,17 @@ const TEAMS = {
   'Uno-X Mobility':           { abbr: 'UXT', color: '#ff6600', color2: '#ffffff' },
 };
 
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
 function teamBadge(teamName) {
   const t = TEAMS[teamName];
-  if (!t) return `<span class="team-badge"><span class="team-dot" style="background:var(--text-muted)"></span><span class="team-abbr">${teamName}</span></span>`;
-  return `<span class="team-badge"><span class="team-dot" style="background:${t.color};box-shadow:inset -3px -3px 0 ${t.color2}"></span><span class="team-abbr">${t.abbr}</span></span>`;
+  const safe = escapeHtml(teamName || '');
+  if (!t) return `<span class="team-badge"><span class="team-dot" style="background:var(--text-muted)"></span><span class="team-abbr">${safe}</span></span>`;
+  return `<span class="team-badge"><span class="team-dot" style="background:${t.color};box-shadow:inset -3px -3px 0 ${t.color2}"></span><span class="team-abbr">${escapeHtml(t.abbr)}</span></span>`;
 }
 
 // --- HELPERS ---
@@ -280,17 +287,17 @@ async function loadStandings() {
 
   const gc = [...standings].sort((a, b) => a.total_time - b.total_time);
   $('gc-table').innerHTML = gc.map((s, i) =>
-    `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${i + 1}</td><td>${s.display_name}</td><td class="time text-end">${formatTime(s.total_time)}</td></tr>`
+    `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${i + 1}</td><td>${escapeHtml(s.display_name)}</td><td class="time text-end">${formatTime(s.total_time)}</td></tr>`
   ).join('') || emptyRow;
 
   const pts = [...standings].sort((a, b) => b.total_points - a.total_points);
   $('points-table').innerHTML = pts.map((s, i) =>
-    `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${i + 1}</td><td>${s.display_name}</td><td class="text-end">${s.total_points}</td></tr>`
+    `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${i + 1}</td><td>${escapeHtml(s.display_name)}</td><td class="text-end">${s.total_points}</td></tr>`
   ).join('') || emptyRow;
 
   const mt = [...standings].sort((a, b) => b.total_mountain_points - a.total_mountain_points);
   $('mountain-table').innerHTML = mt.map((s, i) =>
-    `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${i + 1}</td><td>${s.display_name}</td><td class="text-end">${s.total_mountain_points}</td></tr>`
+    `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${i + 1}</td><td>${escapeHtml(s.display_name)}</td><td class="text-end">${s.total_mountain_points}</td></tr>`
   ).join('') || emptyRow;
 }
 
@@ -369,7 +376,7 @@ function selectRider(riderId) {
     myPicks.filter(p => p.stage_id !== stageId && compStageIds.has(p.stage_id)).map(p => p.rider_id)
   );
   const stage = stages.find(s => s.id === stageId);
-  const isLocked = stage?.locked || new Date() > new Date(stage?.deadline);
+  const isLocked = !stage || stage.locked || new Date() > new Date(stage.deadline);
   const currentPick = myPicks.find(p => p.stage_id === stageId);
   renderRiderGrid(usedInOtherStages, isLocked && !currentPick);
   $('btn-submit-pick').disabled = false;
@@ -435,6 +442,13 @@ function getPelotonRole(p, totalPicks) {
 async function loadPeloton() {
   const allProfiles = await supaRest('profiles', { filters: 'order=created_at' });
   const allPicks = await supaRest('picks', { select: 'user_id' });
+  const isAdmin = profile?.is_admin;
+
+  // Show admin columns
+  const emailCol = $('peloton-email-col');
+  const actionsCol = $('peloton-actions-col');
+  if (emailCol) emailCol.style.display = isAdmin ? '' : 'none';
+  if (actionsCol) actionsCol.style.display = isAdmin ? '' : 'none';
 
   // Count picks per user
   const pickCounts = {};
@@ -443,12 +457,26 @@ async function loadPeloton() {
   $('peloton-table').innerHTML = allProfiles.map(p => {
     const role = getPelotonRole(p, pickCounts[p.id] || 0);
     return `<tr>
-      <td>${p.display_name}</td>
+      <td>${escapeHtml(p.display_name)}</td>
+      ${isAdmin ? `<td style="font-size:0.8rem;">${escapeHtml(p.email || '-')}</td>` : ''}
       <td><span class="badge ${role.badge}">${role.icon} ${role.name}</span></td>
       <td>${new Date(p.created_at).toLocaleDateString('nl-NL')}</td>
+      ${isAdmin ? `<td>
+        <button class="btn btn-sm btn-outline-${p.is_admin ? 'secondary' : 'danger'}"
+                onclick="toggleAdmin('${p.id}', ${!p.is_admin})">
+          ${p.is_admin ? 'Degradeer' : 'Promoveer'}
+        </button>
+      </td>` : ''}
     </tr>`;
-  }).join('') || '<tr><td colspan="3" class="text-muted">Nog geen renners in het peloton</td></tr>';
+  }).join('') || '<tr><td colspan="5" class="text-muted">Nog geen renners in het peloton</td></tr>';
 }
+
+window.toggleAdmin = async function(userId, makeAdmin) {
+  try {
+    await supaPatch('profiles', `id=eq.${userId}`, { is_admin: makeAdmin });
+    loadPeloton();
+  } catch (e) { alert(e.message); }
+};
 
 async function loadParticipants() {
   if (!activeCompId) {
@@ -488,8 +516,8 @@ async function loadParticipants() {
             <thead><tr><th>Speler</th><th>Renner</th><th class="text-end">Tijd</th><th class="text-end">Pts</th><th class="text-end">Berg</th><th>Status</th></tr></thead>
             <tbody>
               ${picks.map(p => `<tr>
-                <td>${p.display_name}</td>
-                <td>${p.rider_name} ${teamBadge(p.rider_team)}</td>
+                <td>${escapeHtml(p.display_name)}</td>
+                <td>${escapeHtml(p.rider_name)} ${teamBadge(p.rider_team)}</td>
                 <td class="time text-end">${p.time_seconds ? formatTime(p.time_seconds) : '-'}</td>
                 <td class="text-end">${p.points != null ? (p.is_late ? '0' : p.points) : '-'}</td>
                 <td class="text-end">${p.mountain_points != null ? (p.is_late ? '0' : p.mountain_points) : '-'}</td>
@@ -520,7 +548,7 @@ async function loadAdminUsers() {
   $('user-count').textContent = `${allProfiles.length} / 50 spelers`;
   $('admin-users-table').innerHTML = allProfiles.map(p => `
     <tr>
-      <td>${p.display_name}</td>
+      <td>${escapeHtml(p.display_name)}</td>
       <td>${p.is_admin ? '<span class="badge bg-danger">Admin</span>' : '<span class="badge bg-secondary">Speler</span>'}</td>
       <td>${new Date(p.created_at).toLocaleDateString('nl-NL')}</td>
       <td>
@@ -533,12 +561,7 @@ async function loadAdminUsers() {
   `).join('') || '<tr><td colspan="4" class="text-muted">Geen gebruikers</td></tr>';
 }
 
-window.toggleAdmin = async function(userId, makeAdmin) {
-  try {
-    await supaPatch('profiles', `id=eq.${userId}`, { is_admin: makeAdmin });
-    loadAdminUsers();
-  } catch (e) { alert(e.message); }
-};
+// toggleAdmin is defined in the peloton section
 
 // --- ADMIN: COMPETITIES ---
 async function loadAdminCompetitions() {
@@ -745,9 +768,9 @@ function renderAdminResultsForm() {
           ${riders.map(r => `
             <tr data-rider-id="${r.id}">
               <td>${r.name} ${teamBadge(r.team)}</td>
-              <td><input type="number" class="form-control form-control-sm res-time" value="0" /></td>
-              <td><input type="number" class="form-control form-control-sm res-pts" value="0" /></td>
-              <td><input type="number" class="form-control form-control-sm res-mt" value="0" /></td>
+              <td><input type="number" class="form-control form-control-sm res-time" value="0" min="0" /></td>
+              <td><input type="number" class="form-control form-control-sm res-pts" value="0" min="0" /></td>
+              <td><input type="number" class="form-control form-control-sm res-mt" value="0" min="0" /></td>
               <td><input type="checkbox" class="form-check-input res-dnf" /></td>
             </tr>
           `).join('')}
@@ -848,17 +871,22 @@ $('btn-import-riders').addEventListener('click', async () => {
 
   status.textContent = `Importeren van ${parsed.length} renners...`;
   status.className = 'text-muted';
-  let ok = 0, skip = 0;
+  let ok = 0, skip = 0, errors = [];
   for (const r of parsed) {
     try {
       await supaRest('riders', { method: 'POST', body: r });
       ok++;
     } catch (e) {
-      skip++; // duplicate bib_number
+      skip++;
+      if (!e.message.includes('duplicate') && !e.message.includes('unique')) {
+        errors.push(`#${r.bib_number} ${r.name}: ${e.message}`);
+      }
     }
   }
-  status.textContent = `${ok} geimporteerd, ${skip} overgeslagen (duplicaat)`;
-  status.className = 'text-success';
+  const msg = `${ok} geïmporteerd, ${skip} overgeslagen`;
+  status.textContent = errors.length ? `${msg} (${errors.length} fouten — check console)` : msg;
+  status.className = errors.length ? 'text-warning' : 'text-success';
+  if (errors.length) console.warn('Import fouten:', errors);
   loadAdminRiders();
 });
 
@@ -936,11 +964,18 @@ function loadImportCompSelect() {
   if (saved) {
     try {
       session = JSON.parse(saved);
+      // Check token expiration
+      if (session.expires_at && Date.now() / 1000 > session.expires_at) {
+        throw new Error('Token expired');
+      }
       const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
         headers: { 'Authorization': `Bearer ${session.access_token}`, 'apikey': SUPABASE_ANON_KEY },
       });
       if (res.ok) { session.user = await res.json(); await initApp(); }
-      else localStorage.removeItem('bagagedrager_session');
-    } catch (e) { localStorage.removeItem('bagagedrager_session'); }
+      else { localStorage.removeItem('bagagedrager_session'); }
+    } catch (e) {
+      localStorage.removeItem('bagagedrager_session');
+      session = null;
+    }
   }
 })();

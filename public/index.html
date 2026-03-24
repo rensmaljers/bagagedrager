@@ -558,7 +558,7 @@
         <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">Het Peloton</h5></div>
         <div class="card-body p-0">
           <table class="table table-sm table-striped mb-0">
-            <thead><tr><th>Naam</th><th>Rol</th><th>Lid sinds</th></tr></thead>
+            <thead><tr><th>Naam</th><th id="peloton-email-col" style="display:none;">Email</th><th>Rol</th><th>Lid sinds</th><th id="peloton-actions-col" style="display:none;">Acties</th></tr></thead>
             <tbody id="peloton-table"></tbody>
           </table>
         </div>
@@ -814,7 +814,7 @@
 (function() {
   const stored = localStorage.getItem('bagagedrager_theme');
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const theme = stored || (prefersDark ? 'dark' : 'dark');
+  const theme = stored || (prefersDark ? 'dark' : 'light');
   document.documentElement.setAttribute('data-theme', theme);
 
   function updateIcon() {
