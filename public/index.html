@@ -845,8 +845,37 @@
 
       <!-- Admin: Resultaten -->
       <div class="admin-sub" id="admin-results">
+        <!-- PCS Sync -->
+        <div class="card mb-3">
+          <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">🔄 PCS Resultaten Sync</h5></div>
+          <div class="card-body">
+            <p class="text-muted" style="font-size:0.8rem;">
+              Voer een PCS etappe-URL in om resultaten automatisch op te halen.<br>
+              Bijv: <code>https://www.procyclingstats.com/race/tour-de-france/2025/stage-1</code>
+            </p>
+            <div class="row g-2 mb-2">
+              <div class="col-md-5">
+                <select id="sync-stage-select" class="form-select form-select-sm"></select>
+              </div>
+              <div class="col-md-5">
+                <input type="text" id="pcs-results-url" class="form-control form-control-sm" placeholder="PCS etappe-URL..." />
+              </div>
+              <div class="col-md-2">
+                <button id="btn-sync-pcs" class="btn btn-accent btn-sm w-100">🔄 Sync</button>
+              </div>
+            </div>
+            <span id="sync-status" style="font-size:0.8rem;"></span>
+            <div id="sync-preview" class="mt-2" style="font-size:0.8rem; max-height:200px; overflow-y:auto;"></div>
+            <div id="sync-actions" style="display:none;" class="mt-2">
+              <button id="btn-save-synced" class="btn btn-success btn-sm">Opslaan naar database</button>
+              <span id="sync-save-status" class="ms-2" style="font-size:0.8rem;"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Handmatig -->
         <div class="card">
-          <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">Etappe Resultaten Invoeren</h5></div>
+          <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">Handmatig Invoeren</h5></div>
           <div class="card-body">
             <div class="mb-3">
               <label class="form-label" style="font-size:0.8rem; color:var(--text-muted);">Etappe</label>

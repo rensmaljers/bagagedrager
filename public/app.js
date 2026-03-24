@@ -789,9 +789,114 @@ window.deleteStage = async function(stageId) {
   } catch (e) { alert(e.message); }
 };
 
+// --- ADMIN: PCS SYNC ---
+let syncedResults = null;
+
+async function loadSyncStageSelect() {
+  const compStages = activeStages();
+  const sel = $('sync-stage-select');
+  sel.innerHTML = compStages.map(s =>
+    `<option value="${s.id}">Etappe ${s.stage_number}: ${s.name}</option>`
+  ).join('');
+}
+
+$('btn-sync-pcs').addEventListener('click', async () => {
+  const url = $('pcs-results-url').value.trim();
+  const stageId = parseInt($('sync-stage-select').value);
+  const status = $('sync-status');
+  const preview = $('sync-preview');
+
+  if (!url) { status.textContent = 'Voer een PCS URL in'; status.className = 'text-danger'; return; }
+  if (!stageId) { status.textContent = 'Selecteer een etappe'; status.className = 'text-danger'; return; }
+
+  status.textContent = '🔄 Ophalen van PCS...';
+  status.className = 'text-muted';
+  preview.innerHTML = '';
+  $('sync-actions').style.display = 'none';
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/sync-pcs-results`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ pcs_url: url }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Sync mislukt');
+
+    syncedResults = { stageId, results: data.results };
+
+    // Match bib numbers to riders in our database
+    let matched = 0, unmatched = 0;
+    const matchedResults = data.results.map(r => {
+      const rider = riders.find(rd => rd.bib_number === r.bib_number);
+      if (rider) { matched++; return { ...r, rider_id: rider.id, rider_name: rider.name }; }
+      unmatched++;
+      return { ...r, rider_id: null, rider_name: `Onbekend (bib #${r.bib_number})` };
+    });
+    syncedResults.results = matchedResults;
+
+    status.textContent = `✅ ${data.count} resultaten opgehaald (${matched} gekoppeld, ${unmatched} onbekend)`;
+    status.className = matched > 0 ? 'text-success' : 'text-warning';
+
+    // Show preview
+    const top10 = matchedResults.filter(r => r.rider_id).slice(0, 10);
+    preview.innerHTML = `<table class="table table-sm mb-0">
+      <thead><tr><th>#</th><th>Renner</th><th>Tijd</th><th>Pts</th><th>Berg</th><th>DNF</th></tr></thead>
+      <tbody>${top10.map((r, i) => `<tr>
+        <td>${i + 1}</td>
+        <td>${escapeHtml(r.rider_name)}</td>
+        <td class="time">${formatTime(r.time_seconds)}</td>
+        <td>${r.points}</td>
+        <td>${r.mountain_points}</td>
+        <td>${r.dnf ? '⚠️' : ''}</td>
+      </tr>`).join('')}
+      ${matchedResults.filter(r => r.rider_id).length > 10 ? `<tr><td colspan="6" class="text-muted">...en ${matchedResults.filter(r => r.rider_id).length - 10} meer</td></tr>` : ''}
+      </tbody></table>`;
+
+    if (matched > 0) $('sync-actions').style.display = 'block';
+
+  } catch (e) {
+    status.textContent = `❌ ${e.message}`;
+    status.className = 'text-danger';
+  }
+});
+
+$('btn-save-synced').addEventListener('click', async () => {
+  if (!syncedResults) return;
+  const status = $('sync-save-status');
+  const matched = syncedResults.results.filter(r => r.rider_id);
+
+  status.textContent = `Opslaan van ${matched.length} resultaten...`;
+  status.className = 'text-muted';
+
+  try {
+    const payload = matched.map(r => ({
+      rider_id: r.rider_id,
+      time_seconds: r.time_seconds,
+      points: r.points,
+      mountain_points: r.mountain_points,
+      dnf: r.dnf,
+    }));
+
+    const result = await supaRpc('admin_save_results', {
+      p_stage_id: syncedResults.stageId,
+      p_results: payload,
+    });
+
+    status.textContent = `✅ ${matched.length} resultaten opgeslagen!`;
+    status.className = 'text-success';
+    syncedResults = null;
+    $('sync-actions').style.display = 'none';
+  } catch (e) {
+    status.textContent = `❌ ${e.message}`;
+    status.className = 'text-danger';
+  }
+});
+
 // --- ADMIN: RESULTATEN (via Postgres RPC) ---
 async function loadAdminResults() {
   const compStages = activeStages();
+  loadSyncStageSelect();
   const sel = $('admin-stage-select');
   sel.innerHTML = compStages.map(s =>
     `<option value="${s.id}">Etappe ${s.stage_number}: ${s.name}</option>`
