@@ -576,11 +576,11 @@ async function loadParticipants() {
 
 async function loadAdminView() {
   loadAdminUsers();
-  loadAdminCompetitions();
+  await loadAdminCompetitions();
+  loadImportCompSelect();
   loadAdminRiders();
   loadAdminStages();
   loadAdminResults();
-  loadImportCompSelect();
 }
 
 // --- ADMIN: GEBRUIKERS ---
