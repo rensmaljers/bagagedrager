@@ -11,11 +11,12 @@ WHERE lower(display_name) = 'rens'
 -- COMPETITIES
 -- ============================================
 INSERT INTO competitions (name, slug, competition_type, year, is_active) VALUES
-  ('Tour de France 2025', 'tour-2025', 'tour', 2025, true),
+  ('Tour de France 2025', 'tour-2025', 'tour', 2025, false),
   ('Giro d''Italia 2025', 'giro-2025', 'giro', 2025, false),
   ('Vuelta a España 2025', 'vuelta-2025', 'vuelta', 2025, false),
   ('Parijs-Roubaix 2025', 'roubaix-2025', 'classic', 2025, false),
-  ('Ronde van Vlaanderen 2025', 'vlaanderen-2025', 'classic', 2025, false)
+  ('Ronde van Vlaanderen 2025', 'vlaanderen-2025', 'classic', 2025, false),
+  ('Tour de Fazant 2026', 'fazant-2026', 'tour', 2026, true)
 ON CONFLICT (slug) DO NOTHING;
 
 -- ============================================
@@ -126,5 +127,29 @@ BEGIN
     (19, 'Bordeaux → Libourne',            '2025-07-23', 'sprint',  '2025-07-22 21:00:00+00', false, tour_id),
     (20, 'Libourne → Périgueux (TT)',      '2025-07-24', 'tt',       '2025-07-23 21:00:00+00', false, tour_id),
     (21, 'Paris → Champs-Élysées',         '2025-07-25', 'sprint',  '2025-07-24 21:00:00+00', false, tour_id)
+  ON CONFLICT (competition_id, stage_number) DO NOTHING;
+END $$;
+
+-- ============================================
+-- TOUR DE FAZANT 2026 ETAPPES (fake data)
+-- Start 2 mei 2026, 10 etappes
+-- ============================================
+DO $$
+DECLARE
+  fazant_id int;
+BEGIN
+  SELECT id INTO fazant_id FROM competitions WHERE slug = 'fazant-2026';
+
+  INSERT INTO stages (stage_number, name, date, stage_type, deadline, locked, competition_id) VALUES
+    (1,  'Het Nest → De Korenvelden',       '2026-05-02', 'flat',     '2026-05-01 21:00:00+00', false, fazant_id),
+    (2,  'De Korenvelden → Bosrand',         '2026-05-03', 'sprint',  '2026-05-02 21:00:00+00', false, fazant_id),
+    (3,  'Bosrand → Heuvelrug',              '2026-05-04', 'mountain','2026-05-03 21:00:00+00', false, fazant_id),
+    (4,  'Heuvelrug → De Polder',            '2026-05-05', 'flat',    '2026-05-04 21:00:00+00', false, fazant_id),
+    (5,  'De Polder → Duintoppen',           '2026-05-06', 'mountain','2026-05-05 21:00:00+00', false, fazant_id),
+    (6,  'Rustdag',                          '2026-05-07', 'flat',    '2026-05-06 21:00:00+00', false, fazant_id),
+    (7,  'Duintoppen → Moerasvlakte (TT)',   '2026-05-08', 'tt',      '2026-05-07 21:00:00+00', false, fazant_id),
+    (8,  'Moerasvlakte → Het Woud',          '2026-05-09', 'mountain','2026-05-08 21:00:00+00', false, fazant_id),
+    (9,  'Het Woud → Fazantenhof',           '2026-05-10', 'sprint',  '2026-05-09 21:00:00+00', false, fazant_id),
+    (10, 'Fazantenhof → De Gouden Veer',     '2026-05-11', 'flat',    '2026-05-10 21:00:00+00', false, fazant_id)
   ON CONFLICT (competition_id, stage_number) DO NOTHING;
 END $$;
