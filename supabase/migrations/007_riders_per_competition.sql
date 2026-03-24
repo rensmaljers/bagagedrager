@@ -1,5 +1,5 @@
 -- Add competition_id to riders so each competition has its own rider list
-ALTER TABLE riders ADD COLUMN competition_id int REFERENCES competitions(id);
+ALTER TABLE riders ADD COLUMN competition_id int REFERENCES competitions(id) ON DELETE CASCADE;
 
 -- Drop old unique constraint on bib_number (was global, now per competition)
 ALTER TABLE riders DROP CONSTRAINT IF EXISTS riders_bib_number_key;

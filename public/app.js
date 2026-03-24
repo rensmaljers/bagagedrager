@@ -131,10 +131,20 @@ function escapeHtml(str) {
   return d.innerHTML;
 }
 
+// Team shirt URLs from PCS (populated via sync or manually)
+let teamShirts = JSON.parse(localStorage.getItem('bagagedrager_shirts') || '{}');
+
 function teamBadge(teamName) {
   const t = TEAMS[teamName];
   const safe = escapeHtml(teamName || '');
-  if (!t) return `<span class="team-badge"><span class="team-dot" style="background:var(--text-muted)"></span><span class="team-abbr">${safe}</span></span>`;
+  const shirtUrl = teamShirts[teamName];
+  const shirtImg = shirtUrl ? `<img src="${shirtUrl}" class="team-shirt" alt="" onerror="this.style.display='none'">` : '';
+
+  if (!t) {
+    if (shirtImg) return `<span class="team-badge">${shirtImg}<span class="team-abbr">${safe}</span></span>`;
+    return `<span class="team-badge"><span class="team-dot" style="background:var(--text-muted)"></span><span class="team-abbr">${safe}</span></span>`;
+  }
+  if (shirtImg) return `<span class="team-badge">${shirtImg}<span class="team-abbr">${escapeHtml(t.abbr)}</span></span>`;
   return `<span class="team-badge"><span class="team-dot" style="background:${t.color};box-shadow:inset -3px -3px 0 ${t.color2}"></span><span class="team-abbr">${escapeHtml(t.abbr)}</span></span>`;
 }
 
@@ -570,6 +580,7 @@ async function loadAdminView() {
   loadAdminRiders();
   loadAdminStages();
   loadAdminResults();
+  loadImportCompSelect();
 }
 
 // --- ADMIN: GEBRUIKERS ---
@@ -1099,7 +1110,23 @@ $('btn-preview-riders').addEventListener('click', () => {
 });
 
 $('btn-import-riders').addEventListener('click', async () => {
-  const parsed = parseRiderLines($('import-riders-text').value);
+  let rawText = $('import-riders-text').value;
+
+  // Extract shirts if present (from PCS script output)
+  if (rawText.includes('---SHIRTS---')) {
+    const parts = rawText.split('---SHIRTS---');
+    rawText = parts[0].replace('---RENNERS---', '');
+    try {
+      const shirts = JSON.parse(parts[1].trim());
+      teamShirts = { ...teamShirts, ...shirts };
+      localStorage.setItem('bagagedrager_shirts', JSON.stringify(teamShirts));
+      console.log(`${Object.keys(shirts).length} team shirts opgeslagen`);
+    } catch (e) { console.warn('Kon shirts niet parsen:', e); }
+  } else {
+    rawText = rawText.replace('---RENNERS---', '');
+  }
+
+  const parsed = parseRiderLines(rawText);
   const compId = parseInt($('import-rider-comp').value);
   const status = $('import-riders-status');
   if (!parsed.length) { status.textContent = 'Geen geldige data'; status.className = 'text-danger'; return; }
@@ -1169,8 +1196,11 @@ const PCS_SCRIPT = `// Plak dit in de console op een PCS startlijst-pagina
 (() => {
   const teams = document.querySelectorAll('ul.startlist_v4 > li');
   const result = [];
+  const shirts = {};
   teams.forEach(li => {
     const teamName = li.querySelector('a.team')?.textContent?.trim().replace(/\\s*\\(.*\\)/, '') || '';
+    const shirtImg = li.querySelector('.shirtCont img');
+    if (shirtImg && teamName) shirts[teamName] = shirtImg.src;
     li.querySelectorAll('.ridersCont ul li').forEach(rider => {
       const bib = rider.querySelector('.bib')?.textContent?.trim() || '';
       let name = rider.querySelector('a')?.textContent?.trim() || '';
@@ -1178,8 +1208,9 @@ const PCS_SCRIPT = `// Plak dit in de console op een PCS startlijst-pagina
       if (bib && name) result.push(bib + ', ' + name + ', ' + teamName);
     });
   });
-  copy(result.join('\\n'));
-  console.log(result.length + ' renners gekopieerd naar clipboard!');
+  const output = '---RENNERS---\\n' + result.join('\\n') + '\\n---SHIRTS---\\n' + JSON.stringify(shirts);
+  copy(output);
+  console.log(result.length + ' renners + ' + Object.keys(shirts).length + ' team shirts gekopieerd!');
 })();`;
 
 document.addEventListener('DOMContentLoaded', () => {
