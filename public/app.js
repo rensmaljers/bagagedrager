@@ -72,8 +72,22 @@ async function login(email, password) {
     body: JSON.stringify({ email, password }),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error_description || data.msg || 'Login mislukt');
+  if (!res.ok) throw new Error(dutchAuthError(data.error_description || data.msg));
   return data;
+}
+
+function dutchAuthError(msg) {
+  if (!msg) return 'Er ging iets mis, probeer het later opnieuw.';
+  const lower = msg.toLowerCase();
+  if (lower.includes('database error saving new user')) return 'Het maximaal aantal spelers is bereikt (50). Neem contact op met de beheerder.';
+  if (lower.includes('user already registered')) return 'Dit e-mailadres is al geregistreerd. Probeer in te loggen.';
+  if (lower.includes('invalid login credentials')) return 'Onjuist e-mailadres of wachtwoord.';
+  if (lower.includes('email not confirmed')) return 'Je e-mail is nog niet bevestigd. Check je inbox.';
+  if (lower.includes('password should be at least')) return 'Wachtwoord moet minimaal 6 tekens zijn.';
+  if (lower.includes('unable to validate email')) return 'Ongeldig e-mailadres.';
+  if (lower.includes('rate limit')) return 'Te veel pogingen. Wacht even en probeer opnieuw.';
+  if (lower.includes('signup is disabled')) return 'Aanmelden is momenteel uitgeschakeld.';
+  return msg;
 }
 
 async function signup(email, password, displayName) {
@@ -83,7 +97,7 @@ async function signup(email, password, displayName) {
     body: JSON.stringify({ email, password, data: { display_name: displayName } }),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error_description || data.msg || 'Aanmelden mislukt');
+  if (!res.ok) throw new Error(dutchAuthError(data.error_description || data.msg));
   return data;
 }
 
