@@ -422,9 +422,6 @@
         <p class="text-muted mb-4" style="font-size:0.9rem;">Het wielerspel</p>
         <div id="auth-form">
           <div class="mb-3">
-            <input type="text" id="auth-name" class="form-control" placeholder="Weergavenaam" />
-          </div>
-          <div class="mb-3">
             <input type="email" id="auth-email" class="form-control" placeholder="Email" />
           </div>
           <div class="mb-3">
@@ -466,6 +463,9 @@
       </li>
       <li class="nav-item">
         <a class="nav-link" href="#" data-tab="participants">Deelnemers</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#" data-tab="account">Account</a>
       </li>
       <li class="nav-item" id="admin-tab" style="display:none;">
         <a class="nav-link" href="#" data-tab="admin">Admin</a>
@@ -566,6 +566,27 @@
 
       <div id="participants-content">
         <p class="text-muted">Laden...</p>
+      </div>
+    </div>
+
+    <!-- Account -->
+    <div class="tab-section" id="section-account">
+      <div class="card" style="max-width: 480px;">
+        <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">Account Instellingen</h5></div>
+        <div class="card-body">
+          <div class="mb-3">
+            <label class="form-label" style="font-size:0.8rem; color:var(--text-muted);">Weergavenaam</label>
+            <input type="text" id="account-name" class="form-control form-control-sm" placeholder="Jouw naam" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label" style="font-size:0.8rem; color:var(--text-muted);">Email</label>
+            <input type="email" id="account-email" class="form-control form-control-sm" disabled />
+          </div>
+          <div class="d-flex gap-2 align-items-center">
+            <button id="btn-save-account" class="btn btn-accent btn-sm">Opslaan</button>
+            <span id="account-status" style="font-size:0.8rem;"></span>
+          </div>
+        </div>
       </div>
     </div>
 

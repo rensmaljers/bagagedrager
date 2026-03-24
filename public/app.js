@@ -162,8 +162,32 @@ document.querySelectorAll('[data-tab]').forEach(a => {
     if (a.dataset.tab === 'pick') loadPickView();
     if (a.dataset.tab === 'history') loadHistory();
     if (a.dataset.tab === 'participants') { loadPeloton(); loadParticipants(); }
+    if (a.dataset.tab === 'account') loadAccountView();
     if (a.dataset.tab === 'admin') loadAdminView();
   });
+});
+
+// --- ACCOUNT SETTINGS ---
+function loadAccountView() {
+  $('account-name').value = profile?.display_name || '';
+  $('account-email').value = session?.user?.email || '';
+}
+
+$('btn-save-account').addEventListener('click', async () => {
+  const status = $('account-status');
+  const newName = $('account-name').value.trim();
+  if (!newName) { status.textContent = 'Naam mag niet leeg zijn'; status.className = 'text-danger'; return; }
+  try {
+    await supaPatch('profiles', `id=eq.${session.user.id}`, { display_name: newName });
+    profile.display_name = newName;
+    $('user-name').textContent = newName;
+    status.textContent = 'Opgeslagen!';
+    status.className = 'text-success';
+    setTimeout(() => { status.textContent = ''; }, 2000);
+  } catch (e) {
+    status.textContent = e.message;
+    status.className = 'text-danger';
+  }
 });
 
 // Admin sub-tab navigation
@@ -187,9 +211,8 @@ $('btn-login').addEventListener('click', async () => {
 
 $('btn-signup').addEventListener('click', async () => {
   try {
-    const name = $('auth-name').value.trim();
-    if (!name) return showError('Weergavenaam is verplicht');
-    const data = await signup($('auth-email').value, $('auth-password').value, name);
+    const email = $('auth-email').value;
+    const data = await signup(email, $('auth-password').value, email.split('@')[0]);
     if (data.access_token) { session = data; await initApp(); }
     else showError('Check je email om je account te bevestigen');
   } catch (e) { showError(e.message); }
