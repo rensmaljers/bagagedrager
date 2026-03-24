@@ -161,7 +161,7 @@ document.querySelectorAll('[data-tab]').forEach(a => {
     if (a.dataset.tab === 'dashboard') loadStandings();
     if (a.dataset.tab === 'pick') loadPickView();
     if (a.dataset.tab === 'history') loadHistory();
-    if (a.dataset.tab === 'participants') loadParticipants();
+    if (a.dataset.tab === 'participants') { loadPeloton(); loadParticipants(); }
     if (a.dataset.tab === 'admin') loadAdminView();
   });
 });
@@ -399,6 +399,33 @@ async function loadHistory() {
 }
 
 // --- DEELNEMERS (picks van iedereen, zichtbaar na deadline) ---
+// --- PELOTON: alle gebruikers met wielren-rollen ---
+function getPelotonRole(p, totalPicks) {
+  if (p.is_admin) return { name: 'Ploegleider', badge: 'bg-danger', icon: '🚗' };
+  if (totalPicks >= 15) return { name: 'Kopman', badge: 'bg-warning text-dark', icon: '👑' };
+  if (totalPicks >= 5) return { name: 'Luitenant', badge: 'bg-primary', icon: '⭐' };
+  if (totalPicks >= 1) return { name: 'Knecht', badge: 'bg-success', icon: '💪' };
+  return { name: 'Stagiair', badge: 'bg-secondary', icon: '🚲' };
+}
+
+async function loadPeloton() {
+  const allProfiles = await supaRest('profiles', { filters: 'order=created_at' });
+  const allPicks = await supaRest('picks', { select: 'user_id' });
+
+  // Count picks per user
+  const pickCounts = {};
+  allPicks.forEach(p => { pickCounts[p.user_id] = (pickCounts[p.user_id] || 0) + 1; });
+
+  $('peloton-table').innerHTML = allProfiles.map(p => {
+    const role = getPelotonRole(p, pickCounts[p.id] || 0);
+    return `<tr>
+      <td>${p.display_name}</td>
+      <td><span class="badge ${role.badge}">${role.icon} ${role.name}</span></td>
+      <td>${new Date(p.created_at).toLocaleDateString('nl-NL')}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="3" class="text-muted">Nog geen renners in het peloton</td></tr>';
+}
+
 async function loadParticipants() {
   if (!activeCompId) {
     $('participants-content').innerHTML = '<p class="text-muted">Geen competitie geselecteerd</p>';
