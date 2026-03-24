@@ -179,6 +179,7 @@ $('btn-save-account').addEventListener('click', async () => {
   if (!newName) { status.textContent = 'Naam mag niet leeg zijn'; status.className = 'text-danger'; return; }
   try {
     await supaPatch('profiles', `id=eq.${session.user.id}`, { display_name: newName });
+    if (!profile) profile = {};
     profile.display_name = newName;
     $('user-name').textContent = newName;
     status.textContent = 'Opgeslagen!';
