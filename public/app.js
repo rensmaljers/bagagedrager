@@ -1,7 +1,6 @@
 // --- CONFIG ---
 const SUPABASE_URL = 'https://hdkvirtytljnuawcmoui.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhka3ZpcnR5dGxqbnVhd2Ntb3VpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzMzk4MTMsImV4cCI6MjA4OTkxNTgxM30.CsuQeET1dwzgb1HbL-YVoUW-Jq4OuynR3VgH792SlNk';
-const FUNCTIONS_URL = `${SUPABASE_URL}/functions/v1`;
 
 // --- STATE ---
 let session = null;
@@ -20,7 +19,7 @@ function authHeaders(extra = {}) {
   return h;
 }
 
-async function supaRpc(table, { method = 'GET', filters = '', body, select = '*' } = {}) {
+async function supaRest(table, { method = 'GET', filters = '', body, select = '*' } = {}) {
   const url = `${SUPABASE_URL}/rest/v1/${table}?select=${select}${filters ? '&' + filters : ''}`;
   const prefer = method === 'POST' ? 'return=representation' : method === 'PATCH' ? 'return=representation' : '';
   const opts = { method, headers: authHeaders({ 'Prefer': prefer }) };
@@ -48,12 +47,20 @@ async function supaPatch(table, filters, body) {
   return res.json();
 }
 
-async function callFunction(name, body) {
-  const res = await fetch(`${FUNCTIONS_URL}/${name}`, {
-    method: 'POST', headers: authHeaders(), body: JSON.stringify(body),
+// Call a Postgres RPC function
+async function supaRpc(fnName, params = {}) {
+  const url = `${SUPABASE_URL}/rest/v1/rpc/${fnName}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(params),
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Function call failed');
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : null;
+  if (!res.ok) {
+    const msg = data?.message || data?.error || text || 'RPC call mislukt';
+    throw new Error(msg);
+  }
   return data;
 }
 
@@ -124,6 +131,7 @@ document.querySelectorAll('[data-tab]').forEach(a => {
     if (a.dataset.tab === 'dashboard') loadStandings();
     if (a.dataset.tab === 'pick') loadPickView();
     if (a.dataset.tab === 'history') loadHistory();
+    if (a.dataset.tab === 'participants') loadParticipants();
     if (a.dataset.tab === 'admin') loadAdminView();
   });
 });
@@ -167,7 +175,6 @@ $('btn-logout').addEventListener('click', () => {
 // --- COMPETITION SELECTOR ---
 $('comp-select').addEventListener('change', () => {
   activeCompId = parseInt($('comp-select').value);
-  // Reload current view
   const activeTab = document.querySelector('#main-tabs .nav-link.active');
   if (activeTab) activeTab.click();
 });
@@ -176,7 +183,7 @@ $('comp-select').addEventListener('change', () => {
 async function initApp() {
   localStorage.setItem('bagagedrager_session', JSON.stringify(session));
 
-  const profiles = await supaRpc('profiles', { filters: `id=eq.${session.user.id}` });
+  const profiles = await supaRest('profiles', { filters: `id=eq.${session.user.id}` });
   profile = profiles[0];
 
   $('user-name').textContent = profile?.display_name || session.user.email;
@@ -185,12 +192,10 @@ async function initApp() {
 
   if (profile?.is_admin) $('admin-tab').style.display = 'block';
 
-  // Load base data
-  competitions = await supaRpc('competitions', { filters: 'order=year.desc,name' });
-  riders = await supaRpc('riders', { filters: 'order=bib_number' });
-  stages = await supaRpc('stages', { filters: 'order=stage_number' });
+  competitions = await supaRest('competitions', { filters: 'order=year.desc,name' });
+  riders = await supaRest('riders', { filters: 'order=bib_number' });
+  stages = await supaRest('stages', { filters: 'order=stage_number' });
 
-  // Populate competition selector
   const sel = $('comp-select');
   sel.innerHTML = competitions.map(c =>
     `<option value="${c.id}" ${c.is_active ? 'selected' : ''}>${c.name}</option>`
@@ -198,7 +203,7 @@ async function initApp() {
   const active = competitions.find(c => c.is_active) || competitions[0];
   if (active) { sel.value = active.id; activeCompId = active.id; }
 
-  myPicks = await supaRpc('picks', { filters: `user_id=eq.${session.user.id}&order=stage_id` });
+  myPicks = await supaRest('picks', { filters: `user_id=eq.${session.user.id}&order=stage_id` });
 
   loadStandings();
 }
@@ -206,13 +211,14 @@ async function initApp() {
 // --- DASHBOARD ---
 async function loadStandings() {
   if (!activeCompId) {
-    $('gc-table').innerHTML = '<tr><td colspan="3" class="text-muted">Geen competitie geselecteerd</td></tr>';
-    $('points-table').innerHTML = '<tr><td colspan="3" class="text-muted">Geen competitie geselecteerd</td></tr>';
-    $('mountain-table').innerHTML = '<tr><td colspan="3" class="text-muted">Geen competitie geselecteerd</td></tr>';
+    const empty = '<tr><td colspan="3" class="text-muted">Geen competitie geselecteerd</td></tr>';
+    $('gc-table').innerHTML = empty;
+    $('points-table').innerHTML = empty;
+    $('mountain-table').innerHTML = empty;
     return;
   }
 
-  const standings = await supaRpc('general_classification', {
+  const standings = await supaRest('general_classification', {
     filters: `competition_id=eq.${activeCompId}`
   });
 
@@ -220,23 +226,23 @@ async function loadStandings() {
 
   const gc = [...standings].sort((a, b) => a.total_time - b.total_time);
   $('gc-table').innerHTML = gc.map((s, i) =>
-    `<tr><td>${i + 1}</td><td>${s.display_name}</td><td class="time">${formatTime(s.total_time)}</td></tr>`
+    `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${i + 1}</td><td>${s.display_name}</td><td class="time text-end">${formatTime(s.total_time)}</td></tr>`
   ).join('') || emptyRow;
 
   const pts = [...standings].sort((a, b) => b.total_points - a.total_points);
   $('points-table').innerHTML = pts.map((s, i) =>
-    `<tr><td>${i + 1}</td><td>${s.display_name}</td><td>${s.total_points}</td></tr>`
+    `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${i + 1}</td><td>${s.display_name}</td><td class="text-end">${s.total_points}</td></tr>`
   ).join('') || emptyRow;
 
   const mt = [...standings].sort((a, b) => b.total_mountain_points - a.total_mountain_points);
   $('mountain-table').innerHTML = mt.map((s, i) =>
-    `<tr><td>${i + 1}</td><td>${s.display_name}</td><td>${s.total_mountain_points}</td></tr>`
+    `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${i + 1}</td><td>${s.display_name}</td><td class="text-end">${s.total_mountain_points}</td></tr>`
   ).join('') || emptyRow;
 }
 
 // --- PICK VIEW ---
 async function loadPickView() {
-  myPicks = await supaRpc('picks', { filters: `user_id=eq.${session.user.id}&order=stage_id` });
+  myPicks = await supaRest('picks', { filters: `user_id=eq.${session.user.id}&order=stage_id` });
 
   const compStages = activeStages();
   const sel = $('stage-select');
@@ -266,7 +272,6 @@ function renderPickStage() {
   const currentPick = myPicks.find(p => p.stage_id === stageId);
   selectedRiderId = currentPick?.rider_id || null;
 
-  // Riders used in other stages of THIS competition
   const compStageIds = new Set(activeStages().map(s => s.id));
   const usedInOtherStages = new Set(
     myPicks.filter(p => p.stage_id !== stageId && compStageIds.has(p.stage_id)).map(p => p.rider_id)
@@ -315,6 +320,7 @@ function selectRider(riderId) {
 
 $('rider-search').addEventListener('input', () => renderPickStage());
 
+// Submit pick via Postgres RPC
 $('btn-submit-pick').addEventListener('click', async () => {
   if (!selectedRiderId) return;
   const stageId = parseInt($('stage-select').value);
@@ -322,10 +328,10 @@ $('btn-submit-pick').addEventListener('click', async () => {
   try {
     status.textContent = 'Bezig...';
     status.className = 'ms-3 text-muted';
-    const result = await callFunction('submit-pick', { stage_id: stageId, rider_id: selectedRiderId });
+    const result = await supaRpc('submit_pick', { p_stage_id: stageId, p_rider_id: selectedRiderId });
     status.textContent = result.warning || 'Keuze opgeslagen!';
     status.className = result.warning ? 'ms-3 text-warning' : 'ms-3 text-success';
-    myPicks = await supaRpc('picks', { filters: `user_id=eq.${session.user.id}&order=stage_id` });
+    myPicks = await supaRest('picks', { filters: `user_id=eq.${session.user.id}&order=stage_id` });
   } catch (e) {
     status.textContent = e.message;
     status.className = 'ms-3 text-danger';
@@ -334,17 +340,14 @@ $('btn-submit-pick').addEventListener('click', async () => {
 
 // --- HISTORY ---
 async function loadHistory() {
-  myPicks = await supaRpc('picks', { filters: `user_id=eq.${session.user.id}&order=stage_id` });
+  myPicks = await supaRest('picks', { filters: `user_id=eq.${session.user.id}&order=stage_id` });
   const compStageIds = new Set(activeStages().map(s => s.id));
   const compPicks = myPicks.filter(p => compStageIds.has(p.stage_id));
 
-  // Batch fetch results for these stages
   const stageIds = compPicks.map(p => p.stage_id);
   let allResults = [];
   if (stageIds.length) {
-    allResults = await supaRpc('stage_results', {
-      filters: `stage_id=in.(${stageIds.join(',')})`
-    });
+    allResults = await supaRest('stage_results', { filters: `stage_id=in.(${stageIds.join(',')})` });
   }
 
   $('history-table').innerHTML = compPicks.map(pick => {
@@ -354,12 +357,66 @@ async function loadHistory() {
     return `<tr>
       <td>Etappe ${stage?.stage_number || '?'}</td>
       <td>${rider?.name || '?'} <small class="text-muted">#${rider?.bib_number || '?'}</small></td>
-      <td class="time">${result ? formatTime(result.time_seconds) : '-'}</td>
-      <td>${result ? (pick.is_late ? '0' : result.points) : '-'}</td>
-      <td>${result ? (pick.is_late ? '0' : result.mountain_points) : '-'}</td>
+      <td class="time text-end">${result ? formatTime(result.time_seconds) : '-'}</td>
+      <td class="text-end">${result ? (pick.is_late ? '0' : result.points) : '-'}</td>
+      <td class="text-end">${result ? (pick.is_late ? '0' : result.mountain_points) : '-'}</td>
       <td>${pick.is_late ? '<span class="badge bg-warning">Te laat</span>' : ''}</td>
     </tr>`;
   }).join('') || '<tr><td colspan="6" class="text-muted">Nog geen keuzes</td></tr>';
+}
+
+// --- DEELNEMERS (picks van iedereen, zichtbaar na deadline) ---
+async function loadParticipants() {
+  if (!activeCompId) {
+    $('participants-content').innerHTML = '<p class="text-muted">Geen competitie geselecteerd</p>';
+    return;
+  }
+
+  // Fetch public picks (view only shows locked/past-deadline stages)
+  const allPicks = await supaRest('stage_picks_public', {
+    filters: `competition_id=eq.${activeCompId}&order=stage_number.desc,display_name`
+  });
+
+  if (!allPicks.length) {
+    $('participants-content').innerHTML = '<p class="text-muted">Nog geen keuzes zichtbaar. Keuzes worden getoond na de deadline.</p>';
+    return;
+  }
+
+  // Group by stage
+  const byStage = {};
+  allPicks.forEach(p => {
+    if (!byStage[p.stage_number]) byStage[p.stage_number] = { picks: [], stage_id: p.stage_id };
+    byStage[p.stage_number].picks.push(p);
+  });
+
+  const stageNums = Object.keys(byStage).map(Number).sort((a, b) => b - a);
+
+  $('participants-content').innerHTML = stageNums.map(num => {
+    const { picks } = byStage[num];
+    const stageName = picks[0] ? `Etappe ${num}` : `Etappe ${num}`;
+    return `
+      <div class="card mb-3">
+        <div class="card-header">
+          <h6 class="mb-0" style="font-size:0.9rem;">${stageName}</h6>
+        </div>
+        <div class="card-body p-0">
+          <table class="table table-sm mb-0">
+            <thead><tr><th>Speler</th><th>Renner</th><th>Team</th><th class="text-end">Tijd</th><th class="text-end">Pts</th><th class="text-end">Berg</th><th>Status</th></tr></thead>
+            <tbody>
+              ${picks.map(p => `<tr>
+                <td>${p.display_name}</td>
+                <td>${p.rider_name} <small class="text-muted">#${p.bib_number}</small></td>
+                <td class="text-muted">${p.rider_team}</td>
+                <td class="time text-end">${p.time_seconds ? formatTime(p.time_seconds) : '-'}</td>
+                <td class="text-end">${p.points != null ? (p.is_late ? '0' : p.points) : '-'}</td>
+                <td class="text-end">${p.mountain_points != null ? (p.is_late ? '0' : p.mountain_points) : '-'}</td>
+                <td>${p.is_late ? '<span class="badge bg-warning">Te laat</span>' : ''}${p.dnf ? '<span class="badge bg-danger">DNF</span>' : ''}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  }).join('');
 }
 
 // =====================
@@ -376,7 +433,7 @@ async function loadAdminView() {
 
 // --- ADMIN: GEBRUIKERS ---
 async function loadAdminUsers() {
-  const allProfiles = await supaRpc('profiles', { filters: 'order=created_at' });
+  const allProfiles = await supaRest('profiles', { filters: 'order=created_at' });
   $('user-count').textContent = `${allProfiles.length} / 50 spelers`;
   $('admin-users-table').innerHTML = allProfiles.map(p => `
     <tr>
@@ -402,9 +459,8 @@ window.toggleAdmin = async function(userId, makeAdmin) {
 
 // --- ADMIN: COMPETITIES ---
 async function loadAdminCompetitions() {
-  competitions = await supaRpc('competitions', { filters: 'order=year.desc,name' });
+  competitions = await supaRest('competitions', { filters: 'order=year.desc,name' });
 
-  // Update global comp selector too
   const sel = $('comp-select');
   const currentVal = sel.value;
   sel.innerHTML = competitions.map(c =>
@@ -437,11 +493,11 @@ $('btn-add-comp').addEventListener('click', async () => {
   const year = parseInt($('new-comp-year').value);
   if (!name || !slug || !year) return alert('Vul alle velden in');
   try {
-    await supaRpc('competitions', { method: 'POST', body: { name, slug, competition_type: type, year, is_active: false } });
+    await supaRest('competitions', { method: 'POST', body: { name, slug, competition_type: type, year, is_active: false } });
     $('new-comp-name').value = '';
     $('new-comp-slug').value = '';
     loadAdminCompetitions();
-    loadAdminStages(); // refresh stage comp dropdown
+    loadAdminStages();
   } catch (e) { alert(e.message); }
 });
 
@@ -462,7 +518,7 @@ window.deleteComp = async function(compId) {
 
 // --- ADMIN: RENNERS ---
 async function loadAdminRiders() {
-  riders = await supaRpc('riders', { filters: 'order=bib_number' });
+  riders = await supaRest('riders', { filters: 'order=bib_number' });
   renderAdminRiders();
 }
 
@@ -493,7 +549,7 @@ $('btn-add-rider').addEventListener('click', async () => {
   const team = $('new-rider-team').value.trim();
   if (!bib || !name || !team) return alert('Vul alle velden in');
   try {
-    await supaRpc('riders', { method: 'POST', body: { bib_number: bib, name, team } });
+    await supaRest('riders', { method: 'POST', body: { bib_number: bib, name, team } });
     $('new-rider-bib').value = '';
     $('new-rider-name').value = '';
     $('new-rider-team').value = '';
@@ -511,9 +567,8 @@ window.deleteRider = async function(riderId) {
 
 // --- ADMIN: ETAPPES ---
 async function loadAdminStages() {
-  stages = await supaRpc('stages', { filters: 'order=stage_number' });
+  stages = await supaRest('stages', { filters: 'order=stage_number' });
 
-  // Populate competition dropdown in stage form
   $('new-stage-comp').innerHTML = competitions.map(c =>
     `<option value="${c.id}">${c.name}</option>`
   ).join('');
@@ -555,7 +610,7 @@ $('btn-add-stage').addEventListener('click', async () => {
   deadlineDate.setHours(23, 0, 0, 0);
 
   try {
-    await supaRpc('stages', {
+    await supaRest('stages', {
       method: 'POST',
       body: { stage_number: num, name, date, stage_type: type, deadline: deadlineDate.toISOString(), locked: false, competition_id: compId },
     });
@@ -581,7 +636,7 @@ window.deleteStage = async function(stageId) {
   } catch (e) { alert(e.message); }
 };
 
-// --- ADMIN: RESULTATEN ---
+// --- ADMIN: RESULTATEN (via Postgres RPC) ---
 async function loadAdminResults() {
   const compStages = activeStages();
   const sel = $('admin-stage-select');
@@ -621,7 +676,7 @@ function renderAdminResultsForm() {
 
 async function loadExistingResults(stageId) {
   try {
-    const results = await supaRpc('stage_results', { filters: `stage_id=eq.${stageId}` });
+    const results = await supaRest('stage_results', { filters: `stage_id=eq.${stageId}` });
     for (const r of results) {
       const row = document.querySelector(`#admin-results-form tr[data-rider-id="${r.rider_id}"]`);
       if (!row) continue;
@@ -651,8 +706,8 @@ $('btn-save-results').addEventListener('click', async () => {
   try {
     status.textContent = 'Opslaan...';
     status.className = 'ms-3 text-muted';
-    await callFunction('admin-results', { stage_id: stageId, results });
-    status.textContent = `${results.length} resultaten opgeslagen!`;
+    const res = await supaRpc('admin_save_results', { p_stage_id: stageId, p_results: results });
+    status.textContent = `${res.count} resultaten opgeslagen!`;
     status.className = 'ms-3 text-success';
   } catch (e) {
     status.textContent = e.message;
