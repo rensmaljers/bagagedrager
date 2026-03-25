@@ -23,10 +23,9 @@ WITH rider_pick_counts AS (
   GROUP BY stage_id, rider_id
 ),
 stage_winner_times AS (
-  SELECT stage_id, MIN(time_seconds) AS winner_time
+  SELECT stage_id, time_seconds AS winner_time
   FROM stage_results
-  WHERE NOT dnf AND time_seconds > 0
-  GROUP BY stage_id
+  WHERE finish_position = 1 AND NOT dnf AND time_seconds > 0
 ),
 pick_times AS (
   SELECT
@@ -96,10 +95,9 @@ WITH rider_pick_counts AS (
   GROUP BY stage_id, rider_id
 ),
 stage_winner_times AS (
-  SELECT stage_id, MIN(time_seconds) AS winner_time
+  SELECT stage_id, time_seconds AS winner_time
   FROM stage_results
-  WHERE NOT dnf AND time_seconds > 0
-  GROUP BY stage_id
+  WHERE finish_position = 1 AND NOT dnf AND time_seconds > 0
 )
 SELECT
   p.stage_id,

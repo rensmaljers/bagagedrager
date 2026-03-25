@@ -76,7 +76,8 @@ Deno.serve(async (req) => {
 
     const rows = table.querySelectorAll("tbody tr");
     const results: any[] = [];
-    let lastTime = 0;
+    let winnerTime = 0; // Absolute time of the stage winner (first row)
+    let lastTime = 0;   // Last assigned absolute time (for ,, same-time groups)
 
     for (const row of rows) {
       const cells = row.querySelectorAll("td");
@@ -98,10 +99,25 @@ Deno.serve(async (req) => {
           if (timeText.toLowerCase().includes("dnf") || timeText.toLowerCase().includes("dns") || timeText.toLowerCase().includes("otl")) {
             dnf = true;
           } else {
+            // PCS time formats:
+            // - Winner (row 1): absolute time "4:00:46"
+            // - Same time group: ",," or empty → parsed as 0
+            // - Time gap: "+0:15" → strip + gives "0:15" = 15 seconds (a gap, not absolute!)
+            const isGap = /^\s*\+/.test(timeText);
             const parsed = parseTime(timeText);
             if (parsed > 0) {
-              time = parsed;
-              lastTime = parsed;
+              if (winnerTime === 0) {
+                // First valid time = winner's absolute time
+                winnerTime = parsed;
+                time = parsed;
+              } else if (isGap) {
+                // "+0:15" means winner_time + 15 seconds
+                time = winnerTime + parsed;
+              } else {
+                // Absolute time (shouldn't normally happen after first row)
+                time = parsed;
+              }
+              lastTime = time;
             } else {
               // Same time as previous (PCS shows ,, or empty for same time group)
               time = lastTime;

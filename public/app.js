@@ -907,12 +907,11 @@ async function loadHistory() {
   }
 
   // Calculate winner times per stage for gap display
+  // Use finish_position === 1 to find the winner's absolute time
   const winnerTimes = {};
   for (const r of allResults) {
-    if (!r.dnf && r.time_seconds > 0) {
-      if (!winnerTimes[r.stage_id] || r.time_seconds < winnerTimes[r.stage_id]) {
-        winnerTimes[r.stage_id] = r.time_seconds;
-      }
+    if (r.finish_position === 1 && !r.dnf && r.time_seconds > 0) {
+      winnerTimes[r.stage_id] = r.time_seconds;
     }
   }
 
