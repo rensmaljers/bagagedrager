@@ -164,9 +164,11 @@ function formatGap(seconds) {
   const neg = seconds < 0;
   const abs = Math.abs(seconds);
   if (abs === 0) return '0:00';
-  const m = Math.floor(abs / 60);
+  const h = Math.floor(abs / 3600);
+  const m = Math.floor((abs % 3600) / 60);
   const s = abs % 60;
   const prefix = neg ? '-' : '+';
+  if (h > 0) return `${prefix}${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   return `${prefix}${m}:${String(s).padStart(2, '0')}`;
 }
 
