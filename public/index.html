@@ -524,6 +524,68 @@
     .auth-logo { font-size: 2.5rem; margin-bottom: 0.5rem; }
     .auth-subtitle { font-size: 0.85rem; line-height: 1.5; }
 
+    /* --- AUTH INTRO PANEL --- */
+    .auth-intro {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 2.5rem 2rem;
+    }
+    .auth-intro h2 {
+      font-size: 2.2rem;
+      font-weight: 800;
+      letter-spacing: -1px;
+      line-height: 1.15;
+      margin-bottom: 1.25rem;
+    }
+    .auth-intro h2 .highlight {
+      background: linear-gradient(90deg, var(--accent), var(--green));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .auth-intro p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.7;
+      margin-bottom: 0;
+    }
+    .auth-features {
+      list-style: none;
+      padding: 0;
+      margin: 1.5rem 0 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .auth-features li {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      font-size: 0.9rem;
+      color: var(--text);
+    }
+    .auth-features .feat-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+    .feat-gc { background: var(--jersey-gc-bg); }
+    .feat-pts { background: var(--jersey-pts-bg); }
+    .feat-mt { background: var(--jersey-mt-bg); }
+    .feat-game { background: var(--jersey-game-bg); }
+
+    @media (max-width: 991.98px) {
+      .auth-intro { text-align: center; padding: 2rem 1rem 0.5rem; }
+      .auth-intro h2 { font-size: 1.6rem; }
+      .auth-features { align-items: center; }
+    }
+
     /* --- RANK NUMBER --- */
     .rank-1 { color: var(--accent); font-weight: 700; }
     .rank-2 { color: #a8a29e; font-weight: 600; }
@@ -705,6 +767,22 @@
 <!-- Auth Screen -->
 <div id="auth-screen" class="container py-5">
   <div class="row justify-content-center" style="min-height:80vh; align-items:center;">
+
+    <!-- Intro panel -->
+    <div class="col-lg-5 d-none d-lg-block">
+      <div class="auth-intro">
+        <h2>Speel mee met<br><span class="highlight">het wielerspel</span><br>voor echte ploegleiders.</h2>
+        <p>Kies voor elke etappe jouw renner en strijd om de truien. Wie heeft het beste wielerinstinct?</p>
+        <ul class="auth-features">
+          <li><span class="feat-icon feat-gc">🟡</span> Algemeen Klassement — de gele trui</li>
+          <li><span class="feat-icon feat-pts">🟢</span> Puntenklassement — de groene trui</li>
+          <li><span class="feat-icon feat-mt">🔴</span> Bergklassement — de bolletjestrui</li>
+          <li><span class="feat-icon feat-game">🟣</span> Spelklassement — de slimste ploegleider</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Login card -->
     <div class="col-sm-8 col-md-5 col-lg-4">
       <div class="auth-card p-4 text-center">
         <div class="auth-logo">🚴‍♂️</div>
@@ -725,6 +803,7 @@
         </div>
       </div>
     </div>
+
   </div>
 </div>
 
