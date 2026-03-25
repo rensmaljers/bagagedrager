@@ -986,8 +986,8 @@ async function loadHistory() {
       <td>${rider?.name || '?'} <span class="team-badge-sm">${rider ? teamBadge(rider.team) : ''}</span>${numPickers > 1 ? ` <span class="badge bg-secondary" style="font-size:0.6rem;">${numPickers}x → ${sharingPct}%</span>` : ''}</td>
       <td class="time text-end">${!histIsClassic && result ? formatGap(timeGap) : result ? formatTime(result.time_seconds) : '-'}</td>
       ${!histIsClassic ? `<td class="text-end">${bonif ? '-' + bonif + 's' : '-'}</td>` : ''}
-      <td class="text-end">${result ? (pick.is_late ? '0' : result.points) : '-'}</td>
-      <td class="text-end">${result ? (pick.is_late ? '0' : result.mountain_points) : '-'}</td>
+      <td class="text-end">${result ? (pick.is_late ? '0' : Math.floor(result.points * sharingPct / 100)) : '-'}</td>
+      <td class="text-end">${result ? (pick.is_late ? '0' : Math.floor(result.mountain_points * sharingPct / 100)) : '-'}</td>
       <td class="text-end">${gp}</td>
       <td>${pick.is_late ? '<span class="badge bg-warning">Te laat</span>' : ''}${pick.is_random ? '<span class="badge bg-info">🎡 Rad</span>' : ''}</td>
     </tr>`
@@ -1143,8 +1143,8 @@ async function loadParticipants() {
                 <td>${escapeHtml(p.rider_name)} <span class="team-badge-sm">${teamBadge(p.rider_team)}</span>${pickersBadge}</td>
                 <td class="time text-end">${p.time_gap != null ? formatGap(p.time_gap) : '-'}</td>
                 <td class="text-end">${p.bonification ? '-' + p.bonification + 's' : '-'}</td>
-                <td class="text-end">${p.points != null ? (p.is_late ? '0' : p.points) : '-'}</td>
-                <td class="text-end">${p.mountain_points != null ? (p.is_late ? '0' : p.mountain_points) : '-'}</td>
+                <td class="text-end">${p.effective_points != null ? p.effective_points : (p.points != null ? (p.is_late ? '0' : p.points) : '-')}</td>
+                <td class="text-end">${p.effective_mountain_points != null ? p.effective_mountain_points : (p.mountain_points != null ? (p.is_late ? '0' : p.mountain_points) : '-')}</td>
                 <td>${p.is_late ? '<span class="badge bg-warning">Te laat</span>' : ''}${p.is_random ? '<span class="badge bg-info">🎡 Rad</span>' : ''}${p.dnf ? '<span class="badge bg-danger">DNF</span>' : ''}</td>
               </tr>`}).join('')}
             </tbody>

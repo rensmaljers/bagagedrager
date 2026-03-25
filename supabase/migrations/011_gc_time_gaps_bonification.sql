@@ -73,8 +73,18 @@ SELECT
       ELSE bonification_seconds(pt.finish_position)
     END
   ) AS total_time,
-  SUM(pt.points) AS total_points,
-  SUM(pt.mountain_points) AS total_mountain_points,
+  SUM(
+    CASE
+      WHEN pt.is_late OR pt.dnf THEN 0
+      ELSE FLOOR(pt.points * sharing_multiplier(pt.num_pickers))::int
+    END
+  ) AS total_points,
+  SUM(
+    CASE
+      WHEN pt.is_late OR pt.dnf THEN 0
+      ELSE FLOOR(pt.mountain_points * sharing_multiplier(pt.num_pickers))::int
+    END
+  ) AS total_mountain_points,
   SUM(
     CASE
       WHEN pt.is_late OR pt.dnf THEN 0
@@ -122,6 +132,14 @@ SELECT
   END AS bonification,
   sr.points,
   sr.mountain_points,
+  CASE
+    WHEN p.is_late OR COALESCE(sr.dnf, false) THEN 0
+    ELSE FLOOR(COALESCE(sr.points, 0) * sharing_multiplier(COALESCE(rpc.num_pickers, 1)::int))::int
+  END AS effective_points,
+  CASE
+    WHEN p.is_late OR COALESCE(sr.dnf, false) THEN 0
+    ELSE FLOOR(COALESCE(sr.mountain_points, 0) * sharing_multiplier(COALESCE(rpc.num_pickers, 1)::int))::int
+  END AS effective_mountain_points,
   sr.dnf,
   sr.finish_position,
   COALESCE(sr.game_points, 0) AS game_points,
