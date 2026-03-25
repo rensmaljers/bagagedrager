@@ -328,6 +328,7 @@ async function loadStandings() {
     $('gc-table').innerHTML = empty;
     $('points-table').innerHTML = empty;
     $('mountain-table').innerHTML = empty;
+    $('game-table').innerHTML = empty;
     return;
   }
 
@@ -351,6 +352,11 @@ async function loadStandings() {
   const mt = [...standings].sort((a, b) => b.total_mountain_points - a.total_mountain_points);
   $('mountain-table').innerHTML = mt.map((s, i) =>
     `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td>${escapeHtml(s.display_name)}</td><td class="text-end">${s.total_mountain_points}</td></tr>`
+  ).join('') || emptyRow;
+
+  const gp = [...standings].sort((a, b) => b.total_game_points - a.total_game_points);
+  $('game-table').innerHTML = gp.map((s, i) =>
+    `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td>${escapeHtml(s.display_name)}</td><td class="text-end">${s.total_game_points || 0}</td></tr>`
   ).join('') || emptyRow;
 }
 
@@ -479,9 +485,10 @@ async function loadHistory() {
       <td class="time text-end">${result ? formatTime(result.time_seconds) : '-'}</td>
       <td class="text-end">${result ? (pick.is_late ? '0' : result.points) : '-'}</td>
       <td class="text-end">${result ? (pick.is_late ? '0' : result.mountain_points) : '-'}</td>
-      <td>${pick.is_late ? '<span class="badge bg-warning">Te laat</span>' : ''}</td>
+      <td class="text-end">${result ? (pick.is_late || result.dnf ? '0' : result.game_points) : '-'}</td>
+      <td>${pick.is_late ? '<span class="badge bg-warning">Te laat</span>' : ''}${pick.is_random ? '<span class="badge bg-info">🎡 Rad</span>' : ''}</td>
     </tr>`;
-  }).join('') || `<tr><td colspan="6">
+  }).join('') || `<tr><td colspan="7">
     <div class="empty-state">
       <div class="empty-state-icon">🎯</div>
       <div class="empty-state-text">Nog geen keuzes gemaakt.<br>Ga naar de Keuze tab om je eerste renner te kiezen!</div>
@@ -572,16 +579,20 @@ async function loadParticipants() {
         </div>
         <div class="card-body p-0">
           <table class="table table-sm mb-0">
-            <thead><tr><th>Speler</th><th>Renner</th><th class="text-end">Tijd</th><th class="text-end">Pts</th><th class="text-end">Berg</th><th>Status</th></tr></thead>
+            <thead><tr><th>Speler</th><th>Renner</th><th class="text-end">Tijd</th><th class="text-end">Pts</th><th class="text-end">Berg</th><th class="text-end">Spel</th><th class="text-end">Delen</th><th>Status</th></tr></thead>
             <tbody>
-              ${picks.map(p => `<tr>
+              ${picks.map(p => {
+                const sharingPct = p.num_pickers <= 1 ? 100 : p.num_pickers === 2 ? 80 : p.num_pickers === 3 ? 60 : p.num_pickers === 4 ? 40 : 20;
+                return `<tr>
                 <td>${escapeHtml(p.display_name)}</td>
                 <td>${escapeHtml(p.rider_name)} ${teamBadge(p.rider_team)}</td>
                 <td class="time text-end">${p.time_seconds ? formatTime(p.time_seconds) : '-'}</td>
                 <td class="text-end">${p.points != null ? (p.is_late ? '0' : p.points) : '-'}</td>
                 <td class="text-end">${p.mountain_points != null ? (p.is_late ? '0' : p.mountain_points) : '-'}</td>
-                <td>${p.is_late ? '<span class="badge bg-warning">Te laat</span>' : ''}${p.dnf ? '<span class="badge bg-danger">DNF</span>' : ''}</td>
-              </tr>`).join('')}
+                <td class="text-end">${p.effective_game_points != null ? p.effective_game_points : '-'}</td>
+                <td class="text-end">${p.num_pickers > 1 ? '<span class="badge bg-secondary">' + sharingPct + '%</span>' : ''}</td>
+                <td>${p.is_late ? '<span class="badge bg-warning">Te laat</span>' : ''}${p.is_random ? '<span class="badge bg-info">🎡 Rad</span>' : ''}${p.dnf ? '<span class="badge bg-danger">DNF</span>' : ''}</td>
+              </tr>`}).join('')}
             </tbody>
           </table>
         </div>

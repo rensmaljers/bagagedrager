@@ -27,7 +27,17 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders });
     }
 
-    return new Response(JSON.stringify({ locked_stages: data?.length || 0 }), {
+    // Rad van Fortuin: wijs random renners toe voor nieuw vergrendelde etappes
+    const randomResults = [];
+    if (data?.length) {
+      for (const stage of data) {
+        const { data: result, error: rpcError } = await adminClient
+          .rpc("assign_random_riders", { p_stage_id: stage.id });
+        randomResults.push({ stage_id: stage.id, result, error: rpcError?.message });
+      }
+    }
+
+    return new Response(JSON.stringify({ locked_stages: data?.length || 0, random_assignments: randomResults }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {

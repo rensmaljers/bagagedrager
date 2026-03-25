@@ -33,6 +33,8 @@
       --jersey-gc-bg: linear-gradient(135deg, rgba(250,204,21,0.15), rgba(250,204,21,0.05));
       --jersey-pts-bg: linear-gradient(135deg, rgba(34,197,94,0.15), rgba(34,197,94,0.05));
       --jersey-mt-bg: linear-gradient(135deg, rgba(239,68,68,0.15), rgba(239,68,68,0.05));
+      --jersey-game-bg: linear-gradient(135deg, rgba(168,85,247,0.15), rgba(168,85,247,0.05));
+      --purple: #a855f7;
     }
 
     [data-theme="light"] {
@@ -60,6 +62,8 @@
       --jersey-gc-bg: linear-gradient(135deg, rgba(202,138,4,0.12), rgba(202,138,4,0.04));
       --jersey-pts-bg: linear-gradient(135deg, rgba(22,163,74,0.12), rgba(22,163,74,0.04));
       --jersey-mt-bg: linear-gradient(135deg, rgba(220,38,38,0.1), rgba(220,38,38,0.04));
+      --jersey-game-bg: linear-gradient(135deg, rgba(147,51,234,0.12), rgba(147,51,234,0.04));
+      --purple: #9333ea;
     }
 
     * { font-family: 'Inter', system-ui, sans-serif; }
@@ -130,6 +134,11 @@
       border-bottom: 2px solid var(--red) !important;
     }
     .jersey-mountain h5 { color: var(--red); }
+    .jersey-game {
+      background: var(--jersey-game-bg);
+      border-bottom: 2px solid var(--purple) !important;
+    }
+    .jersey-game h5 { color: var(--purple); }
 
     /* --- TABLES --- */
     .table { color: var(--text); --bs-table-bg: transparent; --bs-table-striped-bg: var(--stripe); }
@@ -452,7 +461,7 @@
       .pick-card small { font-size: 0.7rem; }
 
       /* Dashboard cards stack full width */
-      .jersey-gc h5, .jersey-points h5, .jersey-mountain h5 {
+      .jersey-gc h5, .jersey-points h5, .jersey-mountain h5, .jersey-game h5 {
         font-size: 0.85rem !important;
       }
 
@@ -556,7 +565,7 @@
     <!-- Dashboard -->
     <div class="tab-section active" id="section-dashboard">
       <div class="row g-4">
-        <div class="col-lg-4">
+        <div class="col-lg-3">
           <div class="card">
             <div class="card-header jersey-gc"><h5 class="mb-0" style="font-size:0.95rem;">🟡 Algemeen Klassement</h5></div>
             <div class="card-body p-0 table-responsive-wrapper">
@@ -567,7 +576,7 @@
             </div>
           </div>
         </div>
-        <div class="col-lg-4">
+        <div class="col-lg-3">
           <div class="card">
             <div class="card-header jersey-points"><h5 class="mb-0" style="font-size:0.95rem;">🟢 Puntenklassement</h5></div>
             <div class="card-body p-0 table-responsive-wrapper">
@@ -578,13 +587,24 @@
             </div>
           </div>
         </div>
-        <div class="col-lg-4">
+        <div class="col-lg-3">
           <div class="card">
             <div class="card-header jersey-mountain"><h5 class="mb-0" style="font-size:0.95rem;">🔴 Bergklassement</h5></div>
             <div class="card-body p-0 table-responsive-wrapper">
               <table class="table table-sm table-striped mb-0">
                 <thead><tr><th>#</th><th>Speler</th><th class="text-end">Pts</th></tr></thead>
                 <tbody id="mountain-table"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-3">
+          <div class="card">
+            <div class="card-header jersey-game"><h5 class="mb-0" style="font-size:0.95rem;">🎯 Spelklassement</h5></div>
+            <div class="card-body p-0 table-responsive-wrapper">
+              <table class="table table-sm table-striped mb-0">
+                <thead><tr><th>#</th><th>Speler</th><th class="text-end">Pts</th></tr></thead>
+                <tbody id="game-table"></tbody>
               </table>
             </div>
           </div>
@@ -624,7 +644,7 @@
         <div class="card-body p-0 table-responsive-wrapper">
           <table class="table table-striped mb-0">
             <thead>
-              <tr><th>Etappe</th><th>Renner</th><th class="text-end">Tijd</th><th class="text-end">Pts</th><th class="text-end">Berg</th><th>Status</th></tr>
+              <tr><th>Etappe</th><th>Renner</th><th class="text-end">Tijd</th><th class="text-end">Pts</th><th class="text-end">Berg</th><th class="text-end">Spel</th><th>Status</th></tr>
             </thead>
             <tbody id="history-table"></tbody>
           </table>
