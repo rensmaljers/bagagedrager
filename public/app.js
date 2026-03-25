@@ -11,6 +11,7 @@ let stages = [];
 let myPicks = [];
 let selectedRiderId = null;
 let activeCompId = null;
+let _cache = { standings: null, standingsCompId: null, participants: null, participantsCompId: null };
 
 // --- SUPABASE REST HELPERS ---
 function authHeaders(extra = {}) {
@@ -285,6 +286,7 @@ $('btn-logout').addEventListener('click', () => {
 // --- COMPETITION SELECTOR ---
 $('comp-select').addEventListener('change', async () => {
   activeCompId = parseInt($('comp-select').value);
+  _cache.standings = null; _cache.participants = null;
   updateCompBanner();
   await loadRidersForComp();
   const activeTab = document.querySelector('#main-tabs .nav-link.active');
@@ -295,17 +297,24 @@ $('comp-select').addEventListener('change', async () => {
 async function initApp() {
   localStorage.setItem('bagagedrager_session', JSON.stringify(session));
 
-  const profiles = await supaRest('profiles', { filters: `id=eq.${session.user.id}` });
+  // Parallel fetch: all initial data at once
+  const [profiles, comps, allStages, picks] = await Promise.all([
+    supaRest('profiles', { filters: `id=eq.${session.user.id}` }),
+    supaRest('competitions', { filters: 'order=year.desc,name' }),
+    supaRest('stages', { filters: 'order=stage_number' }),
+    supaRest('picks', { filters: `user_id=eq.${session.user.id}&order=stage_id` }),
+  ]);
+
   profile = profiles[0];
+  competitions = comps;
+  stages = allStages;
+  myPicks = picks;
 
   $('user-name').textContent = profile?.display_name || session.user.email;
   $('auth-screen').style.display = 'none';
   $('app').style.display = 'block';
 
   if (profile?.is_admin) $('admin-tab').style.display = 'block';
-
-  competitions = await supaRest('competitions', { filters: 'order=year.desc,name' });
-  stages = await supaRest('stages', { filters: 'order=stage_number' });
 
   const sel = $('comp-select');
   sel.innerHTML = competitions.map(c =>
@@ -316,7 +325,6 @@ async function initApp() {
   updateCompBanner();
 
   await loadRidersForComp();
-  myPicks = await supaRest('picks', { filters: `user_id=eq.${session.user.id}&order=stage_id` });
 
   // Navigate to hash tab or default to dashboard
   const hashTab = window.location.hash.replace('#', '');
@@ -349,9 +357,16 @@ async function loadStandings() {
     return;
   }
 
-  const standings = await supaRest('general_classification', {
-    filters: `competition_id=eq.${activeCompId}`
-  });
+  let standings;
+  if (_cache.standingsCompId === activeCompId && _cache.standings) {
+    standings = _cache.standings;
+  } else {
+    standings = await supaRest('general_classification', {
+      filters: `competition_id=eq.${activeCompId}`
+    });
+    _cache.standings = standings;
+    _cache.standingsCompId = activeCompId;
+  }
 
   const emptyRow = '<tr><td colspan="3" class="text-muted text-center py-3">Nog geen resultaten — wordt zichtbaar na de eerste etappe</td></tr>';
   const medal = ['🥇', '🥈', '🥉'];
@@ -379,7 +394,6 @@ async function loadStandings() {
 
 // --- PICK VIEW ---
 async function loadPickView() {
-  myPicks = await supaRest('picks', { filters: `user_id=eq.${session.user.id}&order=stage_id` });
 
   const compStages = activeStages();
   const sel = $('stage-select');
@@ -470,7 +484,11 @@ function selectRider(riderId) {
   $('btn-submit-pick').disabled = false;
 }
 
-$('rider-search').addEventListener('input', () => renderPickStage());
+let _searchDebounce;
+$('rider-search').addEventListener('input', () => {
+  clearTimeout(_searchDebounce);
+  _searchDebounce = setTimeout(() => renderPickStage(), 150);
+});
 $('rider-team-filter').addEventListener('change', () => renderPickStage());
 
 // Submit pick via Postgres RPC
@@ -485,6 +503,7 @@ $('btn-submit-pick').addEventListener('click', async () => {
     status.textContent = result.warning || 'Keuze opgeslagen!';
     status.className = result.warning ? 'ms-3 text-warning' : 'ms-3 text-success';
     myPicks = await supaRest('picks', { filters: `user_id=eq.${session.user.id}&order=stage_id` });
+    _cache.standings = null; _cache.participants = null;
   } catch (e) {
     status.textContent = e.message;
     status.className = 'ms-3 text-danger';
@@ -493,7 +512,6 @@ $('btn-submit-pick').addEventListener('click', async () => {
 
 // --- HISTORY ---
 async function loadHistory() {
-  myPicks = await supaRest('picks', { filters: `user_id=eq.${session.user.id}&order=stage_id` });
   const compStageIds = new Set(activeStages().map(s => s.id));
   const compPicks = myPicks.filter(p => compStageIds.has(p.stage_id));
 
@@ -578,10 +596,17 @@ async function loadParticipants() {
     return;
   }
 
-  // Fetch public picks (view only shows locked/past-deadline stages)
-  const allPicks = await supaRest('stage_picks_public', {
-    filters: `competition_id=eq.${activeCompId}&order=stage_number.desc,display_name`
-  });
+  // Fetch public picks (view only shows locked/past-deadline stages) — cached
+  let allPicks;
+  if (_cache.participantsCompId === activeCompId && _cache.participants) {
+    allPicks = _cache.participants;
+  } else {
+    allPicks = await supaRest('stage_picks_public', {
+      filters: `competition_id=eq.${activeCompId}&order=stage_number.desc,display_name`
+    });
+    _cache.participants = allPicks;
+    _cache.participantsCompId = activeCompId;
+  }
 
   if (!allPicks.length) {
     $('participants-content').innerHTML = '<p class="text-muted">Nog geen keuzes zichtbaar. Keuzes worden getoond na de deadline.</p>';
@@ -633,11 +658,13 @@ async function loadParticipants() {
 // =====================
 
 async function loadAdminView() {
-  loadAdminUsers();
-  await loadAdminCompetitions();
+  await Promise.all([
+    loadAdminUsers(),
+    loadAdminCompetitions(),
+    loadAdminRiders(),
+    loadAdminStages(),
+  ]);
   loadImportCompSelect();
-  loadAdminRiders();
-  loadAdminStages();
   loadAdminResults();
 }
 
