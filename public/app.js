@@ -88,6 +88,7 @@ function dutchAuthError(msg) {
   if (lower.includes('unable to validate email')) return 'Ongeldig e-mailadres.';
   if (lower.includes('rate limit')) return 'Te veel pogingen. Wacht even en probeer opnieuw.';
   if (lower.includes('signup is disabled')) return 'Aanmelden is momenteel uitgeschakeld.';
+  if (lower.includes('anonymous sign-ins are disabled')) return 'Vul je e-mailadres en wachtwoord in.';
   return msg;
 }
 
@@ -285,16 +286,21 @@ document.querySelectorAll('[data-admin]').forEach(a => {
 
 // --- AUTH HANDLERS ---
 $('btn-login').addEventListener('click', async () => {
+  const email = $('auth-email').value.trim();
+  const password = $('auth-password').value;
+  if (!email || !password) { showError('Vul je e-mailadres en wachtwoord in.'); return; }
   try {
-    session = await login($('auth-email').value, $('auth-password').value);
+    session = await login(email, password);
     await initApp();
   } catch (e) { showError(e.message); }
 });
 
 $('btn-signup').addEventListener('click', async () => {
+  const email = $('auth-email').value.trim();
+  const password = $('auth-password').value;
+  if (!email || !password) { showError('Vul je e-mailadres en wachtwoord in.'); return; }
   try {
-    const email = $('auth-email').value;
-    const data = await signup(email, $('auth-password').value, email.split('@')[0]);
+    const data = await signup(email, password, email.split('@')[0]);
     if (data.access_token) { session = data; await initApp(); }
     else showError('Check je email om je account te bevestigen');
   } catch (e) { showError(e.message); }
