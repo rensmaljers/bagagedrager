@@ -822,8 +822,8 @@ async function loadHistory() {
 
   const histIsClassic = activeScoringMode() === 'classic';
   $('history-table-header').innerHTML = histIsClassic
-    ? '<th>Etappe</th><th>Renner</th><th class="text-end">Tijd</th><th class="text-end">Pts</th><th class="text-end">Berg</th><th class="text-end">Spel</th><th>Status</th>'
-    : '<th>Etappe</th><th>Renner</th><th class="text-end">Verschil</th><th class="text-end">Bonif.</th><th class="text-end">Pts</th><th class="text-end">Berg</th><th class="text-end">Spel</th><th>Status</th>';
+    ? '<th>Etappe</th><th>Renner</th><th class="text-end">Tijd</th><th class="text-end"><span class="info-tooltip" tabindex="0">Pts&#9432;<span class="tooltip-text">Sprintpunten uit het puntenklassement</span></span></th><th class="text-end"><span class="info-tooltip" tabindex="0">Berg&#9432;<span class="tooltip-text">Bergpunten (KOM)</span></span></th><th class="text-end"><span class="info-tooltip" tabindex="0">Spel&#9432;<span class="tooltip-text">Spelpunten op basis van finishpositie, na deelpenalty</span></span></th><th>Status</th>'
+    : '<th>Etappe</th><th>Renner</th><th class="text-end"><span class="info-tooltip" tabindex="0">Verschil&#9432;<span class="tooltip-text">Tijdsverschil met etappewinnaar</span></span></th><th class="text-end"><span class="info-tooltip" tabindex="0">Bonif.&#9432;<span class="tooltip-text">Bonificatie: 1e -10s, 2e -6s, 3e -4s</span></span></th><th class="text-end"><span class="info-tooltip" tabindex="0">Pts&#9432;<span class="tooltip-text">Sprintpunten uit het puntenklassement</span></span></th><th class="text-end"><span class="info-tooltip" tabindex="0">Berg&#9432;<span class="tooltip-text">Bergpunten (KOM)</span></span></th><th class="text-end"><span class="info-tooltip" tabindex="0">Spel&#9432;<span class="tooltip-text">Spelpunten op basis van finishpositie, na deelpenalty</span></span></th><th>Status</th>';
   $('history-table').innerHTML = rows.map(({ pick, stage, rider, result, gp, timeGap, bonif, rowClass }) =>
     `<tr class="${rowClass}">
       <td>Etappe ${stage?.stage_number || '?'}</td>
@@ -930,8 +930,8 @@ async function loadParticipants() {
     const { picks } = byStage[num];
     const stageName = picks[0] ? `Etappe ${num}` : `Etappe ${num}`;
     const header = isClassic
-      ? '<tr><th>Speler</th><th>Renner</th><th class="text-end">Positie</th><th class="text-end">Spel</th><th class="text-end">Delen</th><th>Status</th></tr>'
-      : '<tr><th>Speler</th><th>Renner</th><th class="text-end">Verschil</th><th class="text-end">Bonif.</th><th class="text-end">Pts</th><th class="text-end">Berg</th><th>Status</th></tr>';
+      ? '<tr><th>Speler</th><th>Renner</th><th class="text-end">Positie</th><th class="text-end"><span class="info-tooltip" tabindex="0">Spel&#9432;<span class="tooltip-text">Spelpunten op basis van positie, na deelpenalty</span></span></th><th class="text-end"><span class="info-tooltip" tabindex="0">Delen&#9432;<span class="tooltip-text">Percentage spelpunten bij gedeelde renner (2=80%, 3=60%, 4=40%, 5+=20%)</span></span></th><th>Status</th></tr>'
+      : '<tr><th>Speler</th><th>Renner</th><th class="text-end"><span class="info-tooltip" tabindex="0">Verschil&#9432;<span class="tooltip-text">Tijdsverschil met etappewinnaar</span></span></th><th class="text-end"><span class="info-tooltip" tabindex="0">Bonif.&#9432;<span class="tooltip-text">1e -10s, 2e -6s, 3e -4s</span></span></th><th class="text-end"><span class="info-tooltip" tabindex="0">Pts&#9432;<span class="tooltip-text">Sprintpunten uit puntenklassement</span></span></th><th class="text-end"><span class="info-tooltip" tabindex="0">Berg&#9432;<span class="tooltip-text">Bergpunten (KOM)</span></span></th><th>Status</th></tr>';
     return `
       <div class="card mb-3">
         <div class="card-header">
