@@ -159,6 +159,17 @@ function formatTime(totalSeconds) {
   return `${h}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
 }
 
+function formatGap(seconds) {
+  if (seconds == null) return '-';
+  const neg = seconds < 0;
+  const abs = Math.abs(seconds);
+  if (abs === 0) return '0:00';
+  const m = Math.floor(abs / 60);
+  const s = abs % 60;
+  const prefix = neg ? '-' : '+';
+  return `${prefix}${m}:${String(s).padStart(2, '0')}`;
+}
+
 function formatDeadline(dt) {
   return new Date(dt).toLocaleString('nl-NL', {
     weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
@@ -485,8 +496,9 @@ async function loadStandings() {
 
   if (!isClassic) {
     const gc = [...standings].sort((a, b) => a.total_time - b.total_time);
+    const leaderTime = gc.length ? gc[0].total_time : 0;
     $('gc-table').innerHTML = gc.map((s, i) =>
-      `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td>${escapeHtml(s.display_name)}</td><td class="time text-end">${formatTime(s.total_time)}</td></tr>`
+      `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td>${escapeHtml(s.display_name)}</td><td class="time text-end">${i === 0 ? formatGap(s.total_time) : formatGap(s.total_time - leaderTime)}</td></tr>`
     ).join('') || emptyRow;
 
     const pts = [...standings].sort((a, b) => b.total_points - a.total_points);
@@ -750,19 +762,33 @@ async function loadHistory() {
     allResults = await supaRest('stage_results', { filters: `stage_id=in.(${stageIds.join(',')})` });
   }
 
+  // Calculate winner times per stage for gap display
+  const winnerTimes = {};
+  for (const r of allResults) {
+    if (!r.dnf && r.time_seconds > 0) {
+      if (!winnerTimes[r.stage_id] || r.time_seconds < winnerTimes[r.stage_id]) {
+        winnerTimes[r.stage_id] = r.time_seconds;
+      }
+    }
+  }
+
   // Build rows with game_points for coloring
   const rows = compPicks.map(pick => {
     const stage = stages.find(s => s.id === pick.stage_id);
     const rider = riders.find(r => r.id === pick.rider_id);
     const result = allResults.find(r => r.stage_id === pick.stage_id && r.rider_id === pick.rider_id);
     const gp = result && !pick.is_late && !result.dnf ? (result.game_points || 0) : 0;
+    const timeGap = result && result.time_seconds && winnerTimes[pick.stage_id]
+      ? Math.max(result.time_seconds - winnerTimes[pick.stage_id], 0) : null;
+    const bonif = result && !pick.is_late && !result.dnf
+      ? (result.finish_position === 1 ? 10 : result.finish_position === 2 ? 6 : result.finish_position === 3 ? 4 : 0) : 0;
     let rowClass = '';
     if (result) {
       if (gp >= 70) rowClass = 'history-great';
       else if (gp >= 20) rowClass = 'history-good';
       else if (gp === 0 && (result.dnf || pick.is_late)) rowClass = 'history-bad';
     }
-    return { pick, stage, rider, result, gp, rowClass };
+    return { pick, stage, rider, result, gp, timeGap, bonif, rowClass };
   });
 
   // Stats
@@ -792,17 +818,22 @@ async function loadHistory() {
     $('history-stats').innerHTML = '';
   }
 
-  $('history-table').innerHTML = rows.map(({ pick, stage, rider, result, gp, rowClass }) =>
+  const histIsClassic = activeScoringMode() === 'classic';
+  $('history-table-header').innerHTML = histIsClassic
+    ? '<th>Etappe</th><th>Renner</th><th class="text-end">Tijd</th><th class="text-end">Pts</th><th class="text-end">Berg</th><th class="text-end">Spel</th><th>Status</th>'
+    : '<th>Etappe</th><th>Renner</th><th class="text-end">Verschil</th><th class="text-end">Bonif.</th><th class="text-end">Pts</th><th class="text-end">Berg</th><th class="text-end">Spel</th><th>Status</th>';
+  $('history-table').innerHTML = rows.map(({ pick, stage, rider, result, gp, timeGap, bonif, rowClass }) =>
     `<tr class="${rowClass}">
       <td>Etappe ${stage?.stage_number || '?'}</td>
       <td>${rider?.name || '?'} ${rider ? teamBadge(rider.team) : ''}</td>
-      <td class="time text-end">${result ? formatTime(result.time_seconds) : '-'}</td>
+      <td class="time text-end">${!histIsClassic && result ? formatGap(timeGap) : result ? formatTime(result.time_seconds) : '-'}</td>
+      ${!histIsClassic ? `<td class="text-end">${bonif ? '-' + bonif + 's' : '-'}</td>` : ''}
       <td class="text-end">${result ? (pick.is_late ? '0' : result.points) : '-'}</td>
       <td class="text-end">${result ? (pick.is_late ? '0' : result.mountain_points) : '-'}</td>
       <td class="text-end">${gp}</td>
       <td>${pick.is_late ? '<span class="badge bg-warning">Te laat</span>' : ''}${pick.is_random ? '<span class="badge bg-info">🎡 Rad</span>' : ''}</td>
     </tr>`
-  ).join('') || `<tr><td colspan="7">
+  ).join('') || `<tr><td colspan="${histIsClassic ? 7 : 8}">
     <div class="empty-state">
       <div class="empty-state-icon">🎯</div>
       <div class="empty-state-text">Nog geen keuzes gemaakt.<br>Ga naar de Keuze tab om je eerste renner te kiezen!</div>
@@ -898,7 +929,7 @@ async function loadParticipants() {
     const stageName = picks[0] ? `Etappe ${num}` : `Etappe ${num}`;
     const header = isClassic
       ? '<tr><th>Speler</th><th>Renner</th><th class="text-end">Positie</th><th class="text-end">Spel</th><th class="text-end">Delen</th><th>Status</th></tr>'
-      : '<tr><th>Speler</th><th>Renner</th><th class="text-end">Tijd</th><th class="text-end">Pts</th><th class="text-end">Berg</th><th>Status</th></tr>';
+      : '<tr><th>Speler</th><th>Renner</th><th class="text-end">Verschil</th><th class="text-end">Bonif.</th><th class="text-end">Pts</th><th class="text-end">Berg</th><th>Status</th></tr>';
     return `
       <div class="card mb-3">
         <div class="card-header">
@@ -923,7 +954,8 @@ async function loadParticipants() {
                 return `<tr>
                 <td>${escapeHtml(p.display_name)}</td>
                 <td>${escapeHtml(p.rider_name)} ${teamBadge(p.rider_team)}</td>
-                <td class="time text-end">${p.time_seconds ? formatTime(p.time_seconds) : '-'}</td>
+                <td class="time text-end">${p.time_gap != null ? formatGap(p.time_gap) : '-'}</td>
+                <td class="text-end">${p.bonification ? '-' + p.bonification + 's' : '-'}</td>
                 <td class="text-end">${p.points != null ? (p.is_late ? '0' : p.points) : '-'}</td>
                 <td class="text-end">${p.mountain_points != null ? (p.is_late ? '0' : p.mountain_points) : '-'}</td>
                 <td>${p.is_late ? '<span class="badge bg-warning">Te laat</span>' : ''}${p.is_random ? '<span class="badge bg-info">🎡 Rad</span>' : ''}${p.dnf ? '<span class="badge bg-danger">DNF</span>' : ''}</td>
