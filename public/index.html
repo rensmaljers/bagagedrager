@@ -152,24 +152,18 @@
     }
     .jersey-game h5 { color: var(--purple); }
 
-    /* --- TOOLTIPS --- */
+    /* --- TOOLTIPS (fixed positioning, immune to overflow:hidden) --- */
     .info-tooltip {
-      position: relative;
       cursor: help;
       font-size: 0.75rem;
       opacity: 0.6;
       margin-left: 6px;
       vertical-align: middle;
     }
-    .info-tooltip .tooltip-text {
-      visibility: hidden;
-      opacity: 0;
-      position: absolute;
-      z-index: 100;
-      bottom: calc(100% + 8px);
-      left: 50%;
-      transform: translateX(-50%);
-      background: var(--card-bg);
+    .tip-popup {
+      position: fixed;
+      z-index: 9999;
+      background: var(--bg-card);
       color: var(--text);
       border: 1px solid var(--border);
       border-radius: 8px;
@@ -179,16 +173,14 @@
       width: max-content;
       max-width: 260px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-      transition: opacity 0.15s;
       font-weight: 400;
       text-align: left;
       white-space: normal;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
     }
-    .info-tooltip:hover .tooltip-text,
-    .info-tooltip:focus .tooltip-text {
-      visibility: visible;
-      opacity: 1;
-    }
+    .tip-popup.visible { opacity: 1; }
 
     /* --- TABLES --- */
     .table { color: var(--text); --bs-table-bg: transparent; --bs-table-striped-bg: var(--stripe); }
@@ -215,7 +207,7 @@
     }
     .nav-pills .nav-link:hover { color: var(--text); background: var(--hover-overlay); }
     .nav-pills .nav-link.active {
-      background: var(--accent);
+      background: var(--comp-color, var(--accent));
       color: var(--accent-text);
     }
 
@@ -258,7 +250,7 @@
     /* --- BUTTONS --- */
     .btn { border-radius: 8px; font-weight: 600; font-size: 0.875rem; padding: 0.5rem 1.15rem; transition: all 0.15s; }
     .btn-accent {
-      background: var(--accent);
+      background: var(--comp-color, var(--accent));
       color: var(--accent-text);
       border: none;
     }
@@ -291,14 +283,14 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
     .pick-card.selected {
-      border: 2px solid var(--accent) !important;
-      background: var(--accent-bg);
+      border: 2px solid var(--comp-color, var(--accent)) !important;
+      background: color-mix(in srgb, var(--comp-color, var(--accent)) 10%, transparent);
     }
     .pick-card.selected::after {
       content: '✓';
       position: absolute;
       top: 6px; right: 8px;
-      background: var(--accent);
+      background: var(--comp-color, var(--accent));
       color: var(--accent-text);
       width: 20px; height: 20px;
       border-radius: 50%;
@@ -308,6 +300,23 @@
     .pick-card.used {
       opacity: 0.3;
       pointer-events: none;
+    }
+    .stage-nav-btn {
+      width: 32px; height: 32px;
+      padding: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem; font-weight: 700;
+      border-color: var(--border);
+      color: var(--text);
+    }
+    .stage-nav-btn:hover { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+    .stage-nav-btn:disabled { opacity: 0.3; }
+    .rider-team-group { margin-bottom: 0.75rem; }
+    .team-group-header {
+      padding: 0.35rem 0;
+      margin-bottom: 0.4rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.8rem;
     }
     .pick-card .bib-badge {
       display: inline-flex;
@@ -359,9 +368,23 @@
     }
     .stage-dot.completed { background: var(--green-dim); border-color: var(--green); color: var(--green); }
     .stage-dot.locked { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
-    .stage-dot.open { background: var(--blue-dim); border-color: var(--blue); color: var(--blue); animation: pulse-dot 2s ease-in-out infinite; }
+    .stage-dot.open { background: color-mix(in srgb, var(--comp-color, var(--blue)) 15%, transparent); border-color: var(--comp-color, var(--blue)); color: var(--comp-color, var(--blue)); animation: pulse-dot 2s ease-in-out infinite; }
     .stage-dot.upcoming { opacity: 0.5; }
     @keyframes pulse-dot { 0%,100% { box-shadow: none; } 50% { box-shadow: 0 0 0 4px var(--blue-dim); } }
+    .timeline-legend {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 0.4rem;
+      flex-wrap: wrap;
+    }
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
 
     /* --- RIDER AVAILABILITY --- */
     .rider-availability {
@@ -647,10 +670,14 @@
     }
     [data-theme="light"] .team-dot { border-color: rgba(0,0,0,0.1); }
     .team-shirt {
-      width: 18px;
-      height: 18px;
+      width: 20px;
+      height: 20px;
       object-fit: contain;
       flex-shrink: 0;
+    }
+    .team-group-header .team-shirt {
+      width: 24px;
+      height: 24px;
     }
     .team-abbr {
       font-size: 0.65rem;
@@ -894,7 +921,7 @@
       <div class="row g-4" id="standings-row">
         <div class="col-lg-3" id="gc-card">
           <div class="card">
-            <div class="card-header jersey-gc"><h5 class="mb-0" style="font-size:0.95rem;">🟡 Algemeen Klassement<span class="info-tooltip" tabindex="0">&#9432;<span class="tooltip-text">Totaal tijdsverschil met de etappewinnaar per etappe.<br>Bonificatie: 1e -10s, 2e -6s, 3e -4s.<br>Te laat of DNF = slechtste tijd.</span></span></h5></div>
+            <div class="card-header jersey-gc"><h5 class="mb-0" style="font-size:0.95rem;">🟡 Algemeen Klassement <span class="info-tooltip" data-tip="Totaal tijdsverschil met de etappewinnaar per etappe.\nBonificatie: 1e −10s, 2e −6s, 3e −4s.\nTe laat of DNF = slechtste tijd.">&#9432;</span></h5></div>
             <div class="card-body p-0 table-responsive-wrapper">
               <table class="table table-sm table-striped mb-0">
                 <thead><tr><th>#</th><th>Speler</th><th class="text-end">Tijd</th></tr></thead>
@@ -905,7 +932,7 @@
         </div>
         <div class="col-lg-3" id="points-card">
           <div class="card">
-            <div class="card-header jersey-points"><h5 class="mb-0" style="font-size:0.95rem;">🟢 Puntenklassement<span class="info-tooltip" tabindex="0">&#9432;<span class="tooltip-text">Totaal sprintpunten van jouw gekozen renners, overgenomen uit het puntenklassement op PCS.</span></span></h5></div>
+            <div class="card-header jersey-points"><h5 class="mb-0" style="font-size:0.95rem;">🟢 Puntenklassement <span class="info-tooltip" data-tip="Totaal sprintpunten van jouw gekozen renners, overgenomen uit het puntenklassement op PCS.">&#9432;</span></h5></div>
             <div class="card-body p-0 table-responsive-wrapper">
               <table class="table table-sm table-striped mb-0">
                 <thead><tr><th>#</th><th>Speler</th><th class="text-end">Pts</th></tr></thead>
@@ -916,7 +943,7 @@
         </div>
         <div class="col-lg-3" id="mountain-card">
           <div class="card">
-            <div class="card-header jersey-mountain"><h5 class="mb-0" style="font-size:0.95rem;">🔴 Bergklassement<span class="info-tooltip" tabindex="0">&#9432;<span class="tooltip-text">Totaal bergpunten (KOM) van jouw gekozen renners, overgenomen uit het bergklassement op PCS.</span></span></h5></div>
+            <div class="card-header jersey-mountain"><h5 class="mb-0" style="font-size:0.95rem;">🔴 Bergklassement <span class="info-tooltip" data-tip="Totaal bergpunten (KOM) van jouw gekozen renners, overgenomen uit het bergklassement op PCS.">&#9432;</span></h5></div>
             <div class="card-body p-0 table-responsive-wrapper">
               <table class="table table-sm table-striped mb-0">
                 <thead><tr><th>#</th><th>Speler</th><th class="text-end">Pts</th></tr></thead>
@@ -927,7 +954,7 @@
         </div>
         <div class="col-lg-3" id="game-card">
           <div class="card">
-            <div class="card-header jersey-game"><h5 class="mb-0" style="font-size:0.95rem;">🎯 Spelklassement<span class="info-tooltip" tabindex="0">&#9432;<span class="tooltip-text">Spelpunten op basis van finishpositie (1e=100, 2e=80, 3e=70 ... 20e=5).<br>Deelpenalty als meerdere spelers dezelfde renner kiezen.<br>Te laat of DNF = 0 punten.</span></span></h5></div>
+            <div class="card-header jersey-game"><h5 class="mb-0" style="font-size:0.95rem;">🎯 Spelklassement <span class="info-tooltip" data-tip="Spelpunten op basis van finishpositie (1e=100, 2e=80, 3e=70 … 20e=5).\nDeelpenalty als meerdere spelers dezelfde renner kiezen.\nTe laat of DNF = 0 punten.">&#9432;</span></h5></div>
             <div class="card-body p-0 table-responsive-wrapper">
               <table class="table table-sm table-striped mb-0">
                 <thead><tr><th>#</th><th>Speler</th><th class="text-end">Pts</th></tr></thead>
@@ -948,7 +975,11 @@
               <h4 id="pick-stage-name" style="font-size:1.1rem; font-weight:700;">Kies een etappe</h4>
               <span id="pick-deadline" class="text-muted" style="font-size:0.8rem;"></span>
             </div>
-            <select id="stage-select" class="form-select form-select-sm" style="width:auto;"></select>
+            <div class="d-flex align-items-center gap-2">
+              <button id="btn-prev-stage" class="btn btn-sm btn-outline-secondary stage-nav-btn" title="Vorige etappe">&lsaquo;</button>
+              <select id="stage-select" class="form-select form-select-sm" style="width:auto;"></select>
+              <button id="btn-next-stage" class="btn btn-sm btn-outline-secondary stage-nav-btn" title="Volgende etappe">&rsaquo;</button>
+            </div>
           </div>
         </div>
       </div>
@@ -1034,6 +1065,20 @@
               <div class="mb-3">
                 <label class="form-label" style="font-size:0.8rem; color:var(--text-muted);">Email</label>
                 <input type="email" id="account-email" class="form-control form-control-sm" disabled />
+              </div>
+              <div class="mb-3">
+                <label class="form-label" style="font-size:0.8rem; color:var(--text-muted);">Favoriete ploeg</label>
+                <select id="account-team" class="form-select form-select-sm">
+                  <option value="">Kies je ploeg...</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label" style="font-size:0.8rem; color:var(--text-muted);">Wielerheld</label>
+                <input type="text" id="account-hero" class="form-control form-control-sm" placeholder="Je all-time favoriete renner" maxlength="50" />
+              </div>
+              <div class="mb-3">
+                <label class="form-label" style="font-size:0.8rem; color:var(--text-muted);">Motto</label>
+                <input type="text" id="account-motto" class="form-control form-control-sm" placeholder="Jouw wielerspreuk of voorspelling" maxlength="80" />
               </div>
               <div class="d-flex gap-2 align-items-center">
                 <button id="btn-save-account" class="btn btn-accent btn-sm">Opslaan</button>
@@ -1452,6 +1497,26 @@
       updateIcon();
     }
   });
+})();
+</script>
+<script>
+// Tooltip engine – uses fixed positioning so overflow:hidden can't clip it
+(function() {
+  let popup = null;
+  function show(el) {
+    if (!el.dataset.tip) return;
+    if (!popup) { popup = document.createElement('div'); popup.className = 'tip-popup'; document.body.appendChild(popup); }
+    popup.innerHTML = el.dataset.tip.replace(/\\n/g, '<br>');
+    popup.classList.add('visible');
+    const r = el.getBoundingClientRect();
+    popup.style.left = Math.min(r.left, window.innerWidth - 280) + 'px';
+    popup.style.top = (r.bottom + 8) + 'px';
+  }
+  function hide() { if (popup) popup.classList.remove('visible'); }
+  document.addEventListener('pointerenter', e => { const t = e.target.closest('.info-tooltip'); if (t) show(t); }, true);
+  document.addEventListener('pointerleave', e => { const t = e.target.closest('.info-tooltip'); if (t) hide(); }, true);
+  document.addEventListener('focusin', e => { const t = e.target.closest('.info-tooltip'); if (t) show(t); });
+  document.addEventListener('focusout', e => { const t = e.target.closest('.info-tooltip'); if (t) hide(); });
 })();
 </script>
 <script src="app.js"></script>

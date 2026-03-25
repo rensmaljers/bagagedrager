@@ -159,11 +159,11 @@ function formatTime(totalSeconds) {
   return `${h}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
 }
 
-function formatGap(seconds) {
+function formatGap(seconds, showZeroAsTime) {
   if (seconds == null) return '-';
   const neg = seconds < 0;
   const abs = Math.abs(seconds);
-  if (abs === 0) return '0:00';
+  if (abs === 0) return showZeroAsTime ? '0:00' : 'z.t.';
   const h = Math.floor(abs / 3600);
   const m = Math.floor((abs % 3600) / 60);
   const s = abs % 60;
@@ -230,6 +230,12 @@ function applyCompColor() {
     sel.style.borderColor = color + '60';
     sel.style.background = color + '10';
   }
+  // Apply to active nav tab underline
+  document.querySelectorAll('#main-tabs .nav-link.active').forEach(n => {
+    n.style.borderBottomColor = color;
+  });
+  // Apply to stage timeline dots (open state)
+  document.documentElement.style.setProperty('--comp-accent', color);
 }
 
 // --- TAB NAVIGATION ---
@@ -266,6 +272,17 @@ window.addEventListener('hashchange', () => {
 function loadAccountView() {
   $('account-name').value = profile?.display_name || '';
   $('account-email').value = session?.user?.email || '';
+  $('account-hero').value = profile?.cycling_hero || '';
+  $('account-motto').value = profile?.motto || '';
+
+  // Populate team dropdown from known teams
+  const teamSel = $('account-team');
+  if (teamSel.options.length <= 1) {
+    const teams = Object.keys(TEAMS).sort();
+    teamSel.innerHTML = '<option value="">Kies je ploeg...</option>' +
+      teams.map(t => `<option value="${t}">${t}</option>`).join('');
+  }
+  teamSel.value = profile?.favorite_team || '';
 }
 
 $('btn-save-account').addEventListener('click', async () => {
@@ -273,9 +290,15 @@ $('btn-save-account').addEventListener('click', async () => {
   const newName = $('account-name').value.trim();
   if (!newName) { status.textContent = 'Naam mag niet leeg zijn'; status.className = 'text-danger'; return; }
   try {
-    await supaPatch('profiles', `id=eq.${session.user.id}`, { display_name: newName });
+    const updates = {
+      display_name: newName,
+      favorite_team: $('account-team').value || null,
+      cycling_hero: $('account-hero').value.trim() || null,
+      motto: $('account-motto').value.trim() || null,
+    };
+    await supaPatch('profiles', `id=eq.${session.user.id}`, updates);
     if (!profile) profile = {};
-    profile.display_name = newName;
+    Object.assign(profile, updates);
     $('user-name').textContent = newName;
     status.textContent = 'Opgeslagen!';
     status.className = 'text-success';
@@ -500,7 +523,7 @@ async function loadStandings() {
     const gc = [...standings].sort((a, b) => a.total_time - b.total_time);
     const leaderTime = gc.length ? gc[0].total_time : 0;
     $('gc-table').innerHTML = gc.map((s, i) =>
-      `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td>${escapeHtml(s.display_name)}</td><td class="time text-end">${i === 0 ? formatGap(s.total_time) : formatGap(s.total_time - leaderTime)}</td></tr>`
+      `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td>${escapeHtml(s.display_name)}</td><td class="time text-end">${i === 0 ? formatTime(s.total_time) : formatGap(s.total_time - leaderTime)}</td></tr>`
     ).join('') || emptyRow;
 
     const pts = [...standings].sort((a, b) => b.total_points - a.total_points);
@@ -525,7 +548,7 @@ async function loadStandings() {
 function renderStageTimeline() {
   const compStages = activeStages();
   const now = new Date();
-  $('stage-timeline').innerHTML = compStages.map(s => {
+  const dots = compStages.map(s => {
     const hasResults = s.locked;
     const deadline = new Date(s.deadline);
     const isPast = now > deadline;
@@ -540,6 +563,13 @@ function renderStageTimeline() {
     }
     return `<div class="stage-dot ${cls}" title="${title}">${s.stage_number}</div>`;
   }).join('');
+  const legend = `<div class="timeline-legend">
+    <span class="legend-item"><span class="stage-dot completed" style="width:12px;height:12px;font-size:0;"></span> Afgerond</span>
+    <span class="legend-item"><span class="stage-dot open" style="width:12px;height:12px;font-size:0;animation:none;"></span> Open</span>
+    <span class="legend-item"><span class="stage-dot locked" style="width:12px;height:12px;font-size:0;"></span> Gestart</span>
+    <span class="legend-item"><span class="stage-dot upcoming" style="width:12px;height:12px;font-size:0;"></span> Nog niet open</span>
+  </div>`;
+  $('stage-timeline').innerHTML = dots + legend;
 }
 
 // --- PICK VIEW ---
@@ -556,13 +586,31 @@ async function loadPickView() {
   if (nextStage) sel.value = nextStage.id;
 
   sel.onchange = () => renderPickStage();
+
+  function navigateStage(dir) {
+    const opts = [...sel.options];
+    const idx = opts.findIndex(o => o.value === sel.value);
+    const next = idx + dir;
+    if (next >= 0 && next < opts.length) {
+      sel.selectedIndex = next;
+      renderPickStage();
+    }
+  }
+  $('btn-prev-stage').onclick = () => navigateStage(-1);
+  $('btn-next-stage').onclick = () => navigateStage(1);
+
   renderPickStage();
 }
 
 function renderPickStage() {
-  const stageId = parseInt($('stage-select').value);
+  const sel = $('stage-select');
+  const stageId = parseInt(sel.value);
   const stage = stages.find(s => s.id === stageId);
   if (!stage) return;
+
+  // Update prev/next buttons
+  $('btn-prev-stage').disabled = sel.selectedIndex === 0;
+  $('btn-next-stage').disabled = sel.selectedIndex === sel.options.length - 1;
 
   const now = new Date();
   const isLocked = stage.locked || now > new Date(stage.deadline);
@@ -690,23 +738,37 @@ function renderRiderGrid(usedInOtherStages, fullyLocked) {
     (!teamFilter || r.team === teamFilter)
   );
 
-  $('rider-grid').innerHTML = filtered.length ? filtered.map(r => {
-    const used = usedInOtherStages.has(r.id);
-    const selected = r.id === selectedRiderId;
+  // Group riders by team
+  const grouped = {};
+  for (const r of filtered) {
+    if (!grouped[r.team]) grouped[r.team] = [];
+    grouped[r.team].push(r);
+  }
+  const teamNames = Object.keys(grouped).sort();
+
+  $('rider-grid').innerHTML = teamNames.length ? teamNames.map(team => {
+    const teamRiders = grouped[team];
     return `
-      <div class="col-6 col-md-4 col-lg-3">
-        <div class="card pick-card ${selected ? 'selected' : ''} ${used ? 'used' : ''}"
-             data-rider-id="${r.id}" ${fullyLocked || used ? '' : `onclick="selectRider(${r.id})"`}>
-          <div class="card-body py-2 px-3">
-            <div class="d-flex justify-content-between align-items-start">
-              <div class="fw-bold" style="font-size:0.88rem;">${escapeHtml(r.name)}</div>
-              <span class="bib-badge">${r.bib_number}</span>
-            </div>
-            <div class="d-flex align-items-center gap-1 mt-1">
-              ${teamBadge(r.team)}
-            </div>
-            ${used ? '<small class="text-danger mt-1 d-block">Al gebruikt</small>' : ''}
-          </div>
+      <div class="col-12 rider-team-group">
+        <div class="team-group-header">${teamBadge(team)}</div>
+        <div class="row g-2">
+          ${teamRiders.map(r => {
+            const used = usedInOtherStages.has(r.id);
+            const selected = r.id === selectedRiderId;
+            return `
+              <div class="col-6 col-md-4 col-lg-3">
+                <div class="card pick-card ${selected ? 'selected' : ''} ${used ? 'used' : ''}"
+                     data-rider-id="${r.id}" ${fullyLocked || used ? '' : `onclick="selectRider(${r.id})"`}>
+                  <div class="card-body py-2 px-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                      <div class="fw-bold" style="font-size:0.88rem;">${escapeHtml(r.name)}</div>
+                      <span class="bib-badge">${r.bib_number}</span>
+                    </div>
+                    ${used ? '<small class="text-danger mt-1 d-block">Al gebruikt</small>' : ''}
+                  </div>
+                </div>
+              </div>`;
+          }).join('')}
         </div>
       </div>`;
   }).join('') : '<div class="col-12"><p class="text-muted text-center py-4">Geen renners gevonden</p></div>';
@@ -822,8 +884,8 @@ async function loadHistory() {
 
   const histIsClassic = activeScoringMode() === 'classic';
   $('history-table-header').innerHTML = histIsClassic
-    ? '<th>Etappe</th><th>Renner</th><th class="text-end">Tijd</th><th class="text-end"><span class="info-tooltip" tabindex="0">Pts&#9432;<span class="tooltip-text">Sprintpunten uit het puntenklassement</span></span></th><th class="text-end"><span class="info-tooltip" tabindex="0">Berg&#9432;<span class="tooltip-text">Bergpunten (KOM)</span></span></th><th class="text-end"><span class="info-tooltip" tabindex="0">Spel&#9432;<span class="tooltip-text">Spelpunten op basis van finishpositie, na deelpenalty</span></span></th><th>Status</th>'
-    : '<th>Etappe</th><th>Renner</th><th class="text-end"><span class="info-tooltip" tabindex="0">Verschil&#9432;<span class="tooltip-text">Tijdsverschil met etappewinnaar</span></span></th><th class="text-end"><span class="info-tooltip" tabindex="0">Bonif.&#9432;<span class="tooltip-text">Bonificatie: 1e -10s, 2e -6s, 3e -4s</span></span></th><th class="text-end"><span class="info-tooltip" tabindex="0">Pts&#9432;<span class="tooltip-text">Sprintpunten uit het puntenklassement</span></span></th><th class="text-end"><span class="info-tooltip" tabindex="0">Berg&#9432;<span class="tooltip-text">Bergpunten (KOM)</span></span></th><th class="text-end"><span class="info-tooltip" tabindex="0">Spel&#9432;<span class="tooltip-text">Spelpunten op basis van finishpositie, na deelpenalty</span></span></th><th>Status</th>';
+    ? '<th>Etappe</th><th>Renner</th><th class="text-end">Tijd</th><th class="text-end"><span class="info-tooltip" data-tip="Sprintpunten uit het puntenklassement">Pts &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Bergpunten (KOM)">Berg &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Spelpunten op basis van finishpositie, na deelpenalty">Spel &#9432;</span></th><th>Status</th>'
+    : '<th>Etappe</th><th>Renner</th><th class="text-end"><span class="info-tooltip" data-tip="Tijdsverschil met etappewinnaar">Verschil &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Bonificatie: 1e −10s, 2e −6s, 3e −4s">Bonif. &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Sprintpunten uit het puntenklassement">Pts &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Bergpunten (KOM)">Berg &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Spelpunten op basis van finishpositie, na deelpenalty">Spel &#9432;</span></th><th>Status</th>';
   $('history-table').innerHTML = rows.map(({ pick, stage, rider, result, gp, timeGap, bonif, rowClass }) =>
     `<tr class="${rowClass}">
       <td>Etappe ${stage?.stage_number || '?'}</td>
@@ -869,8 +931,16 @@ async function loadPeloton() {
 
   $('peloton-table').innerHTML = allProfiles.filter(p => p.is_active !== false).map(p => {
     const role = getPelotonRole(p, pickCounts[p.id] || 0);
+    const extras = [];
+    if (p.favorite_team) extras.push(teamBadge(p.favorite_team));
+    if (p.cycling_hero) extras.push(`<span style="font-size:0.7rem;color:var(--text-muted);">${escapeHtml(p.cycling_hero)}</span>`);
+    const mottoHtml = p.motto ? `<div style="font-size:0.7rem;color:var(--text-muted);font-style:italic;">"${escapeHtml(p.motto)}"</div>` : '';
     return `<tr>
-      <td>${escapeHtml(p.display_name)}</td>
+      <td>
+        <div>${escapeHtml(p.display_name)}</div>
+        ${extras.length ? `<div class="d-flex align-items-center gap-2 mt-1">${extras.join('')}</div>` : ''}
+        ${mottoHtml}
+      </td>
       ${isAdmin ? `<td style="font-size:0.8rem;">${escapeHtml(p.email || '-')}</td>` : ''}
       <td><span class="badge ${role.badge}">${role.icon} ${role.name}</span></td>
       <td>${new Date(p.created_at).toLocaleDateString('nl-NL')}</td>
@@ -930,8 +1000,8 @@ async function loadParticipants() {
     const { picks } = byStage[num];
     const stageName = picks[0] ? `Etappe ${num}` : `Etappe ${num}`;
     const header = isClassic
-      ? '<tr><th>Speler</th><th>Renner</th><th class="text-end">Positie</th><th class="text-end"><span class="info-tooltip" tabindex="0">Spel&#9432;<span class="tooltip-text">Spelpunten op basis van positie, na deelpenalty</span></span></th><th class="text-end"><span class="info-tooltip" tabindex="0">Delen&#9432;<span class="tooltip-text">Percentage spelpunten bij gedeelde renner (2=80%, 3=60%, 4=40%, 5+=20%)</span></span></th><th>Status</th></tr>'
-      : '<tr><th>Speler</th><th>Renner</th><th class="text-end"><span class="info-tooltip" tabindex="0">Verschil&#9432;<span class="tooltip-text">Tijdsverschil met etappewinnaar</span></span></th><th class="text-end"><span class="info-tooltip" tabindex="0">Bonif.&#9432;<span class="tooltip-text">1e -10s, 2e -6s, 3e -4s</span></span></th><th class="text-end"><span class="info-tooltip" tabindex="0">Pts&#9432;<span class="tooltip-text">Sprintpunten uit puntenklassement</span></span></th><th class="text-end"><span class="info-tooltip" tabindex="0">Berg&#9432;<span class="tooltip-text">Bergpunten (KOM)</span></span></th><th>Status</th></tr>';
+      ? '<tr><th>Speler</th><th>Renner</th><th class="text-end">Positie</th><th class="text-end"><span class="info-tooltip" data-tip="Spelpunten op basis van positie, na deelpenalty">Spel &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Percentage spelpunten bij gedeelde renner (2=80%, 3=60%, 4=40%, 5+=20%)">Delen &#9432;</span></th><th>Status</th></tr>'
+      : '<tr><th>Speler</th><th>Renner</th><th class="text-end"><span class="info-tooltip" data-tip="Tijdsverschil met etappewinnaar">Verschil &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="1e −10s, 2e −6s, 3e −4s">Bonif. &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Sprintpunten uit puntenklassement">Pts &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Bergpunten (KOM)">Berg &#9432;</span></th><th>Status</th></tr>';
     return `
       <div class="card mb-3">
         <div class="card-header">
