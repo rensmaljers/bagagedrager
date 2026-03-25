@@ -628,8 +628,11 @@
       <div id="pick-locked-msg" class="alert alert-warning" style="display:none; font-size:0.85rem;">
         🔒 Deze etappe is vergrendeld. Je kunt nog wel kiezen, maar krijgt de slechtste tijd + 0 punten (te laat straf).
       </div>
-      <div class="mb-3">
+      <div class="mb-3 d-flex gap-2">
         <input type="text" id="rider-search" class="form-control" placeholder="Zoek renner..." />
+        <select id="rider-team-filter" class="form-select" style="max-width:250px;">
+          <option value="">Alle teams</option>
+        </select>
       </div>
       <div id="rider-grid" class="row g-2"></div>
       <div class="mt-3">

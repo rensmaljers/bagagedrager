@@ -403,8 +403,18 @@ function renderPickStage() {
 
 function renderRiderGrid(usedInOtherStages, fullyLocked) {
   const search = $('rider-search').value.toLowerCase();
+  const teamFilter = $('rider-team-filter').value;
+
+  // Populate team dropdown if empty
+  if ($('rider-team-filter').options.length <= 1 && riders.length) {
+    const teams = [...new Set(riders.map(r => r.team))].sort();
+    $('rider-team-filter').innerHTML = '<option value="">Alle teams</option>' +
+      teams.map(t => `<option value="${t}">${t}</option>`).join('');
+  }
+
   const filtered = riders.filter(r =>
-    r.name.toLowerCase().includes(search) || r.team.toLowerCase().includes(search)
+    (r.name.toLowerCase().includes(search) || r.team.toLowerCase().includes(search)) &&
+    (!teamFilter || r.team === teamFilter)
   );
 
   $('rider-grid').innerHTML = filtered.length ? filtered.map(r => {
@@ -444,6 +454,7 @@ function selectRider(riderId) {
 }
 
 $('rider-search').addEventListener('input', () => renderPickStage());
+$('rider-team-filter').addEventListener('change', () => renderPickStage());
 
 // Submit pick via Postgres RPC
 $('btn-submit-pick').addEventListener('click', async () => {
