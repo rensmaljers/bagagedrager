@@ -654,6 +654,11 @@ async function loadAdminCompetitions() {
       <td>${compBadge(c.competition_type)}</td>
       <td>${c.year}</td>
       <td>
+        <input type="url" class="form-control form-control-sm" value="${escapeHtml(c.pcs_url || '')}"
+               placeholder="PCS URL" style="min-width:180px; font-size:0.75rem;"
+               onchange="updateCompPcsUrl(${c.id}, this.value)">
+      </td>
+      <td>
         <div class="form-check form-switch d-inline-block">
           <input class="form-check-input" type="checkbox" ${c.is_active ? 'checked' : ''}
                  onchange="toggleCompActive(${c.id}, this.checked)">
@@ -663,8 +668,14 @@ async function loadAdminCompetitions() {
         <button class="btn btn-sm btn-outline-danger" onclick="deleteComp(${c.id})">Verwijder</button>
       </td>
     </tr>
-  `).join('') || '<tr><td colspan="5" class="text-muted">Geen competities</td></tr>';
+  `).join('') || '<tr><td colspan="6" class="text-muted">Geen competities</td></tr>';
 }
+
+window.updateCompPcsUrl = async function(compId, pcsUrl) {
+  try {
+    await supaPatch('competitions', `id=eq.${compId}`, { pcs_url: pcsUrl.trim() || null });
+  } catch (e) { alert(e.message); }
+};
 
 $('btn-add-comp').addEventListener('click', async () => {
   const name = $('new-comp-name').value.trim();
@@ -673,9 +684,11 @@ $('btn-add-comp').addEventListener('click', async () => {
   const year = parseInt($('new-comp-year').value);
   if (!name || !slug || !year) return alert('Vul alle velden in');
   try {
-    await supaRest('competitions', { method: 'POST', body: { name, slug, competition_type: type, year, is_active: false } });
+    const pcsUrl = $('new-comp-pcs-url').value.trim() || null;
+    await supaRest('competitions', { method: 'POST', body: { name, slug, competition_type: type, year, is_active: false, pcs_url: pcsUrl } });
     $('new-comp-name').value = '';
     $('new-comp-slug').value = '';
+    $('new-comp-pcs-url').value = '';
     loadAdminCompetitions();
     loadAdminStages();
   } catch (e) { alert(e.message); }
@@ -880,6 +893,122 @@ function loadSyncStageSelect() {
     `<option value="${s.id}">Etappe ${s.stage_number}: ${s.name}</option>`
   ).join('');
 }
+
+// --- PCS DIRECTE SYNC ---
+async function callEdgeFunction(fnName, body) {
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/${fnName}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+      'apikey': SUPABASE_ANON_KEY,
+    },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `Fout ${res.status}`);
+  return data;
+}
+
+$('btn-pcs-sync-race').addEventListener('click', async () => {
+  const compId = parseInt($('race-sync-comp').value);
+  const comp = competitions.find(c => c.id === compId);
+  const status = $('pcs-sync-status');
+  const log = $('pcs-sync-log');
+
+  if (!comp) { status.textContent = 'Kies een competitie'; status.className = 'text-danger'; return; }
+  if (!comp.pcs_url) { status.textContent = 'Stel eerst een PCS URL in bij de competitie'; status.className = 'text-danger'; return; }
+
+  status.textContent = '⏳ Bezig met ophalen van PCS...';
+  status.className = 'text-muted';
+  log.innerHTML = '';
+
+  try {
+    const result = await callEdgeFunction('sync-pcs-race', {
+      pcs_url: comp.pcs_url,
+      competition_id: compId,
+    });
+
+    if (result.shirts && Object.keys(result.shirts).length) {
+      const existingShirts = JSON.parse(localStorage.getItem('bagagedrager_shirts') || '{}');
+      localStorage.setItem('bagagedrager_shirts', JSON.stringify({ ...existingShirts, ...result.shirts }));
+    }
+
+    status.textContent = '✅ Sync voltooid!';
+    status.className = 'text-success';
+    log.innerHTML = (result.log || []).join('<br>');
+
+    loadAdminStages();
+    loadAdminRiders();
+    await loadRidersForComp();
+  } catch (e) {
+    status.textContent = e.message;
+    status.className = 'text-danger';
+  }
+});
+
+$('btn-pcs-sync-results').addEventListener('click', async () => {
+  const stageId = parseInt($('sync-stage-select').value);
+  const stage = stages.find(s => s.id === stageId);
+  const status = $('pcs-results-sync-status');
+  const log = $('pcs-results-sync-log');
+
+  if (!stage) { status.textContent = 'Kies een etappe'; status.className = 'text-danger'; return; }
+
+  const comp = competitions.find(c => c.id === stage.competition_id);
+  if (!comp?.pcs_url) { status.textContent = 'Geen PCS URL ingesteld voor deze competitie'; status.className = 'text-danger'; return; }
+
+  const pcsUrl = comp.pcs_url.replace(/\/$/, '').replace(/\/(stages|startlist|gc|stage-\d+)$/, '') + '/stage-' + stage.stage_number;
+
+  status.textContent = '⏳ Resultaten ophalen van PCS...';
+  status.className = 'text-muted';
+  log.innerHTML = '';
+
+  try {
+    const data = await callEdgeFunction('sync-pcs-results', { pcs_url: pcsUrl });
+
+    if (!data.results?.length) {
+      status.textContent = 'Geen resultaten gevonden op PCS';
+      status.className = 'text-warning';
+      return;
+    }
+
+    // Match bib numbers to rider IDs
+    let matched = 0, unmatched = 0;
+    const payload = [];
+    for (const r of data.results) {
+      const rider = riders.find(rd => rd.bib_number === r.bib_number);
+      if (rider) {
+        matched++;
+        payload.push({ rider_id: rider.id, time_seconds: r.time_seconds, points: r.points, mountain_points: r.mountain_points, dnf: r.dnf });
+      } else { unmatched++; }
+    }
+
+    if (!matched) {
+      status.textContent = `Geen renners gekoppeld (${unmatched} onbekende bibnummers)`;
+      status.className = 'text-danger';
+      return;
+    }
+
+    status.textContent = `⏳ ${matched} resultaten opslaan...`;
+    await supaRpc('admin_save_results', { p_stage_id: stageId, p_results: payload });
+
+    status.textContent = `✅ ${matched} resultaten opgeslagen!` + (unmatched ? ` (${unmatched} onbekend)` : '');
+    status.className = 'text-success';
+
+    // Show top 10
+    const top10 = payload.slice(0, 10);
+    log.innerHTML = `<strong>Top 10:</strong><br>` + top10.map((r, i) => {
+      const rider = riders.find(rd => rd.id === r.rider_id);
+      return `${i + 1}. ${rider?.name || '?'} — ${formatTime(r.time_seconds)}${r.dnf ? ' (DNF)' : ''}`;
+    }).join('<br>');
+
+    loadAdminResults();
+  } catch (e) {
+    status.textContent = e.message;
+    status.className = 'text-danger';
+  }
+});
 
 $('btn-copy-results-script').addEventListener('click', () => {
   navigator.clipboard.writeText(PCS_RESULTS_SCRIPT);

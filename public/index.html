@@ -770,8 +770,11 @@
                   <option value="classic">Klassieker</option>
                 </select>
               </div>
-              <div class="col-md-2">
+              <div class="col-md-1">
                 <input type="number" id="new-comp-year" class="form-control form-control-sm" placeholder="Jaar" value="2025" />
+              </div>
+              <div class="col-md-3">
+                <input type="url" id="new-comp-pcs-url" class="form-control form-control-sm" placeholder="PCS URL (optioneel)" />
               </div>
               <div class="col-md-2">
                 <button id="btn-add-comp" class="btn btn-primary btn-sm w-100">Toevoegen</button>
@@ -782,7 +785,7 @@
         <div class="card">
           <div class="card-body p-0">
             <table class="table table-sm table-striped mb-0">
-              <thead><tr><th>Naam</th><th>Type</th><th>Jaar</th><th>Actief</th><th>Acties</th></tr></thead>
+              <thead><tr><th>Naam</th><th>Type</th><th>Jaar</th><th>PCS URL</th><th>Actief</th><th>Acties</th></tr></thead>
               <tbody id="admin-comp-table"></tbody>
             </table>
           </div>
@@ -874,30 +877,33 @@
 
       <!-- Admin: Resultaten -->
       <div class="admin-sub" id="admin-results">
-        <!-- PCS Resultaten via console script -->
+        <!-- PCS Resultaten Sync -->
         <div class="card mb-3">
-          <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">🔄 PCS Resultaten Import</h5></div>
+          <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">🔄 PCS Resultaten</h5></div>
           <div class="card-body">
-            <p class="text-muted" style="font-size:0.8rem;">
-              Importeer etappe-resultaten van PCS in 3 stappen:
-            </p>
             <div class="mb-2">
-              <label class="form-label" style="font-size:0.8rem;"><strong>Stap 1:</strong> Kies etappe</label>
+              <label class="form-label" style="font-size:0.8rem;"><strong>Etappe</strong></label>
               <select id="sync-stage-select" class="form-select form-select-sm"></select>
             </div>
-            <div class="mb-2">
-              <label class="form-label" style="font-size:0.8rem;"><strong>Stap 2:</strong> Open de PCS etappe-pagina en plak dit script in de console (F12)</label>
-              <button id="btn-copy-results-script" class="btn btn-ghost btn-sm">📋 Kopieer resultaten-script</button>
+            <div class="d-flex gap-2 align-items-center flex-wrap mb-2">
+              <button id="btn-pcs-sync-results" class="btn btn-accent btn-sm">🔄 Sync resultaten van PCS</button>
+              <span id="pcs-results-sync-status" style="font-size:0.8rem;"></span>
             </div>
-            <div class="mb-2">
-              <label class="form-label" style="font-size:0.8rem;"><strong>Stap 3:</strong> Plak het resultaat hier</label>
-              <textarea id="results-sync-data" class="form-control form-control-sm" rows="5" placeholder="Plak hier de gekopieerde resultaten..."></textarea>
-            </div>
-            <div class="d-flex gap-2 align-items-center">
-              <button id="btn-import-results" class="btn btn-accent btn-sm">🚀 Importeer resultaten</button>
-              <span id="results-sync-status" style="font-size:0.8rem;"></span>
-            </div>
-            <div id="results-sync-preview" class="mt-2" style="font-size:0.8rem; max-height:200px; overflow-y:auto;"></div>
+            <div id="pcs-results-sync-log" class="mt-2" style="font-size:0.8rem; max-height:200px; overflow-y:auto;"></div>
+
+            <!-- Fallback: handmatig plakken -->
+            <details class="mt-3">
+              <summary class="text-muted" style="font-size:0.8rem; cursor:pointer;">Handmatig: resultaten plakken via console script</summary>
+              <div class="mt-2">
+                <button id="btn-copy-results-script" class="btn btn-ghost btn-sm mb-2">📋 Kopieer resultaten-script</button>
+                <textarea id="results-sync-data" class="form-control form-control-sm mb-2" rows="5" placeholder="Plak hier de gekopieerde resultaten..."></textarea>
+                <div class="d-flex gap-2 align-items-center">
+                  <button id="btn-import-results" class="btn btn-primary btn-sm">Importeer resultaten</button>
+                  <span id="results-sync-status" style="font-size:0.8rem;"></span>
+                </div>
+                <div id="results-sync-preview" class="mt-2" style="font-size:0.8rem; max-height:200px; overflow-y:auto;"></div>
+              </div>
+            </details>
           </div>
         </div>
 
@@ -917,45 +923,49 @@
       </div>
 
       <!-- Admin: Import -->
-      <div class="admin-sub" id="admin-import"><!-- Full Race Sync via console scripts -->
+      <div class="admin-sub" id="admin-import">
+        <!-- Directe PCS Sync -->
         <div class="card mb-3" style="border-color: var(--accent);">
-          <div class="card-header" style="background: var(--accent-bg);"><h5 class="mb-0" style="font-size:0.95rem;">🚀 PCS Import</h5></div>
+          <div class="card-header" style="background: var(--accent-bg);"><h5 class="mb-0" style="font-size:0.95rem;">🔄 PCS Sync</h5></div>
           <div class="card-body">
             <p class="text-muted" style="font-size:0.8rem;">
-              Importeer etappes, renners en shirts vanuit ProCyclingStats in 3 stappen:
+              Sync etappes en renners direct vanuit ProCyclingStats. Stel eerst een PCS URL in bij de competitie.
             </p>
-
-            <!-- Stap 1: Competitie kiezen -->
             <div class="mb-3">
-              <label class="form-label" style="font-size:0.8rem;"><strong>Stap 1:</strong> Kies competitie</label>
+              <label class="form-label" style="font-size:0.8rem;"><strong>Competitie</strong></label>
               <select id="race-sync-comp" class="form-select form-select-sm"></select>
             </div>
-
-            <!-- Stap 2: Script kopiëren -->
-            <div class="mb-3">
-              <label class="form-label" style="font-size:0.8rem;"><strong>Stap 2:</strong> Open de PCS pagina en plak het juiste script in de console (F12)</label>
-              <div class="d-flex gap-2 flex-wrap mb-2">
-                <button id="btn-copy-stages-script" class="btn btn-ghost btn-sm">📅 Kopieer etappes-script</button>
-                <button id="btn-copy-riders-script" class="btn btn-ghost btn-sm">🚴 Kopieer renners-script</button>
-              </div>
-              <p class="text-muted" style="font-size:0.75rem; margin-bottom:0;">
-                Etappes: gebruik op de <code>/stages</code> pagina &mdash; Renners: gebruik op de <code>/startlist</code> pagina<br>
-                Type eerst <code>allow pasting</code> in de console als Chrome dat vraagt.
-              </p>
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+              <button id="btn-pcs-sync-race" class="btn btn-accent btn-sm">🔄 Sync etappes + renners</button>
+              <span id="pcs-sync-status" style="font-size:0.8rem;"></span>
             </div>
-
-            <!-- Stap 3: Data plakken -->
-            <div class="mb-2">
-              <label class="form-label" style="font-size:0.8rem;"><strong>Stap 3:</strong> Plak het resultaat hier</label>
-              <textarea id="race-sync-data" class="form-control form-control-sm" rows="6" placeholder="Plak hier de gekopieerde data..."></textarea>
-            </div>
-            <div class="d-flex gap-2 align-items-center">
-              <button id="btn-race-import" class="btn btn-accent btn-sm">🚀 Importeer</button>
-              <span id="race-sync-status" style="font-size:0.8rem;"></span>
-            </div>
-            <div id="race-sync-log" class="mt-2" style="font-size:0.8rem; line-height:1.8;"></div>
+            <div id="pcs-sync-log" class="mt-2" style="font-size:0.8rem; line-height:1.8;"></div>
           </div>
         </div>
+
+        <!-- Console script fallback (inklapbaar) -->
+        <details class="mb-3">
+          <summary class="text-muted" style="font-size:0.8rem; cursor:pointer;">Geavanceerd: handmatig importeren via console scripts</summary>
+          <div class="card mt-2">
+            <div class="card-body">
+              <p class="text-muted" style="font-size:0.8rem;">
+                Alternatieve methode als de directe sync niet werkt. Kopieer het script, plak in de browser console op PCS, en plak het resultaat hieronder.
+              </p>
+              <div class="mb-3">
+                <div class="d-flex gap-2 flex-wrap mb-2">
+                  <button id="btn-copy-stages-script" class="btn btn-ghost btn-sm">📅 Kopieer etappes-script</button>
+                  <button id="btn-copy-riders-script" class="btn btn-ghost btn-sm">🚴 Kopieer renners-script</button>
+                </div>
+              </div>
+              <textarea id="race-sync-data" class="form-control form-control-sm mb-2" rows="6" placeholder="Plak hier de gekopieerde data..."></textarea>
+              <div class="d-flex gap-2 align-items-center">
+                <button id="btn-race-import" class="btn btn-primary btn-sm">Importeer</button>
+                <span id="race-sync-status" style="font-size:0.8rem;"></span>
+              </div>
+              <div id="race-sync-log" class="mt-2" style="font-size:0.8rem; line-height:1.8;"></div>
+            </div>
+          </div>
+        </details>
 
         <p class="text-muted mb-3" style="font-size:0.75rem;">Of importeer handmatig per onderdeel:</p>
         <div class="card mb-3">

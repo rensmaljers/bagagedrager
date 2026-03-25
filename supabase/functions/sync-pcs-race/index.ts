@@ -162,13 +162,12 @@ Deno.serve(async (req) => {
     // 3. Save stages
     let stagesSaved = 0, stagesSkipped = 0;
     for (const s of stages) {
-      const deadlineDate = new Date(s.date);
-      deadlineDate.setDate(deadlineDate.getDate() - 1);
-      deadlineDate.setHours(23, 0, 0, 0);
+      const startTime = new Date(`${s.date}T12:00:00`);
       try {
         await adminClient.from("stages").insert({
           ...s,
-          deadline: deadlineDate.toISOString(),
+          start_time: startTime.toISOString(),
+          deadline: startTime.toISOString(),
           locked: false,
           competition_id,
         });
