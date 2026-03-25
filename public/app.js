@@ -639,7 +639,7 @@ async function loadPeloton() {
   const pickCounts = {};
   allPicks.forEach(p => { pickCounts[p.user_id] = (pickCounts[p.user_id] || 0) + 1; });
 
-  $('peloton-table').innerHTML = allProfiles.map(p => {
+  $('peloton-table').innerHTML = allProfiles.filter(p => p.is_active !== false).map(p => {
     const role = getPelotonRole(p, pickCounts[p.id] || 0);
     return `<tr>
       <td>${escapeHtml(p.display_name)}</td>
@@ -745,20 +745,51 @@ async function loadAdminView() {
 async function loadAdminUsers() {
   const allProfiles = await supaRest('profiles', { filters: 'order=created_at' });
   $('user-count').textContent = `${allProfiles.length} / 50 spelers`;
-  $('admin-users-table').innerHTML = allProfiles.map(p => `
-    <tr>
+  $('admin-users-table').innerHTML = allProfiles.map(p => {
+    const isSelf = p.id === profile?.id;
+    return `<tr style="${p.is_active === false ? 'opacity:0.5;' : ''}">
       <td>${escapeHtml(p.display_name)}</td>
-      <td>${p.is_admin ? '<span class="badge bg-danger">Admin</span>' : '<span class="badge bg-secondary">Speler</span>'}</td>
+      <td>
+        ${p.is_admin ? '<span class="badge bg-danger">Admin</span>' : ''}
+        ${p.is_active === false ? '<span class="badge bg-secondary">Inactief</span>' : '<span class="badge bg-success">Actief</span>'}
+      </td>
       <td>${new Date(p.created_at).toLocaleDateString('nl-NL')}</td>
       <td>
-        <button class="btn btn-sm btn-outline-${p.is_admin ? 'secondary' : 'danger'}"
-                onclick="toggleAdmin('${p.id}', ${!p.is_admin})">
-          ${p.is_admin ? 'Verwijder admin' : 'Maak admin'}
-        </button>
+        <div class="d-flex gap-1 flex-wrap">
+          <button class="btn btn-sm btn-outline-${p.is_admin ? 'secondary' : 'danger'}"
+                  onclick="toggleAdmin('${p.id}', ${!p.is_admin})" ${isSelf ? 'disabled' : ''}>
+            ${p.is_admin ? 'Degradeer' : 'Maak admin'}
+          </button>
+          <button class="btn btn-sm btn-outline-${p.is_active === false ? 'success' : 'warning'}"
+                  onclick="togglePlayerActive('${p.id}', ${p.is_active === false})" ${isSelf ? 'disabled' : ''}>
+            ${p.is_active === false ? 'Activeer' : 'Deactiveer'}
+          </button>
+          <button class="btn btn-sm btn-outline-danger"
+                  onclick="deletePlayer('${p.id}', '${escapeHtml(p.display_name)}')" ${isSelf ? 'disabled' : ''}>
+            Verwijder
+          </button>
+        </div>
       </td>
-    </tr>
-  `).join('') || '<tr><td colspan="4" class="text-muted">Geen gebruikers</td></tr>';
+    </tr>`;
+  }).join('') || '<tr><td colspan="4" class="text-muted">Geen gebruikers</td></tr>';
 }
+
+window.togglePlayerActive = async function(userId, activate) {
+  try {
+    await supaPatch('profiles', `id=eq.${userId}`, { is_active: activate });
+    loadAdminUsers();
+    loadPeloton();
+  } catch (e) { alert(e.message); }
+};
+
+window.deletePlayer = async function(userId, displayName) {
+  if (!confirm(`Weet je zeker dat je "${displayName}" wilt verwijderen? Dit verwijdert ook alle keuzes van deze speler.`)) return;
+  try {
+    await supaRpc('admin_delete_player', { p_user_id: userId });
+    loadAdminUsers();
+    loadPeloton();
+  } catch (e) { alert(e.message); }
+};
 
 // toggleAdmin is defined in the peloton section
 
