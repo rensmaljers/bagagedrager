@@ -181,6 +181,18 @@ function activeStages() {
   return stages.filter(s => s.competition_id === activeCompId);
 }
 
+function updateCompBanner() {
+  const banner = $('comp-banner');
+  const comp = competitions.find(c => c.id === activeCompId);
+  if (!comp) { banner.style.display = 'none'; return; }
+  const labels = { tour: 'Tour', giro: 'Giro', vuelta: 'Vuelta', classic: 'Klassieker' };
+  const cls = { tour: 'comp-tour', giro: 'comp-giro', vuelta: 'comp-vuelta', classic: 'comp-classic' };
+  $('comp-banner-badge').className = `comp-badge ${cls[comp.competition_type] || 'comp-classic'}`;
+  $('comp-banner-badge').textContent = labels[comp.competition_type] || comp.competition_type;
+  $('comp-banner-name').textContent = comp.name;
+  banner.style.display = 'flex';
+}
+
 // --- TAB NAVIGATION ---
 function navigateToTab(tab) {
   const link = document.querySelector(`[data-tab="${tab}"]`);
@@ -273,6 +285,7 @@ $('btn-logout').addEventListener('click', () => {
 // --- COMPETITION SELECTOR ---
 $('comp-select').addEventListener('change', async () => {
   activeCompId = parseInt($('comp-select').value);
+  updateCompBanner();
   await loadRidersForComp();
   const activeTab = document.querySelector('#main-tabs .nav-link.active');
   if (activeTab) activeTab.click();
@@ -300,6 +313,7 @@ async function initApp() {
   ).join('');
   const active = competitions.find(c => c.is_active) || competitions[0];
   if (active) { sel.value = active.id; activeCompId = active.id; }
+  updateCompBanner();
 
   await loadRidersForComp();
   myPicks = await supaRest('picks', { filters: `user_id=eq.${session.user.id}&order=stage_id` });
@@ -319,6 +333,9 @@ async function loadRidersForComp() {
   } else {
     riders = await supaRest('riders', { filters: 'order=bib_number' });
   }
+  // Reset team filter dropdown (will be repopulated on render)
+  const tf = $('rider-team-filter');
+  if (tf) { tf.innerHTML = '<option value="">Alle teams</option>'; tf.value = ''; }
 }
 
 // --- DASHBOARD ---

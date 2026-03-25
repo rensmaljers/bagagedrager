@@ -286,6 +286,70 @@
     .comp-vuelta { background: var(--red-dim); color: var(--red); }
     .comp-classic { background: var(--badge-muted-bg); color: var(--text-muted); }
 
+    /* --- COMPETITION BANNER --- */
+    .comp-banner {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 0.85rem;
+      background: var(--accent-bg);
+      border: 1px solid var(--accent-dim);
+      border-radius: 10px;
+      font-size: 0.85rem;
+    }
+    .comp-banner-name {
+      font-weight: 700;
+      color: var(--text);
+    }
+    .comp-selector select {
+      border-color: var(--accent-dim);
+      font-weight: 600;
+      background: var(--accent-bg);
+      color: var(--text);
+      min-width: 160px;
+    }
+    .comp-selector select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-dim);
+    }
+
+    /* --- FOCUS VISIBLE (keyboard users) --- */
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+    .btn:focus-visible,
+    .form-control:focus-visible,
+    .form-select:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 3px var(--accent-dim);
+      border-color: var(--accent);
+    }
+    .nav-pills .nav-link:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 3px var(--accent-dim);
+    }
+
+    /* --- BUTTON ACTIVE/FOCUS --- */
+    .btn:active:not(:disabled) { transform: scale(0.97); }
+    .btn-ghost:focus { background: var(--hover-overlay); border-color: var(--text-muted); }
+    .btn-primary:focus { box-shadow: 0 0 0 3px var(--blue-dim); }
+    .btn-success:focus { box-shadow: 0 0 0 3px var(--green-dim); }
+    .btn-outline-danger:focus { box-shadow: 0 0 0 3px var(--red-dim); }
+    .btn-accent:focus:not(:disabled) { box-shadow: 0 0 0 3px var(--accent-dim); }
+
+    /* --- TABLE ROW HOVER --- */
+    .table:not(.table-sm) tbody tr:hover td,
+    .table-sm tbody tr:hover td {
+      background: var(--hover-overlay);
+    }
+
+    /* --- PICK CARD FOCUS --- */
+    .pick-card:focus-within:not(.used) {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-dim);
+    }
+
     /* --- SECTIONS --- */
     .tab-section { display: none; }
     .tab-section.active { display: block; }
@@ -532,7 +596,9 @@
     <div class="container">
       <span class="navbar-brand">🚴 Bagagedrager</span>
       <div class="d-flex align-items-center gap-3">
-        <select id="comp-select" class="form-select form-select-sm" style="width:auto;"></select>
+        <div class="comp-selector">
+          <select id="comp-select" class="form-select form-select-sm"></select>
+        </div>
         <span class="text-muted" style="font-size:0.85rem;" id="user-name"></span>
         <button id="btn-theme" class="theme-toggle" title="Wissel thema" aria-label="Wissel thema"></button>
         <button id="btn-logout" class="btn btn-ghost btn-sm">Logout</button>
@@ -541,6 +607,10 @@
   </nav>
 
   <div class="container">
+    <div id="comp-banner" class="comp-banner mb-3" style="display:none;">
+      <span id="comp-banner-badge" class="comp-badge"></span>
+      <span id="comp-banner-name" class="comp-banner-name"></span>
+    </div>
     <ul class="nav nav-pills mb-4" id="main-tabs">
       <li class="nav-item">
         <a class="nav-link active" href="#" data-tab="dashboard">🏆 Klassement</a>
