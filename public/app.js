@@ -182,6 +182,11 @@ function activeStages() {
   return stages.filter(s => s.competition_id === activeCompId);
 }
 
+function activeScoringMode() {
+  const comp = competitions.find(c => c.id === activeCompId);
+  return comp?.scoring_mode || 'grand_tour';
+}
+
 function updateCompBanner() {
   const banner = $('comp-banner');
   const comp = competitions.find(c => c.id === activeCompId);
@@ -454,21 +459,40 @@ async function loadStandings() {
 
   const emptyRow = '<tr><td colspan="3" class="text-muted text-center py-3">Nog geen resultaten — wordt zichtbaar na de eerste etappe</td></tr>';
   const medal = ['🥇', '🥈', '🥉'];
+  const mode = activeScoringMode();
+  const isClassic = mode === 'classic';
 
-  const gc = [...standings].sort((a, b) => a.total_time - b.total_time);
-  $('gc-table').innerHTML = gc.map((s, i) =>
-    `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td>${escapeHtml(s.display_name)}</td><td class="time text-end">${formatTime(s.total_time)}</td></tr>`
-  ).join('') || emptyRow;
+  // Show/hide cards based on scoring mode
+  $('gc-card').style.display = isClassic ? 'none' : '';
+  $('points-card').style.display = isClassic ? 'none' : '';
+  $('mountain-card').style.display = isClassic ? 'none' : '';
+  $('game-card').style.display = isClassic ? '' : 'none';
 
-  const pts = [...standings].sort((a, b) => b.total_points - a.total_points);
-  $('points-table').innerHTML = pts.map((s, i) =>
-    `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td>${escapeHtml(s.display_name)}</td><td class="text-end">${s.total_points}</td></tr>`
-  ).join('') || emptyRow;
+  // Adjust column widths
+  const cards = ['gc-card', 'points-card', 'mountain-card', 'game-card'];
+  cards.forEach(id => {
+    const el = $(id);
+    if (el.style.display !== 'none') {
+      el.className = isClassic ? 'col-lg-6' : 'col-lg-3';
+    }
+  });
 
-  const mt = [...standings].sort((a, b) => b.total_mountain_points - a.total_mountain_points);
-  $('mountain-table').innerHTML = mt.map((s, i) =>
-    `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td>${escapeHtml(s.display_name)}</td><td class="text-end">${s.total_mountain_points}</td></tr>`
-  ).join('') || emptyRow;
+  if (!isClassic) {
+    const gc = [...standings].sort((a, b) => a.total_time - b.total_time);
+    $('gc-table').innerHTML = gc.map((s, i) =>
+      `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td>${escapeHtml(s.display_name)}</td><td class="time text-end">${formatTime(s.total_time)}</td></tr>`
+    ).join('') || emptyRow;
+
+    const pts = [...standings].sort((a, b) => b.total_points - a.total_points);
+    $('points-table').innerHTML = pts.map((s, i) =>
+      `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td>${escapeHtml(s.display_name)}</td><td class="text-end">${s.total_points}</td></tr>`
+    ).join('') || emptyRow;
+
+    const mt = [...standings].sort((a, b) => b.total_mountain_points - a.total_mountain_points);
+    $('mountain-table').innerHTML = mt.map((s, i) =>
+      `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td>${escapeHtml(s.display_name)}</td><td class="text-end">${s.total_mountain_points}</td></tr>`
+    ).join('') || emptyRow;
+  }
 
   const gp = [...standings].sort((a, b) => b.total_game_points - a.total_game_points);
   $('game-table').innerHTML = gp.map((s, i) =>
@@ -860,9 +884,15 @@ async function loadParticipants() {
 
   const stageNums = Object.keys(byStage).map(Number).sort((a, b) => b - a);
 
+  const mode = activeScoringMode();
+  const isClassic = mode === 'classic';
+
   $('participants-content').innerHTML = stageNums.map(num => {
     const { picks } = byStage[num];
     const stageName = picks[0] ? `Etappe ${num}` : `Etappe ${num}`;
+    const header = isClassic
+      ? '<tr><th>Speler</th><th>Renner</th><th class="text-end">Positie</th><th class="text-end">Spel</th><th class="text-end">Delen</th><th>Status</th></tr>'
+      : '<tr><th>Speler</th><th>Renner</th><th class="text-end">Tijd</th><th class="text-end">Pts</th><th class="text-end">Berg</th><th>Status</th></tr>';
     return `
       <div class="card mb-3">
         <div class="card-header">
@@ -870,18 +900,26 @@ async function loadParticipants() {
         </div>
         <div class="card-body p-0">
           <table class="table table-sm mb-0">
-            <thead><tr><th>Speler</th><th>Renner</th><th class="text-end">Tijd</th><th class="text-end">Pts</th><th class="text-end">Berg</th><th class="text-end">Spel</th><th class="text-end">Delen</th><th>Status</th></tr></thead>
+            <thead>${header}</thead>
             <tbody>
               ${picks.map(p => {
                 const sharingPct = p.num_pickers <= 1 ? 100 : p.num_pickers === 2 ? 80 : p.num_pickers === 3 ? 60 : p.num_pickers === 4 ? 40 : 20;
+                if (isClassic) {
+                  return `<tr>
+                  <td>${escapeHtml(p.display_name)}</td>
+                  <td>${escapeHtml(p.rider_name)} ${teamBadge(p.rider_team)}</td>
+                  <td class="text-end">${p.finish_position || '-'}</td>
+                  <td class="text-end">${p.effective_game_points != null ? p.effective_game_points : '-'}</td>
+                  <td class="text-end">${p.num_pickers > 1 ? '<span class="badge bg-secondary">' + sharingPct + '%</span>' : ''}</td>
+                  <td>${p.is_late ? '<span class="badge bg-warning">Te laat</span>' : ''}${p.is_random ? '<span class="badge bg-info">🎡 Rad</span>' : ''}${p.dnf ? '<span class="badge bg-danger">DNF</span>' : ''}</td>
+                </tr>`;
+                }
                 return `<tr>
                 <td>${escapeHtml(p.display_name)}</td>
                 <td>${escapeHtml(p.rider_name)} ${teamBadge(p.rider_team)}</td>
                 <td class="time text-end">${p.time_seconds ? formatTime(p.time_seconds) : '-'}</td>
                 <td class="text-end">${p.points != null ? (p.is_late ? '0' : p.points) : '-'}</td>
                 <td class="text-end">${p.mountain_points != null ? (p.is_late ? '0' : p.mountain_points) : '-'}</td>
-                <td class="text-end">${p.effective_game_points != null ? p.effective_game_points : '-'}</td>
-                <td class="text-end">${p.num_pickers > 1 ? '<span class="badge bg-secondary">' + sharingPct + '%</span>' : ''}</td>
                 <td>${p.is_late ? '<span class="badge bg-warning">Te laat</span>' : ''}${p.is_random ? '<span class="badge bg-info">🎡 Rad</span>' : ''}${p.dnf ? '<span class="badge bg-danger">DNF</span>' : ''}</td>
               </tr>`}).join('')}
             </tbody>
@@ -1017,6 +1055,13 @@ async function loadAdminCompetitions() {
       </td>
       <td>${c.year}</td>
       <td>
+        <select class="form-select form-select-sm" style="min-width:110px;"
+                onchange="updateCompField(${c.id}, 'scoring_mode', this.value)">
+          <option value="grand_tour" ${c.scoring_mode !== 'classic' ? 'selected' : ''}>Grote ronde</option>
+          <option value="classic" ${c.scoring_mode === 'classic' ? 'selected' : ''}>Klassieker</option>
+        </select>
+      </td>
+      <td>
         <input type="color" class="form-control form-control-color" value="${c.color || '#facc15'}"
                style="width:32px; height:28px; padding:2px;" onchange="updateCompField(${c.id}, 'color', this.value)">
       </td>
@@ -1040,17 +1085,22 @@ async function loadAdminCompetitions() {
         <button class="btn btn-sm btn-outline-danger" onclick="deleteComp(${c.id})">Verwijder</button>
       </td>
     </tr>
-  `).join('') || '<tr><td colspan="7" class="text-muted">Geen rondes</td></tr>';
+  `).join('') || '<tr><td colspan="8" class="text-muted">Geen rondes</td></tr>';
 }
 
 window.updateCompField = async function(compId, field, value) {
   try {
     await supaPatch('competitions', `id=eq.${compId}`, { [field]: value || null });
+    const comp = competitions.find(c => c.id === compId);
+    if (comp) comp[field] = value;
     if (field === 'color' || field === 'country_flag') {
-      const comp = competitions.find(c => c.id === compId);
-      if (comp) comp[field] = value;
       updateCompBanner();
       applyCompColor();
+    }
+    if (field === 'scoring_mode') {
+      _cache.standings = null;
+      _cache.participants = null;
+      loadStandings();
     }
   } catch (e) { alert(e.message); }
 };
@@ -1067,10 +1117,11 @@ $('btn-add-comp').addEventListener('click', async () => {
   const year = parseInt($('new-comp-year').value);
   if (!name || !slug || !year) return alert('Vul alle velden in');
   try {
+    const scoringMode = $('new-comp-scoring-mode').value || 'grand_tour';
     const pcsUrl = $('new-comp-pcs-url').value.trim() || null;
     const color = $('new-comp-color').value || '#facc15';
     const flag = $('new-comp-flag').value.trim() || '';
-    await supaRest('competitions', { method: 'POST', body: { name, slug, year, is_active: false, pcs_url: pcsUrl, color, country_flag: flag } });
+    await supaRest('competitions', { method: 'POST', body: { name, slug, competition_type: scoringMode === 'classic' ? 'classic' : 'tour', year, is_active: false, scoring_mode: scoringMode, pcs_url: pcsUrl, color, country_flag: flag } });
     $('new-comp-name').value = '';
     $('new-comp-slug').value = '';
     $('new-comp-pcs-url').value = '';
