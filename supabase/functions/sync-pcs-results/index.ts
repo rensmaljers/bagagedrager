@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
       if (cells.length < 8) continue;
 
       // Find cells by class
-      let bib = 0, time = 0, points = 0, dnf = false;
+      let bib = 0, time = 0, dnf = false;
 
       for (const cell of cells) {
         const cls = cell.className || "";
@@ -107,42 +107,53 @@ Deno.serve(async (req) => {
               time = lastTime;
             }
           }
-        } else if (cls.includes("pnt") && !cls.includes("uci")) {
-          points = parseInt(text) || 0;
         }
       }
 
       if (bib > 0) {
-        results.push({ bib_number: bib, time_seconds: time || lastTime, points, mountain_points: 0, dnf });
+        results.push({ bib_number: bib, time_seconds: time || lastTime, points: 0, mountain_points: 0, dnf });
       }
     }
 
-    // Try to parse mountain points from KOM classification table (usually 3rd table)
-    const tables = doc.querySelectorAll("table.results");
-    for (let i = 1; i < tables.length; i++) {
-      const headerRow = tables[i].querySelector("thead tr");
-      if (!headerRow) continue;
-      const headers = headerRow.textContent || "";
-      // Mountain/KOM classification usually has fewer rows and specific header
-      if (headers.includes("Rnk") && tables[i].querySelectorAll("tbody tr").length < 30) {
-        const komRows = tables[i].querySelectorAll("tbody tr");
-        for (const row of komRows) {
-          const cells = row.querySelectorAll("td");
-          let komBib = 0, komPts = 0;
-          for (const cell of cells) {
-            const cls = cell.className || "";
-            const text = cell.textContent?.trim() || "";
-            if (cls.includes("bibs")) komBib = parseInt(text) || 0;
-            if (cls.includes("pnt") && !cls.includes("uci")) komPts = parseInt(text) || 0;
-          }
-          if (komBib > 0 && komPts > 0) {
-            const existing = results.find(r => r.bib_number === komBib);
-            if (existing) existing.mountain_points = komPts;
+    // Find Points and KOM classification tables via PCS tab navigation
+    // PCS uses a tabbed interface: <ul class="restabs"> with <a data-id="X"> links
+    // Each tab corresponds to a <div class="resTab" data-id="X"> containing the table
+    function findTabTable(tabKeyword: string) {
+      const tabLinks = doc.querySelectorAll("ul.restabs li a, ul.resultTabs li a");
+      for (const link of tabLinks) {
+        const text = (link.textContent || "").toUpperCase();
+        if (text.includes(tabKeyword)) {
+          const dataId = link.getAttribute("data-id");
+          if (dataId) {
+            const tabDiv = doc.querySelector(`div.resTab[data-id="${dataId}"]`);
+            return tabDiv?.querySelector("table.results") || null;
           }
         }
-        break; // Only use first matching classification table
+      }
+      return null;
+    }
+
+    function extractClassificationPoints(classTable: any, field: "points" | "mountain_points") {
+      if (!classTable) return;
+      const classRows = classTable.querySelectorAll("tbody tr");
+      for (const row of classRows) {
+        const cells = row.querySelectorAll("td");
+        let classBib = 0, classPts = 0;
+        for (const cell of cells) {
+          const cls = cell.className || "";
+          const text = cell.textContent?.trim() || "";
+          if (cls.includes("bibs")) classBib = parseInt(text) || 0;
+          if (cls.includes("pnt") && !cls.includes("uci")) classPts = parseInt(text) || 0;
+        }
+        if (classBib > 0 && classPts > 0) {
+          const existing = results.find(r => r.bib_number === classBib);
+          if (existing) existing[field] = classPts;
+        }
       }
     }
+
+    extractClassificationPoints(findTabTable("POINTS"), "points");
+    extractClassificationPoints(findTabTable("KOM"), "mountain_points");
 
     return new Response(JSON.stringify({
       success: true,
