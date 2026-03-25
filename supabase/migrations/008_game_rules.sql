@@ -258,7 +258,30 @@ FROM pick_times pt
 JOIN profiles pr ON pr.id = pt.user_id
 GROUP BY pt.competition_id, pt.user_id, pr.display_name;
 
--- 10. Backfill: bereken game_points voor bestaande resultaten
+-- 10. Starttijd = deadline: voeg start_time toe en sync met deadline
+ALTER TABLE stages ADD COLUMN IF NOT EXISTS start_time timestamptz;
+
+-- Backfill: zet start_time gelijk aan bestaande deadline
+UPDATE stages SET start_time = deadline WHERE start_time IS NULL;
+
+-- Trigger: bij insert of update van start_time, zet deadline automatisch gelijk
+CREATE OR REPLACE FUNCTION sync_deadline_to_start_time()
+RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.start_time IS NOT NULL THEN
+    NEW.deadline := NEW.start_time;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_sync_deadline ON stages;
+CREATE TRIGGER trg_sync_deadline
+  BEFORE INSERT OR UPDATE OF start_time ON stages
+  FOR EACH ROW EXECUTE FUNCTION sync_deadline_to_start_time();
+
+-- 11. Backfill: bereken game_points voor bestaande resultaten
 DO $$
 DECLARE
   v_stage record;

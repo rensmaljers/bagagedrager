@@ -386,7 +386,7 @@ function renderPickStage() {
   const isLocked = stage.locked || now > new Date(stage.deadline);
 
   $('pick-stage-name').textContent = `Etappe ${stage.stage_number}: ${stage.name}`;
-  $('pick-deadline').textContent = `Deadline: ${formatDeadline(stage.deadline)}${isLocked ? ' (VERGRENDELD)' : ''}`;
+  $('pick-deadline').textContent = `Start: ${formatDeadline(stage.start_time || stage.deadline)}${isLocked ? ' (VERGRENDELD)' : ''}`;
   $('pick-locked-msg').style.display = isLocked ? 'block' : 'none';
 
   const currentPick = myPicks.find(p => p.stage_id === stageId);
@@ -788,6 +788,7 @@ async function loadAdminStages() {
       <td>${s.name}</td>
       <td>${comp ? compBadge(comp.competition_type) + ' ' + comp.name : '<span class="text-muted">-</span>'}</td>
       <td>${new Date(s.date).toLocaleDateString('nl-NL')}</td>
+      <td>${s.start_time ? new Date(s.start_time).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
       <td>${typeLabels[s.stage_type] || s.stage_type}</td>
       <td>${s.locked
         ? '<span class="badge bg-secondary">Vergrendeld</span>'
@@ -800,25 +801,24 @@ async function loadAdminStages() {
         <button class="btn btn-sm btn-outline-danger" onclick="deleteStage(${s.id})">Verwijder</button>
       </td>
     </tr>`;
-  }).join('') || '<tr><td colspan="7" class="text-muted">Geen etappes</td></tr>';
+  }).join('') || '<tr><td colspan="8" class="text-muted">Geen etappes</td></tr>';
 }
 
 $('btn-add-stage').addEventListener('click', async () => {
   const num = parseInt($('new-stage-num').value);
   const name = $('new-stage-name').value.trim();
   const date = $('new-stage-date').value;
+  const startTime = $('new-stage-starttime').value || '12:00';
   const type = $('new-stage-type').value;
   const compId = parseInt($('new-stage-comp').value);
   if (!num || !name || !date || !compId) return alert('Vul alle velden in');
 
-  const deadlineDate = new Date(date);
-  deadlineDate.setDate(deadlineDate.getDate() - 1);
-  deadlineDate.setHours(23, 0, 0, 0);
+  const startDateTime = new Date(`${date}T${startTime}:00`);
 
   try {
     await supaRest('stages', {
       method: 'POST',
-      body: { stage_number: num, name, date, stage_type: type, deadline: deadlineDate.toISOString(), locked: false, competition_id: compId },
+      body: { stage_number: num, name, date, stage_type: type, start_time: startDateTime.toISOString(), deadline: startDateTime.toISOString(), locked: false, competition_id: compId },
     });
     $('new-stage-num').value = '';
     $('new-stage-name').value = '';
@@ -1110,13 +1110,11 @@ $('btn-race-import').addEventListener('click', async () => {
     if (parsed.length) {
       let ok = 0, skip = 0;
       for (const s of parsed) {
-        const deadlineDate = new Date(s.date);
-        deadlineDate.setDate(deadlineDate.getDate() - 1);
-        deadlineDate.setHours(23, 0, 0, 0);
+        const startDateTime = new Date(`${s.date}T${s.start_time || '12:00'}:00`);
         try {
           await supaRest('stages', {
             method: 'POST',
-            body: { ...s, deadline: deadlineDate.toISOString(), locked: false, competition_id: compId },
+            body: { ...s, start_time: startDateTime.toISOString(), deadline: startDateTime.toISOString(), locked: false, competition_id: compId },
           });
           ok++;
         } catch (e) { skip++; }
@@ -1165,13 +1163,11 @@ $('btn-race-import').addEventListener('click', async () => {
       if (parsed.length) {
         let ok = 0, skip = 0;
         for (const s of parsed) {
-          const deadlineDate = new Date(s.date);
-          deadlineDate.setDate(deadlineDate.getDate() - 1);
-          deadlineDate.setHours(23, 0, 0, 0);
+          const startDateTime = new Date(`${s.date}T${s.start_time || '12:00'}:00`);
           try {
             await supaRest('stages', {
               method: 'POST',
-              body: { ...s, deadline: deadlineDate.toISOString(), locked: false, competition_id: compId },
+              body: { ...s, start_time: startDateTime.toISOString(), deadline: startDateTime.toISOString(), locked: false, competition_id: compId },
             });
             ok++;
           } catch (e) { skip++; }
@@ -1314,13 +1310,11 @@ $('btn-import-stages').addEventListener('click', async () => {
   status.className = 'text-muted';
   let ok = 0, skip = 0;
   for (const s of parsed) {
-    const deadlineDate = new Date(s.date);
-    deadlineDate.setDate(deadlineDate.getDate() - 1);
-    deadlineDate.setHours(23, 0, 0, 0);
+    const startDateTime = new Date(`${s.date}T${s.start_time || '12:00'}:00`);
     try {
       await supaRest('stages', {
         method: 'POST',
-        body: { ...s, deadline: deadlineDate.toISOString(), locked: false, competition_id: compId },
+        body: { ...s, start_time: startDateTime.toISOString(), deadline: startDateTime.toISOString(), locked: false, competition_id: compId },
       });
       ok++;
     } catch (e) {

@@ -833,16 +833,19 @@
           <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">Etappe Toevoegen</h5></div>
           <div class="card-body">
             <div class="row g-2">
-              <div class="col-md-1">
+              <div class="col-6 col-md-1">
                 <input type="number" id="new-stage-num" class="form-control form-control-sm" placeholder="#" />
               </div>
-              <div class="col-md-3">
-                <input type="text" id="new-stage-name" class="form-control form-control-sm" placeholder="Naam (bijv. Lille → Dunkerque)" />
+              <div class="col-6 col-md-2">
+                <input type="text" id="new-stage-name" class="form-control form-control-sm" placeholder="Naam" />
               </div>
-              <div class="col-md-2">
+              <div class="col-6 col-md-2">
                 <input type="date" id="new-stage-date" class="form-control form-control-sm" />
               </div>
-              <div class="col-md-2">
+              <div class="col-6 col-md-1">
+                <input type="time" id="new-stage-starttime" class="form-control form-control-sm" value="12:00" title="Starttijd (= deadline)" />
+              </div>
+              <div class="col-6 col-md-2">
                 <select id="new-stage-type" class="form-select form-select-sm">
                   <option value="flat">Vlak</option>
                   <option value="mountain">Berg</option>
@@ -850,10 +853,10 @@
                   <option value="sprint">Sprint</option>
                 </select>
               </div>
-              <div class="col-md-2">
+              <div class="col-6 col-md-2">
                 <select id="new-stage-comp" class="form-select form-select-sm"></select>
               </div>
-              <div class="col-md-2">
+              <div class="col-12 col-md-2">
                 <button id="btn-add-stage" class="btn btn-primary btn-sm w-100">Toevoegen</button>
               </div>
             </div>
@@ -862,7 +865,7 @@
         <div class="card">
           <div class="card-body p-0">
             <table class="table table-sm table-striped mb-0">
-              <thead><tr><th>#</th><th>Naam</th><th>Competitie</th><th>Datum</th><th>Type</th><th>Status</th><th>Acties</th></tr></thead>
+              <thead><tr><th>#</th><th>Naam</th><th>Competitie</th><th>Datum</th><th>Start</th><th>Type</th><th>Status</th><th>Acties</th></tr></thead>
               <tbody id="admin-stages-table"></tbody>
             </table>
           </div>
