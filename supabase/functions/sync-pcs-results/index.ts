@@ -100,22 +100,18 @@ Deno.serve(async (req) => {
             dnf = true;
           } else {
             // PCS time formats:
-            // - Winner (row 1): absolute time "4:00:46"
+            // - Winner (row 1): absolute time "3:43:33" (hours:min:sec)
             // - Same time group: ",," or empty → parsed as 0
-            // - Time gap: "+0:15" → strip + gives "0:15" = 15 seconds (a gap, not absolute!)
-            const isGap = /^\s*\+/.test(timeText);
+            // - Time gap (all subsequent rows): "0:19" meaning +19s behind winner
             const parsed = parseTime(timeText);
             if (parsed > 0) {
               if (winnerTime === 0) {
                 // First valid time = winner's absolute time
                 winnerTime = parsed;
                 time = parsed;
-              } else if (isGap) {
-                // "+0:15" means winner_time + 15 seconds
-                time = winnerTime + parsed;
               } else {
-                // Absolute time (shouldn't normally happen after first row)
-                time = parsed;
+                // All subsequent times are gaps relative to the winner
+                time = winnerTime + parsed;
               }
               lastTime = time;
             } else {
