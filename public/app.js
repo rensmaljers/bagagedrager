@@ -186,10 +186,31 @@ function updateCompBanner() {
   const banner = $('comp-banner');
   const comp = competitions.find(c => c.id === activeCompId);
   if (!comp) { banner.style.display = 'none'; return; }
-  $('comp-banner-badge').className = 'comp-badge comp-classic';
-  $('comp-banner-badge').textContent = '🏁';
+  const flag = comp.country_flag || '🏁';
+  $('comp-banner-badge').textContent = flag;
+  $('comp-banner-badge').className = 'comp-badge';
+  $('comp-banner-badge').style.fontSize = '1.2rem';
   $('comp-banner-name').textContent = comp.name;
   banner.style.display = 'flex';
+  applyCompColor();
+}
+
+function applyCompColor() {
+  const comp = competitions.find(c => c.id === activeCompId);
+  const color = comp?.color || '#facc15';
+  document.documentElement.style.setProperty('--comp-color', color);
+  // Apply to comp-banner border
+  const banner = $('comp-banner');
+  if (banner) {
+    banner.style.borderColor = color + '40';
+    banner.style.background = color + '10';
+  }
+  // Apply to comp-select
+  const sel = $('comp-select');
+  if (sel) {
+    sel.style.borderColor = color + '60';
+    sel.style.background = color + '10';
+  }
 }
 
 // --- TAB NAVIGATION ---
@@ -316,7 +337,7 @@ async function initApp() {
 
   const sel = $('comp-select');
   sel.innerHTML = competitions.map(c =>
-    `<option value="${c.id}" ${c.is_active ? 'selected' : ''}>${c.name}</option>`
+    `<option value="${c.id}" ${c.is_active ? 'selected' : ''}>${c.country_flag || ''} ${c.name}</option>`
   ).join('');
   const active = competitions.find(c => c.is_active) || competitions[0];
   if (active) { sel.value = active.id; activeCompId = active.id; }
@@ -347,7 +368,7 @@ async function loadRidersForComp() {
 // --- DASHBOARD ---
 async function loadStandings() {
   if (!activeCompId) {
-    const empty = '<tr><td colspan="3"><div class="empty-state"><div class="empty-state-icon">🏁</div><div class="empty-state-text">Selecteer een competitie om het klassement te zien</div></div></td></tr>';
+    const empty = '<tr><td colspan="3"><div class="empty-state"><div class="empty-state-icon">🏁</div><div class="empty-state-text">Selecteer een ronde om het klassement te zien</div></div></td></tr>';
     $('gc-table').innerHTML = empty;
     $('points-table').innerHTML = empty;
     $('mountain-table').innerHTML = empty;
@@ -644,7 +665,7 @@ window.toggleAdmin = async function(userId, makeAdmin) {
 
 async function loadParticipants() {
   if (!activeCompId) {
-    $('participants-content').innerHTML = '<p class="text-muted">Geen competitie geselecteerd</p>';
+    $('participants-content').innerHTML = '<p class="text-muted">Geen ronde geselecteerd</p>';
     return;
   }
 
@@ -748,7 +769,7 @@ async function loadAdminCompetitions() {
   const sel = $('comp-select');
   const currentVal = sel.value;
   sel.innerHTML = competitions.map(c =>
-    `<option value="${c.id}" ${c.is_active ? 'selected' : ''}>${c.name}</option>`
+    `<option value="${c.id}" ${c.is_active ? 'selected' : ''}>${c.country_flag || ''} ${c.name}</option>`
   ).join('');
   if (currentVal) sel.value = currentVal;
 
@@ -760,8 +781,17 @@ async function loadAdminCompetitions() {
       </td>
       <td>${c.year}</td>
       <td>
+        <input type="color" class="form-control form-control-color" value="${c.color || '#facc15'}"
+               style="width:32px; height:28px; padding:2px;" onchange="updateCompField(${c.id}, 'color', this.value)">
+      </td>
+      <td>
+        <input type="text" class="form-control form-control-sm" value="${c.country_flag || ''}"
+               placeholder="🇫🇷" style="width:45px; text-align:center;" maxlength="4"
+               onchange="updateCompField(${c.id}, 'country_flag', this.value)">
+      </td>
+      <td>
         <input type="url" class="form-control form-control-sm" value="${escapeHtml(c.pcs_url || '')}"
-               placeholder="PCS URL" style="min-width:180px; font-size:0.75rem;"
+               placeholder="PCS URL" style="min-width:140px; font-size:0.75rem;"
                onchange="updateCompPcsUrl(${c.id}, this.value)">
       </td>
       <td>
@@ -774,8 +804,20 @@ async function loadAdminCompetitions() {
         <button class="btn btn-sm btn-outline-danger" onclick="deleteComp(${c.id})">Verwijder</button>
       </td>
     </tr>
-  `).join('') || '<tr><td colspan="5" class="text-muted">Geen competities</td></tr>';
+  `).join('') || '<tr><td colspan="7" class="text-muted">Geen rondes</td></tr>';
 }
+
+window.updateCompField = async function(compId, field, value) {
+  try {
+    await supaPatch('competitions', `id=eq.${compId}`, { [field]: value || null });
+    if (field === 'color' || field === 'country_flag') {
+      const comp = competitions.find(c => c.id === compId);
+      if (comp) comp[field] = value;
+      updateCompBanner();
+      applyCompColor();
+    }
+  } catch (e) { alert(e.message); }
+};
 
 window.updateCompPcsUrl = async function(compId, pcsUrl) {
   try {
@@ -790,10 +832,14 @@ $('btn-add-comp').addEventListener('click', async () => {
   if (!name || !slug || !year) return alert('Vul alle velden in');
   try {
     const pcsUrl = $('new-comp-pcs-url').value.trim() || null;
-    await supaRest('competitions', { method: 'POST', body: { name, slug, year, is_active: false, pcs_url: pcsUrl } });
+    const color = $('new-comp-color').value || '#facc15';
+    const flag = $('new-comp-flag').value.trim() || '';
+    await supaRest('competitions', { method: 'POST', body: { name, slug, year, is_active: false, pcs_url: pcsUrl, color, country_flag: flag } });
     $('new-comp-name').value = '';
     $('new-comp-slug').value = '';
     $('new-comp-pcs-url').value = '';
+    $('new-comp-color').value = '#facc15';
+    $('new-comp-flag').value = '';
     loadAdminCompetitions();
     loadAdminStages();
   } catch (e) { alert(e.message); }
@@ -816,7 +862,7 @@ window.toggleCompActive = async function(compId, active) {
 };
 
 window.deleteComp = async function(compId) {
-  if (!confirm('Weet je het zeker? Dit verwijdert de competitie.')) return;
+  if (!confirm('Weet je het zeker? Dit verwijdert de ronde.')) return;
   try {
     await supaDelete('competitions', `id=eq.${compId}`);
     loadAdminCompetitions();
@@ -831,7 +877,7 @@ async function loadAdminRiders() {
 
   const sel = $('admin-rider-comp-filter');
   const current = sel.value;
-  sel.innerHTML = '<option value="">Alle competities</option>' +
+  sel.innerHTML = '<option value="">Alle rondes</option>' +
     competitions.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
   if (current) sel.value = current;
 
@@ -871,7 +917,7 @@ $('btn-add-rider').addEventListener('click', async () => {
   const team = $('new-rider-team').value.trim();
   const compId = parseInt($('admin-rider-comp-filter').value) || activeCompId;
   if (!bib || !name || !team) return alert('Vul alle velden in');
-  if (!compId) return alert('Selecteer eerst een competitie');
+  if (!compId) return alert('Selecteer eerst een ronde');
   try {
     await supaRest('riders', { method: 'POST', body: { bib_number: bib, name, team, competition_id: compId } });
     $('new-rider-bib').value = '';
@@ -1021,8 +1067,8 @@ $('btn-pcs-sync-race').addEventListener('click', async () => {
   const status = $('pcs-sync-status');
   const log = $('pcs-sync-log');
 
-  if (!comp) { status.textContent = 'Kies een competitie'; status.className = 'text-danger'; return; }
-  if (!comp.pcs_url) { status.textContent = 'Stel eerst een PCS URL in bij de competitie'; status.className = 'text-danger'; return; }
+  if (!comp) { status.textContent = 'Kies een ronde'; status.className = 'text-danger'; return; }
+  if (!comp.pcs_url) { status.textContent = 'Stel eerst een PCS URL in bij de ronde'; status.className = 'text-danger'; return; }
 
   status.textContent = '⏳ Bezig met ophalen van PCS...';
   status.className = 'text-muted';
@@ -1061,7 +1107,7 @@ $('btn-pcs-sync-results').addEventListener('click', async () => {
   if (!stage) { status.textContent = 'Kies een etappe'; status.className = 'text-danger'; return; }
 
   const comp = competitions.find(c => c.id === stage.competition_id);
-  if (!comp?.pcs_url) { status.textContent = 'Geen PCS URL ingesteld voor deze competitie'; status.className = 'text-danger'; return; }
+  if (!comp?.pcs_url) { status.textContent = 'Geen PCS URL ingesteld voor deze ronde'; status.className = 'text-danger'; return; }
 
   const pcsUrl = comp.pcs_url.replace(/\/$/, '').replace(/\/(stages|startlist|gc|stage-\d+)$/, '') + '/stage-' + stage.stage_number;
 
@@ -1330,7 +1376,7 @@ $('btn-race-import').addEventListener('click', async () => {
   const log = $('race-sync-log');
 
   if (!raw) { status.textContent = 'Plak eerst data'; status.className = 'text-danger'; return; }
-  if (!compId) { status.textContent = 'Selecteer een competitie'; status.className = 'text-danger'; return; }
+  if (!compId) { status.textContent = 'Selecteer een ronde'; status.className = 'text-danger'; return; }
 
   status.textContent = '⏳ Importeren...';
   status.className = 'text-muted';
@@ -1501,7 +1547,7 @@ $('btn-import-riders').addEventListener('click', async () => {
   const compId = parseInt($('import-rider-comp').value);
   const status = $('import-riders-status');
   if (!parsed.length) { status.textContent = 'Geen geldige data'; status.className = 'text-danger'; return; }
-  if (!compId) { status.textContent = 'Kies een competitie'; status.className = 'text-danger'; return; }
+  if (!compId) { status.textContent = 'Kies een ronde'; status.className = 'text-danger'; return; }
 
   status.textContent = `Importeren van ${parsed.length} renners...`;
   status.className = 'text-muted';
@@ -1538,7 +1584,7 @@ $('btn-import-stages').addEventListener('click', async () => {
   const compId = parseInt($('import-stage-comp').value);
   const status = $('import-stages-status');
   if (!parsed.length) { status.textContent = 'Geen geldige data'; status.className = 'text-danger'; return; }
-  if (!compId) { status.textContent = 'Kies een competitie'; status.className = 'text-danger'; return; }
+  if (!compId) { status.textContent = 'Kies een ronde'; status.className = 'text-danger'; return; }
 
   status.textContent = `Importeren van ${parsed.length} etappes...`;
   status.className = 'text-muted';

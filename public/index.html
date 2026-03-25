@@ -852,7 +852,7 @@
             <div class="card-body" style="font-size:0.83rem; line-height:1.7;">
               <ul class="mb-0 ps-3">
                 <li><strong>Kies 1 renner per etappe</strong> — voor de deadline van die etappe.</li>
-                <li><strong>Elke renner mag maar 1x</strong> gebruikt worden per competitie.</li>
+                <li><strong>Elke renner mag maar 1x</strong> gebruikt worden per ronde.</li>
                 <li><strong>Te laat?</strong> Je keuze telt, maar je krijgt de slechtste tijd + 0 punten.</li>
                 <li><strong>DNF?</strong> Dezelfde straf als te laat: slechtste tijd van de etappe.</li>
                 <li><strong>🟡 Gele trui:</strong> laagste totaaltijd wint.</li>
@@ -881,7 +881,7 @@
     <div class="tab-section" id="section-admin">
       <ul class="nav nav-tabs mb-3" id="admin-tabs">
         <li class="nav-item"><a class="nav-link active" href="#" data-admin="admin-users">Gebruikers</a></li>
-        <li class="nav-item"><a class="nav-link" href="#" data-admin="admin-competitions">Competities</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" data-admin="admin-competitions">Rondes</a></li>
         <li class="nav-item"><a class="nav-link" href="#" data-admin="admin-riders">Renners</a></li>
         <li class="nav-item"><a class="nav-link" href="#" data-admin="admin-stages">Etappes</a></li>
         <li class="nav-item"><a class="nav-link" href="#" data-admin="admin-results">Resultaten</a></li>
@@ -904,10 +904,10 @@
         </div>
       </div>
 
-      <!-- Admin: Competities -->
+      <!-- Admin: Rondes -->
       <div class="admin-sub" id="admin-competitions">
         <div class="card mb-3">
-          <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">Competitie Toevoegen</h5></div>
+          <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">Ronde Toevoegen</h5></div>
           <div class="card-body">
             <div class="row g-2">
               <div class="col-md-4">
@@ -919,10 +919,16 @@
               <div class="col-md-1">
                 <input type="number" id="new-comp-year" class="form-control form-control-sm" placeholder="Jaar" value="2025" />
               </div>
-              <div class="col-md-3">
-                <input type="url" id="new-comp-pcs-url" class="form-control form-control-sm" placeholder="PCS URL (optioneel)" />
-              </div>
               <div class="col-md-2">
+                <input type="url" id="new-comp-pcs-url" class="form-control form-control-sm" placeholder="PCS URL" />
+              </div>
+              <div class="col-6 col-md-1">
+                <div class="d-flex align-items-center gap-1">
+                  <input type="color" id="new-comp-color" class="form-control form-control-color form-control-sm" value="#facc15" title="Ronde kleur" style="width:32px; height:30px; padding:2px;" />
+                  <input type="text" id="new-comp-flag" class="form-control form-control-sm" placeholder="🇫🇷" style="width:40px; text-align:center;" maxlength="4" />
+                </div>
+              </div>
+              <div class="col-6 col-md-1">
                 <button id="btn-add-comp" class="btn btn-primary btn-sm w-100">Toevoegen</button>
               </div>
             </div>
@@ -931,7 +937,7 @@
         <div class="card">
           <div class="card-body p-0">
             <table class="table table-sm table-striped mb-0">
-              <thead><tr><th>Naam</th><th>Jaar</th><th>PCS URL</th><th>Actief</th><th>Acties</th></tr></thead>
+              <thead><tr><th>Naam</th><th>Jaar</th><th>Kleur</th><th>Vlag</th><th>PCS URL</th><th>Actief</th><th>Acties</th></tr></thead>
               <tbody id="admin-comp-table"></tbody>
             </table>
           </div>
@@ -1014,7 +1020,7 @@
         <div class="card">
           <div class="card-body p-0">
             <table class="table table-sm table-striped mb-0">
-              <thead><tr><th>#</th><th>Naam</th><th>Competitie</th><th>Datum</th><th>Start</th><th>Type</th><th>Status</th><th>Acties</th></tr></thead>
+              <thead><tr><th>#</th><th>Naam</th><th>Ronde</th><th>Datum</th><th>Start</th><th>Type</th><th>Status</th><th>Acties</th></tr></thead>
               <tbody id="admin-stages-table"></tbody>
             </table>
           </div>
@@ -1075,10 +1081,10 @@
           <div class="card-header" style="background: var(--accent-bg);"><h5 class="mb-0" style="font-size:0.95rem;">🔄 PCS Sync</h5></div>
           <div class="card-body">
             <p class="text-muted" style="font-size:0.8rem;">
-              Sync etappes en renners direct vanuit ProCyclingStats. Stel eerst een PCS URL in bij de competitie.
+              Sync etappes en renners direct vanuit ProCyclingStats. Stel eerst een PCS URL in bij de ronde.
             </p>
             <div class="mb-3">
-              <label class="form-label" style="font-size:0.8rem;"><strong>Competitie</strong></label>
+              <label class="form-label" style="font-size:0.8rem;"><strong>Ronde</strong></label>
               <select id="race-sync-comp" class="form-select form-select-sm"></select>
             </div>
             <div class="d-flex gap-2 align-items-center flex-wrap">
@@ -1123,7 +1129,7 @@
               Of plak direct een startlijst-tabel (tab-separated) uit PCS.
             </p>
             <div class="mb-2">
-              <label class="form-label" style="font-size:0.8rem; color:var(--text-muted);">Competitie</label>
+              <label class="form-label" style="font-size:0.8rem; color:var(--text-muted);">Ronde</label>
               <select id="import-rider-comp" class="form-select form-select-sm"></select>
             </div>
             <textarea id="import-riders-text" class="form-control form-control-sm mb-2" rows="8"
@@ -1145,7 +1151,7 @@
               Bijv: <code>1, Lille → Dunkerque, 2025-07-05, flat</code>
             </p>
             <div class="mb-2">
-              <label class="form-label" style="font-size:0.8rem; color:var(--text-muted);">Competitie</label>
+              <label class="form-label" style="font-size:0.8rem; color:var(--text-muted);">Ronde</label>
               <select id="import-stage-comp" class="form-select form-select-sm"></select>
             </div>
             <textarea id="import-stages-text" class="form-control form-control-sm mb-2" rows="8"

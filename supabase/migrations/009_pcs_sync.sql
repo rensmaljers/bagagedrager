@@ -6,6 +6,10 @@ ALTER TABLE riders DROP CONSTRAINT IF EXISTS riders_competition_id_fkey;
 ALTER TABLE riders ADD CONSTRAINT riders_competition_id_fkey
   FOREIGN KEY (competition_id) REFERENCES competitions(id) ON DELETE CASCADE;
 
+-- Ronde-styling: kleur en landvlag per ronde
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS color text DEFAULT '#facc15';
+ALTER TABLE competitions ADD COLUMN IF NOT EXISTS country_flag text DEFAULT '';
+
 -- Performance: composite indexes voor veelgebruikte queries
 CREATE INDEX IF NOT EXISTS idx_stage_results_stage_rider ON stage_results(stage_id, rider_id);
 CREATE INDEX IF NOT EXISTS idx_picks_stage_rider ON picks(stage_id, rider_id);
