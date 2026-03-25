@@ -653,8 +653,10 @@
             <input type="password" id="auth-password" class="form-control" placeholder="Wachtwoord" />
           </div>
           <button id="btn-login" class="btn btn-accent w-100 mb-2">Inloggen</button>
-          <button id="btn-signup" class="btn btn-ghost w-100">Aanmelden</button>
+          <button id="btn-signup" class="btn btn-ghost w-100 mb-2">Aanmelden</button>
+          <a href="#" id="btn-forgot-password" style="font-size:0.8rem; color:var(--text-muted);">Wachtwoord vergeten?</a>
           <div id="auth-error" class="text-danger mt-3" style="display:none; font-size:0.85rem;"></div>
+          <div id="auth-success" class="text-success mt-3" style="display:none; font-size:0.85rem;"></div>
         </div>
       </div>
     </div>
@@ -890,6 +892,26 @@
 
       <!-- Admin: Gebruikers -->
       <div class="admin-sub active" id="admin-users">
+        <div class="card mb-3">
+          <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">Speler Aanmaken</h5></div>
+          <div class="card-body">
+            <div class="row g-2">
+              <div class="col-md-3">
+                <input type="text" id="new-user-name" class="form-control form-control-sm" placeholder="Naam" />
+              </div>
+              <div class="col-md-3">
+                <input type="email" id="new-user-email" class="form-control form-control-sm" placeholder="Email" />
+              </div>
+              <div class="col-md-3">
+                <input type="text" id="new-user-password" class="form-control form-control-sm" placeholder="Wachtwoord" />
+              </div>
+              <div class="col-md-3">
+                <button id="btn-admin-create-user" class="btn btn-primary btn-sm w-100">Aanmaken</button>
+              </div>
+            </div>
+            <span id="admin-create-user-status" class="mt-1 d-block" style="font-size:0.8rem;"></span>
+          </div>
+        </div>
         <div class="card">
           <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0" style="font-size:0.95rem;">Gebruikers</h5>
@@ -897,7 +919,7 @@
           </div>
           <div class="card-body p-0">
             <table class="table table-sm table-striped mb-0">
-              <thead><tr><th>Naam</th><th>Rol</th><th>Aangemeld</th><th>Acties</th></tr></thead>
+              <thead><tr><th>Naam</th><th>Status</th><th>Aangemeld</th><th>Acties</th></tr></thead>
               <tbody id="admin-users-table"></tbody>
             </table>
           </div>

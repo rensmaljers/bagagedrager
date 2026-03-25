@@ -80,7 +80,7 @@ async function login(email, password) {
 function dutchAuthError(msg) {
   if (!msg) return 'Er ging iets mis, probeer het later opnieuw.';
   const lower = msg.toLowerCase();
-  if (lower.includes('database error saving new user')) return 'Het maximaal aantal spelers is bereikt (50). Neem contact op met de beheerder.';
+  if (lower.includes('database error saving new user') || lower.includes('maximum number of players')) return 'Er ging iets mis bij het aanmaken. Neem contact op met de beheerder.';
   if (lower.includes('user already registered')) return 'Dit e-mailadres is al geregistreerd. Probeer in te loggen.';
   if (lower.includes('invalid login credentials')) return 'Onjuist e-mailadres of wachtwoord.';
   if (lower.includes('email not confirmed')) return 'Je e-mail is nog niet bevestigd. Check je inbox.';
@@ -292,6 +292,25 @@ $('btn-signup').addEventListener('click', async () => {
     const data = await signup(email, $('auth-password').value, email.split('@')[0]);
     if (data.access_token) { session = data; await initApp(); }
     else showError('Check je email om je account te bevestigen');
+  } catch (e) { showError(e.message); }
+});
+
+$('btn-forgot-password').addEventListener('click', async (e) => {
+  e.preventDefault();
+  const email = $('auth-email').value.trim();
+  if (!email) { showError('Vul eerst je e-mailadres in'); return; }
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/recover`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+      body: JSON.stringify({ email }),
+    });
+    if (!res.ok) { const d = await res.json(); throw new Error(d.error_description || d.msg || 'Fout bij verzenden'); }
+    $('auth-error').style.display = 'none';
+    const el = $('auth-success');
+    el.textContent = 'Herstelmail verzonden! Check je inbox.';
+    el.style.display = 'block';
+    setTimeout(() => { el.style.display = 'none'; }, 5000);
   } catch (e) { showError(e.message); }
 });
 
@@ -764,6 +783,10 @@ async function loadAdminUsers() {
                   onclick="togglePlayerActive('${p.id}', ${p.is_active === false})" ${isSelf ? 'disabled' : ''}>
             ${p.is_active === false ? 'Activeer' : 'Deactiveer'}
           </button>
+          <button class="btn btn-sm btn-outline-info"
+                  onclick="resetPassword('${escapeHtml(p.email || '')}')">
+            Reset ww
+          </button>
           <button class="btn btn-sm btn-outline-danger"
                   onclick="deletePlayer('${p.id}', '${escapeHtml(p.display_name)}')" ${isSelf ? 'disabled' : ''}>
             Verwijder
@@ -790,6 +813,42 @@ window.deletePlayer = async function(userId, displayName) {
     loadPeloton();
   } catch (e) { alert(e.message); }
 };
+
+window.resetPassword = async function(email) {
+  if (!email) { alert('Geen e-mailadres bekend voor deze speler'); return; }
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/recover`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+      body: JSON.stringify({ email }),
+    });
+    if (!res.ok) throw new Error('Verzenden mislukt');
+    alert(`Herstelmail verzonden naar ${email}`);
+  } catch (e) { alert(e.message); }
+};
+
+$('btn-admin-create-user').addEventListener('click', async () => {
+  const name = $('new-user-name').value.trim();
+  const email = $('new-user-email').value.trim();
+  const password = $('new-user-password').value;
+  const status = $('admin-create-user-status');
+  if (!name || !email || !password) { status.textContent = 'Vul alle velden in'; status.className = 'text-danger'; return; }
+  if (password.length < 6) { status.textContent = 'Wachtwoord moet minimaal 6 tekens zijn'; status.className = 'text-danger'; return; }
+  try {
+    status.textContent = 'Aanmaken...';
+    status.className = 'text-muted';
+    await signup(email, password, name);
+    status.textContent = `✅ ${name} aangemaakt!`;
+    status.className = 'text-success';
+    $('new-user-name').value = '';
+    $('new-user-email').value = '';
+    $('new-user-password').value = '';
+    loadAdminUsers();
+  } catch (e) {
+    status.textContent = e.message;
+    status.className = 'text-danger';
+  }
+});
 
 // toggleAdmin is defined in the peloton section
 
