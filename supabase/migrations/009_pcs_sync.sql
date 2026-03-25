@@ -6,6 +6,17 @@ ALTER TABLE riders DROP CONSTRAINT IF EXISTS riders_competition_id_fkey;
 ALTER TABLE riders ADD CONSTRAINT riders_competition_id_fkey
   FOREIGN KEY (competition_id) REFERENCES competitions(id) ON DELETE CASCADE;
 
+-- Verhoog max spelers limiet van 50 naar 200
+CREATE OR REPLACE FUNCTION check_max_users()
+RETURNS trigger AS $$
+BEGIN
+  IF (SELECT count(*) FROM profiles) >= 200 THEN
+    RAISE EXCEPTION 'Maximum number of players (200) reached';
+  END IF;
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql;
+
 -- Spelers deactiveren: is_active kolom op profiles
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_active boolean NOT NULL DEFAULT true;
 

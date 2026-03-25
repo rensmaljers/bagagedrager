@@ -744,7 +744,7 @@ async function loadAdminView() {
 // --- ADMIN: GEBRUIKERS ---
 async function loadAdminUsers() {
   const allProfiles = await supaRest('profiles', { filters: 'order=created_at' });
-  $('user-count').textContent = `${allProfiles.length} / 50 spelers`;
+  $('user-count').textContent = `${allProfiles.length} spelers`;
   $('admin-users-table').innerHTML = allProfiles.map(p => {
     const isSelf = p.id === profile?.id;
     return `<tr style="${p.is_active === false ? 'opacity:0.5;' : ''}">
