@@ -298,6 +298,71 @@
     .comp-vuelta { background: var(--red-dim); color: var(--red); }
     .comp-classic { background: var(--badge-muted-bg); color: var(--text-muted); }
 
+    /* --- STAGE TIMELINE --- */
+    .stage-timeline {
+      display: flex;
+      gap: 0.35rem;
+      overflow-x: auto;
+      padding: 0.5rem 0;
+      scrollbar-width: none;
+    }
+    .stage-timeline::-webkit-scrollbar { display: none; }
+    .stage-dot {
+      flex-shrink: 0;
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem; font-weight: 700;
+      border: 2px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text-muted);
+      cursor: default;
+      transition: all 0.15s;
+    }
+    .stage-dot.completed { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+    .stage-dot.locked { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+    .stage-dot.open { background: var(--blue-dim); border-color: var(--blue); color: var(--blue); animation: pulse-dot 2s ease-in-out infinite; }
+    .stage-dot.upcoming { opacity: 0.5; }
+    @keyframes pulse-dot { 0%,100% { box-shadow: none; } 50% { box-shadow: 0 0 0 4px var(--blue-dim); } }
+
+    /* --- RIDER AVAILABILITY --- */
+    .rider-availability {
+      display: flex;
+      gap: 0.75rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .rider-availability .avail-stat {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.75rem;
+    }
+    .avail-stat.available { background: var(--green-dim); color: var(--green); }
+    .avail-stat.used { background: var(--red-dim); color: var(--red); }
+    .avail-stat.total { background: var(--badge-muted-bg); color: var(--text-muted); }
+
+    /* --- HISTORY ROW COLORS --- */
+    .history-great td { background: var(--green-dim) !important; }
+    .history-good td { background: rgba(34,197,94,0.05) !important; }
+    .history-bad td { background: var(--red-dim) !important; }
+
+    /* --- OTHERS PICKS --- */
+    .others-pick-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.35rem 0.85rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.8rem;
+    }
+    .others-pick-row:last-child { border-bottom: none; }
+
     /* --- PICK CONFIRMATION BAR --- */
     .pick-bar {
       position: sticky;
@@ -707,6 +772,8 @@
 
     <!-- Dashboard -->
     <div class="tab-section active" id="section-dashboard">
+      <!-- Etappe-tijdlijn -->
+      <div id="stage-timeline" class="stage-timeline mb-4"></div>
       <div class="row g-4">
         <div class="col-lg-3">
           <div class="card">
@@ -771,6 +838,15 @@
       <div id="pick-locked-msg" class="alert alert-warning" style="display:none; font-size:0.85rem;">
         🔒 Deze etappe is vergrendeld. Je kunt nog wel kiezen, maar krijgt de slechtste tijd + 0 punten (te laat straf).
       </div>
+      <!-- Keuzes van anderen (na deadline) -->
+      <div id="others-picks" class="card mb-3" style="display:none;">
+        <div class="card-header" style="padding:0.5rem 0.85rem;">
+          <h6 class="mb-0" style="font-size:0.85rem;">👥 Keuzes van andere spelers</h6>
+        </div>
+        <div id="others-picks-body" class="card-body p-0"></div>
+      </div>
+      <!-- Renner beschikbaarheid teller -->
+      <div id="rider-availability" class="rider-availability mb-2"></div>
       <div class="mb-3 d-flex gap-2">
         <input type="text" id="rider-search" class="form-control" placeholder="Zoek renner..." />
         <select id="rider-team-filter" class="form-select" style="max-width:250px;">
@@ -796,6 +872,7 @@
 
     <!-- History -->
     <div class="tab-section" id="section-history">
+      <div id="history-stats" class="row g-3 mb-3"></div>
       <div class="card">
         <div class="card-body p-0 table-responsive-wrapper">
           <table class="table table-striped mb-0">

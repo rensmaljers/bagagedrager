@@ -321,6 +321,50 @@ $('btn-logout').addEventListener('click', () => {
   $('auth-screen').style.display = 'block';
 });
 
+// --- DEADLINE NOTIFICATIONS ---
+function setupDeadlineNotifications() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+  // Check every minute for upcoming deadlines
+  setInterval(checkDeadlineNotifications, 60000);
+  checkDeadlineNotifications();
+}
+
+function checkDeadlineNotifications() {
+  if (Notification.permission !== 'granted') return;
+  const now = new Date();
+  const compStages = activeStages();
+  for (const s of compStages) {
+    if (s.locked) continue;
+    const deadline = new Date(s.start_time || s.deadline);
+    const diff = deadline - now;
+    // Notify 30 min before (between 29-31 min window to avoid duplicates)
+    if (diff > 0 && diff <= 31 * 60000 && diff > 29 * 60000) {
+      const hasPick = myPicks.some(p => p.stage_id === s.id);
+      if (!hasPick) {
+        new Notification('🚴 Bagagedrager', {
+          body: `Nog 30 minuten om een renner te kiezen voor Etappe ${s.stage_number}!`,
+          icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🚴</text></svg>',
+          tag: `deadline-${s.id}`,
+        });
+      }
+    }
+    // Also notify at 5 min
+    if (diff > 0 && diff <= 6 * 60000 && diff > 4 * 60000) {
+      const hasPick = myPicks.some(p => p.stage_id === s.id);
+      if (!hasPick) {
+        new Notification('⚠️ Bagagedrager', {
+          body: `Nog 5 minuten! Kies snel een renner voor Etappe ${s.stage_number}!`,
+          icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🚴</text></svg>',
+          tag: `deadline-urgent-${s.id}`,
+        });
+      }
+    }
+  }
+}
+
 // --- COMPETITION SELECTOR ---
 $('comp-select').addEventListener('change', async () => {
   activeCompId = parseInt($('comp-select').value);
@@ -371,6 +415,8 @@ async function initApp() {
   } else {
     loadStandings();
   }
+
+  setupDeadlineNotifications();
 }
 
 async function loadRidersForComp() {
@@ -428,16 +474,39 @@ async function loadStandings() {
   $('game-table').innerHTML = gp.map((s, i) =>
     `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td>${escapeHtml(s.display_name)}</td><td class="text-end">${s.total_game_points || 0}</td></tr>`
   ).join('') || emptyRow;
+
+  renderStageTimeline();
+}
+
+function renderStageTimeline() {
+  const compStages = activeStages();
+  const now = new Date();
+  $('stage-timeline').innerHTML = compStages.map(s => {
+    const hasResults = s.locked;
+    const deadline = new Date(s.deadline);
+    const isPast = now > deadline;
+    let cls = 'upcoming';
+    let title = `Etappe ${s.stage_number}: ${s.name}`;
+    if (hasResults) { cls = 'completed'; title += ' (afgerond)'; }
+    else if (isPast) { cls = 'locked'; title += ' (vergrendeld)'; }
+    else if (!hasResults && !isPast) {
+      const nextOpen = compStages.find(st => !st.locked && now <= new Date(st.deadline));
+      cls = nextOpen?.id === s.id ? 'open' : 'upcoming';
+      if (cls === 'open') title += ' (open voor keuze)';
+    }
+    return `<div class="stage-dot ${cls}" title="${title}">${s.stage_number}</div>`;
+  }).join('');
 }
 
 // --- PICK VIEW ---
 async function loadPickView() {
-
   const compStages = activeStages();
   const sel = $('stage-select');
-  sel.innerHTML = compStages.map(s =>
-    `<option value="${s.id}">Etappe ${s.stage_number}: ${s.name}</option>`
-  ).join('');
+  const now = new Date();
+  sel.innerHTML = compStages.map(s => {
+    const locked = s.locked || now > new Date(s.deadline);
+    return `<option value="${s.id}">${locked ? '🔒 ' : ''} Etappe ${s.stage_number}: ${s.name}</option>`;
+  }).join('');
 
   const nextStage = compStages.find(s => !s.locked) || compStages[0];
   if (nextStage) sel.value = nextStage.id;
@@ -469,6 +538,44 @@ function renderPickStage() {
   renderRiderGrid(usedInOtherStages, isLocked && !currentPick);
   $('btn-submit-pick').disabled = !selectedRiderId || (isLocked && !currentPick);
   updatePickBar(stage, currentPick);
+  updateRiderAvailability(usedInOtherStages);
+  updateOthersPicks(stageId, isLocked);
+}
+
+function updateRiderAvailability(usedInOtherStages) {
+  const total = riders.length;
+  const used = usedInOtherStages.size;
+  const available = total - used;
+  $('rider-availability').innerHTML = `
+    <span class="avail-stat available">🟢 ${available} beschikbaar</span>
+    <span class="avail-stat used">🔴 ${used} gebruikt</span>
+    <span class="avail-stat total">📋 ${total} totaal</span>`;
+}
+
+async function updateOthersPicks(stageId, isLocked) {
+  const container = $('others-picks');
+  const body = $('others-picks-body');
+  if (!isLocked) { container.style.display = 'none'; return; }
+
+  // Fetch picks for this stage from cache or API
+  let stagePicks;
+  if (_cache.participantsCompId === activeCompId && _cache.participants) {
+    stagePicks = _cache.participants.filter(p => p.stage_id === stageId);
+  } else {
+    stagePicks = await supaRest('stage_picks_public', {
+      filters: `stage_id=eq.${stageId}&order=display_name`
+    });
+  }
+
+  if (!stagePicks.length) { container.style.display = 'none'; return; }
+  container.style.display = 'block';
+  body.innerHTML = stagePicks.map(p => {
+    const isMe = p.user_id === session.user.id;
+    return `<div class="others-pick-row${isMe ? ' fw-bold' : ''}">
+      <span>${escapeHtml(p.display_name)}</span>
+      <span>${escapeHtml(p.rider_name)} ${teamBadge(p.rider_team)}${p.is_random ? ' <span class="badge bg-info" style="font-size:0.6rem;">🎡</span>' : ''}</span>
+    </div>`;
+  }).join('');
 }
 
 let _countdownInterval;
@@ -613,20 +720,59 @@ async function loadHistory() {
     allResults = await supaRest('stage_results', { filters: `stage_id=in.(${stageIds.join(',')})` });
   }
 
-  $('history-table').innerHTML = compPicks.map(pick => {
+  // Build rows with game_points for coloring
+  const rows = compPicks.map(pick => {
     const stage = stages.find(s => s.id === pick.stage_id);
     const rider = riders.find(r => r.id === pick.rider_id);
     const result = allResults.find(r => r.stage_id === pick.stage_id && r.rider_id === pick.rider_id);
-    return `<tr>
+    const gp = result && !pick.is_late && !result.dnf ? (result.game_points || 0) : 0;
+    let rowClass = '';
+    if (result) {
+      if (gp >= 70) rowClass = 'history-great';
+      else if (gp >= 20) rowClass = 'history-good';
+      else if (gp === 0 && (result.dnf || pick.is_late)) rowClass = 'history-bad';
+    }
+    return { pick, stage, rider, result, gp, rowClass };
+  });
+
+  // Stats
+  const withResults = rows.filter(r => r.result);
+  if (withResults.length) {
+    const best = withResults.reduce((a, b) => a.gp >= b.gp ? a : b);
+    const worst = withResults.reduce((a, b) => a.gp <= b.gp ? a : b);
+    const totalGp = withResults.reduce((s, r) => s + r.gp, 0);
+    const avg = Math.round(totalGp / withResults.length);
+    $('history-stats').innerHTML = `
+      <div class="col-4"><div class="card"><div class="card-body py-2 px-3 text-center">
+        <div class="text-muted" style="font-size:0.7rem;">Beste etappe</div>
+        <div style="font-size:1.1rem; font-weight:700; color:var(--green);">${best.gp} pts</div>
+        <div style="font-size:0.75rem;">${best.rider?.name || '?'}</div>
+      </div></div></div>
+      <div class="col-4"><div class="card"><div class="card-body py-2 px-3 text-center">
+        <div class="text-muted" style="font-size:0.7rem;">Gemiddeld</div>
+        <div style="font-size:1.1rem; font-weight:700;">${avg} pts</div>
+        <div style="font-size:0.75rem;">${withResults.length} etappes</div>
+      </div></div></div>
+      <div class="col-4"><div class="card"><div class="card-body py-2 px-3 text-center">
+        <div class="text-muted" style="font-size:0.7rem;">Slechtste etappe</div>
+        <div style="font-size:1.1rem; font-weight:700; color:var(--red);">${worst.gp} pts</div>
+        <div style="font-size:0.75rem;">${worst.rider?.name || '?'}</div>
+      </div></div></div>`;
+  } else {
+    $('history-stats').innerHTML = '';
+  }
+
+  $('history-table').innerHTML = rows.map(({ pick, stage, rider, result, gp, rowClass }) =>
+    `<tr class="${rowClass}">
       <td>Etappe ${stage?.stage_number || '?'}</td>
       <td>${rider?.name || '?'} ${rider ? teamBadge(rider.team) : ''}</td>
       <td class="time text-end">${result ? formatTime(result.time_seconds) : '-'}</td>
       <td class="text-end">${result ? (pick.is_late ? '0' : result.points) : '-'}</td>
       <td class="text-end">${result ? (pick.is_late ? '0' : result.mountain_points) : '-'}</td>
-      <td class="text-end">${result ? (pick.is_late || result.dnf ? '0' : result.game_points) : '-'}</td>
+      <td class="text-end">${gp}</td>
       <td>${pick.is_late ? '<span class="badge bg-warning">Te laat</span>' : ''}${pick.is_random ? '<span class="badge bg-info">🎡 Rad</span>' : ''}</td>
-    </tr>`;
-  }).join('') || `<tr><td colspan="7">
+    </tr>`
+  ).join('') || `<tr><td colspan="7">
     <div class="empty-state">
       <div class="empty-state-icon">🎯</div>
       <div class="empty-state-text">Nog geen keuzes gemaakt.<br>Ga naar de Keuze tab om je eerste renner te kiezen!</div>
