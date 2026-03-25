@@ -430,6 +430,59 @@ function renderPickStage() {
 
   renderRiderGrid(usedInOtherStages, isLocked && !currentPick);
   $('btn-submit-pick').disabled = !selectedRiderId || (isLocked && !currentPick);
+  updatePickBar(stage, currentPick);
+}
+
+let _countdownInterval;
+function updatePickBar(stage, currentPick) {
+  const bar = $('pick-bar');
+  const rider = selectedRiderId ? riders.find(r => r.id === selectedRiderId) : null;
+  const isLocked = stage.locked || new Date() > new Date(stage.deadline);
+
+  if (!rider && !currentPick) {
+    bar.style.display = 'none';
+    clearInterval(_countdownInterval);
+    return;
+  }
+
+  bar.style.display = 'block';
+  const isNewPick = rider && !currentPick;
+  const isChanged = rider && currentPick && rider.id !== currentPick.rider_id;
+  bar.className = (isNewPick || isChanged) ? 'pick-bar unconfirmed' : 'pick-bar';
+
+  if (rider) {
+    const status = currentPick && rider.id === currentPick.rider_id ? '✓ Bevestigd' : '⚠ Nog niet bevestigd';
+    $('pick-bar-rider').textContent = `${rider.name} #${rider.bib_number} — ${status}`;
+  }
+
+  // Countdown
+  clearInterval(_countdownInterval);
+  if (!isLocked) {
+    const updateCountdown = () => {
+      const deadline = new Date(stage.start_time || stage.deadline);
+      const diff = deadline - new Date();
+      if (diff <= 0) {
+        $('pick-bar-countdown').textContent = '🔒 Etappe gestart';
+        $('pick-bar-countdown').className = 'pick-bar-countdown urgent';
+        clearInterval(_countdownInterval);
+        return;
+      }
+      const d = Math.floor(diff / 86400000);
+      const h = Math.floor((diff % 86400000) / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      const parts = [];
+      if (d > 0) parts.push(`${d}d`);
+      parts.push(`${h}u ${String(m).padStart(2,'0')}m ${String(s).padStart(2,'0')}s`);
+      $('pick-bar-countdown').textContent = `⏱ Nog ${parts.join(' ')} tot start`;
+      $('pick-bar-countdown').className = diff < 3600000 ? 'pick-bar-countdown urgent' : 'pick-bar-countdown';
+    };
+    updateCountdown();
+    _countdownInterval = setInterval(updateCountdown, 1000);
+  } else {
+    $('pick-bar-countdown').textContent = '🔒 Etappe gestart';
+    $('pick-bar-countdown').className = 'pick-bar-countdown';
+  }
 }
 
 function renderRiderGrid(usedInOtherStages, fullyLocked) {
@@ -482,6 +535,7 @@ function selectRider(riderId) {
   const currentPick = myPicks.find(p => p.stage_id === stageId);
   renderRiderGrid(usedInOtherStages, isLocked && !currentPick);
   $('btn-submit-pick').disabled = false;
+  updatePickBar(stage, currentPick);
 }
 
 let _searchDebounce;
