@@ -80,7 +80,7 @@ async function login(email, password) {
 function dutchAuthError(msg) {
   if (!msg) return 'Er ging iets mis, probeer het later opnieuw.';
   const lower = msg.toLowerCase();
-  if (lower.includes('database error saving new user') || lower.includes('maximum number of players')) return 'Er ging iets mis bij het aanmaken. Neem contact op met de beheerder.';
+  if (lower.includes('database error saving new user') || lower.includes('maximum number of players')) return 'Fout bij aanmaken: ' + msg;
   if (lower.includes('user already registered')) return 'Dit e-mailadres is al geregistreerd. Probeer in te loggen.';
   if (lower.includes('invalid login credentials')) return 'Onjuist e-mailadres of wachtwoord.';
   if (lower.includes('email not confirmed')) return 'Je e-mail is nog niet bevestigd. Check je inbox.';
