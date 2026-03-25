@@ -318,6 +318,52 @@
       border-bottom: 1px solid var(--border);
       font-size: 0.8rem;
     }
+
+    /* --- AVATARS --- */
+    .avatar {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: var(--accent-dim);
+      color: var(--accent);
+      font-size: 0.6rem; font-weight: 700;
+      overflow: hidden;
+      flex-shrink: 0;
+      text-transform: uppercase;
+    }
+    .avatar img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+    }
+    .avatar-sm { width: 22px; height: 22px; font-size: 0.5rem; }
+    .avatar-lg { width: 56px; height: 56px; font-size: 1.1rem; }
+    .pcs-link {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-decoration: none;
+      opacity: 0.7;
+      transition: opacity 0.15s;
+    }
+    .pcs-link:hover { opacity: 1; color: var(--accent); }
+
+    .avatar-upload-wrapper {
+      position: relative;
+      display: inline-block;
+    }
+    .avatar-upload-btn {
+      position: absolute;
+      bottom: 0; right: 0;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: var(--accent-text);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      border: 2px solid var(--bg-card);
+      transition: transform 0.15s;
+    }
+    .avatar-upload-btn:hover { transform: scale(1.1); }
     .pick-card .bib-badge {
       display: inline-flex;
       align-items: center;
@@ -348,6 +394,7 @@
     /* --- STAGE TIMELINE --- */
     .stage-timeline {
       display: flex;
+      flex-wrap: wrap;
       gap: 0.35rem;
       overflow-x: auto;
       padding: 0.5rem 0;
@@ -374,8 +421,9 @@
     .timeline-legend {
       display: flex;
       gap: 0.75rem;
-      margin-top: 0.4rem;
+      margin-top: 0.25rem;
       flex-wrap: wrap;
+      flex-basis: 100%;
     }
     .legend-item {
       display: inline-flex;
@@ -1058,9 +1106,20 @@
           <div class="card">
             <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">⚙️ Account Instellingen</h5></div>
             <div class="card-body">
-              <div class="mb-3">
-                <label class="form-label" style="font-size:0.8rem; color:var(--text-muted);">Weergavenaam</label>
-                <input type="text" id="account-name" class="form-control form-control-sm" placeholder="Jouw naam" />
+              <div class="mb-3 d-flex align-items-center gap-3">
+                <div class="avatar-upload-wrapper">
+                  <div id="account-avatar-preview" class="avatar avatar-lg">
+                    <span id="account-avatar-initials"></span>
+                  </div>
+                  <label for="account-avatar-input" class="avatar-upload-btn" title="Foto wijzigen">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                  </label>
+                  <input type="file" id="account-avatar-input" accept="image/*" style="display:none;" />
+                </div>
+                <div class="flex-grow-1">
+                  <label class="form-label" style="font-size:0.8rem; color:var(--text-muted);">Weergavenaam</label>
+                  <input type="text" id="account-name" class="form-control form-control-sm" placeholder="Jouw naam" />
+                </div>
               </div>
               <div class="mb-3">
                 <label class="form-label" style="font-size:0.8rem; color:var(--text-muted);">Email</label>

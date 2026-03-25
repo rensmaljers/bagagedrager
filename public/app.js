@@ -133,6 +133,19 @@ function escapeHtml(str) {
   return d.innerHTML;
 }
 
+// Avatar helper
+function avatarHtml(name, avatarUrl, size) {
+  const cls = size === 'sm' ? 'avatar avatar-sm' : size === 'lg' ? 'avatar avatar-lg' : 'avatar';
+  const initials = (name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  if (avatarUrl) {
+    return `<span class="${cls}"><img src="${escapeHtml(avatarUrl)}" alt="" onerror="this.parentElement.innerHTML='${initials}'"></span>`;
+  }
+  return `<span class="${cls}">${initials}</span>`;
+}
+
+// Avatar cache for standings (populated when profiles load)
+let _avatarMap = {};
+
 // Team shirt URLs from PCS (populated via sync or manually)
 let teamShirts = JSON.parse(localStorage.getItem('bagagedrager_shirts') || '{}');
 
@@ -275,6 +288,9 @@ function loadAccountView() {
   $('account-hero').value = profile?.cycling_hero || '';
   $('account-motto').value = profile?.motto || '';
 
+  // Avatar preview
+  updateAvatarPreview();
+
   // Populate team dropdown from known teams
   const teamSel = $('account-team');
   if (teamSel.options.length <= 1) {
@@ -284,6 +300,60 @@ function loadAccountView() {
   }
   teamSel.value = profile?.favorite_team || '';
 }
+
+function updateAvatarPreview() {
+  const preview = $('account-avatar-preview');
+  const initials = $('account-avatar-initials');
+  const name = profile?.display_name || '?';
+  const ini = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  if (profile?.avatar_url) {
+    preview.innerHTML = `<img src="${escapeHtml(profile.avatar_url)}" alt="" onerror="this.remove();">`;
+  } else {
+    initials.textContent = ini;
+  }
+}
+
+// Avatar upload
+$('account-avatar-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 2 * 1024 * 1024) { alert('Foto mag maximaal 2MB zijn'); return; }
+  if (!file.type.startsWith('image/')) { alert('Alleen afbeeldingen toegestaan'); return; }
+
+  const status = $('account-status');
+  status.textContent = 'Foto uploaden...';
+  status.className = 'text-muted';
+
+  try {
+    const ext = file.name.split('.').pop() || 'jpg';
+    const path = `${session.user.id}/avatar.${ext}`;
+    const url = `${SUPABASE_URL}/storage/v1/object/avatars/${path}`;
+
+    // Upload to Supabase Storage
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': file.type,
+        'x-upsert': 'true',
+      },
+      body: file,
+    });
+    if (!res.ok) throw new Error('Upload mislukt');
+
+    const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/avatars/${path}?t=${Date.now()}`;
+    await supaPatch('profiles', `id=eq.${session.user.id}`, { avatar_url: publicUrl });
+    profile.avatar_url = publicUrl;
+    _avatarMap[profile.display_name] = publicUrl;
+    updateAvatarPreview();
+    status.textContent = 'Foto opgeslagen!';
+    status.className = 'text-success';
+    setTimeout(() => { status.textContent = ''; }, 2000);
+  } catch (err) {
+    status.textContent = err.message;
+    status.className = 'text-danger';
+  }
+});
 
 $('btn-save-account').addEventListener('click', async () => {
   const status = $('account-status');
@@ -439,6 +509,10 @@ async function initApp() {
   stages = allStages;
   myPicks = picks;
 
+  // Load all profiles for avatar display
+  const allProfiles = await supaRest('profiles', { select: 'id,display_name,avatar_url' });
+  allProfiles.forEach(p => { _avatarMap[p.display_name] = p.avatar_url; });
+
   $('user-name').textContent = profile?.display_name || session.user.email;
   $('auth-screen').style.display = 'none';
   $('app').style.display = 'block';
@@ -523,23 +597,23 @@ async function loadStandings() {
     const gc = [...standings].sort((a, b) => a.total_time - b.total_time);
     const leaderTime = gc.length ? gc[0].total_time : 0;
     $('gc-table').innerHTML = gc.map((s, i) =>
-      `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td>${escapeHtml(s.display_name)}</td><td class="time text-end">${i === 0 ? formatTime(s.total_time) : formatGap(s.total_time - leaderTime)}</td></tr>`
+      `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td><div class="d-flex align-items-center gap-2">${avatarHtml(s.display_name, _avatarMap[s.display_name], 'sm')}${escapeHtml(s.display_name)}</div></td><td class="time text-end">${i === 0 ? formatTime(s.total_time) : formatGap(s.total_time - leaderTime)}</td></tr>`
     ).join('') || emptyRow;
 
     const pts = [...standings].sort((a, b) => b.total_points - a.total_points);
     $('points-table').innerHTML = pts.map((s, i) =>
-      `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td>${escapeHtml(s.display_name)}</td><td class="text-end">${s.total_points}</td></tr>`
+      `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td><div class="d-flex align-items-center gap-2">${avatarHtml(s.display_name, _avatarMap[s.display_name], 'sm')}${escapeHtml(s.display_name)}</div></td><td class="text-end">${s.total_points}</td></tr>`
     ).join('') || emptyRow;
 
     const mt = [...standings].sort((a, b) => b.total_mountain_points - a.total_mountain_points);
     $('mountain-table').innerHTML = mt.map((s, i) =>
-      `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td>${escapeHtml(s.display_name)}</td><td class="text-end">${s.total_mountain_points}</td></tr>`
+      `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td><div class="d-flex align-items-center gap-2">${avatarHtml(s.display_name, _avatarMap[s.display_name], 'sm')}${escapeHtml(s.display_name)}</div></td><td class="text-end">${s.total_mountain_points}</td></tr>`
     ).join('') || emptyRow;
   }
 
   const gp = [...standings].sort((a, b) => b.total_game_points - a.total_game_points);
   $('game-table').innerHTML = gp.map((s, i) =>
-    `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td>${escapeHtml(s.display_name)}</td><td class="text-end">${s.total_game_points || 0}</td></tr>`
+    `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td><div class="d-flex align-items-center gap-2">${avatarHtml(s.display_name, _avatarMap[s.display_name], 'sm')}${escapeHtml(s.display_name)}</div></td><td class="text-end">${s.total_game_points || 0}</td></tr>`
   ).join('') || emptyRow;
 
   renderStageTimeline();
@@ -615,7 +689,13 @@ function renderPickStage() {
   const now = new Date();
   const isLocked = stage.locked || now > new Date(stage.deadline);
 
-  $('pick-stage-name').textContent = `Etappe ${stage.stage_number}: ${stage.name}`;
+  // Build PCS link for this stage
+  const comp = competitions.find(c => c.id === stage.competition_id);
+  const pcsBase = comp?.pcs_url?.replace(/\/$/, '').replace(/\/(stages|startlist|gc|stage-\d+)$/, '');
+  const pcsStageUrl = pcsBase ? `${pcsBase}/stage-${stage.stage_number}` : null;
+  const pcsLink = pcsStageUrl ? ` <a href="${pcsStageUrl}" target="_blank" rel="noopener" class="pcs-link" title="Bekijk op PCS">PCS ↗</a>` : '';
+
+  $('pick-stage-name').innerHTML = `Etappe ${stage.stage_number}: ${escapeHtml(stage.name)}${pcsLink}`;
   $('pick-deadline').textContent = `Start: ${formatDeadline(stage.start_time || stage.deadline)}${isLocked ? ' (VERGRENDELD)' : ''}`;
   $('pick-locked-msg').style.display = isLocked ? 'block' : 'none';
 
@@ -998,7 +1078,11 @@ async function loadParticipants() {
 
   $('participants-content').innerHTML = stageNums.map(num => {
     const { picks } = byStage[num];
-    const stageName = picks[0] ? `Etappe ${num}` : `Etappe ${num}`;
+    const partComp = competitions.find(c => c.id === activeCompId);
+    const partPcsBase = partComp?.pcs_url?.replace(/\/$/, '').replace(/\/(stages|startlist|gc|stage-\d+)$/, '');
+    const partPcsUrl = partPcsBase ? `${partPcsBase}/stage-${num}` : null;
+    const partPcsLink = partPcsUrl ? ` <a href="${partPcsUrl}" target="_blank" rel="noopener" class="pcs-link" title="Bekijk op PCS">PCS ↗</a>` : '';
+    const stageName = `Etappe ${num}${partPcsLink}`;
     const header = isClassic
       ? '<tr><th>Speler</th><th>Renner</th><th class="text-end">Positie</th><th class="text-end"><span class="info-tooltip" data-tip="Spelpunten op basis van positie, na deelpenalty">Spel &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Percentage spelpunten bij gedeelde renner (2=80%, 3=60%, 4=40%, 5+=20%)">Delen &#9432;</span></th><th>Status</th></tr>'
       : '<tr><th>Speler</th><th>Renner</th><th class="text-end"><span class="info-tooltip" data-tip="Tijdsverschil met etappewinnaar">Verschil &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="1e −10s, 2e −6s, 3e −4s">Bonif. &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Sprintpunten uit puntenklassement">Pts &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Bergpunten (KOM)">Berg &#9432;</span></th><th>Status</th></tr>';
