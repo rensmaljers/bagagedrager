@@ -902,16 +902,29 @@ async function loadHistory() {
 
   const stageIds = compPicks.map(p => p.stage_id);
   let allResults = [];
+  let allPicksForStages = [];
   if (stageIds.length) {
-    allResults = await supaRest('stage_results', { filters: `stage_id=in.(${stageIds.join(',')})` });
+    [allResults, allPicksForStages] = await Promise.all([
+      supaRest('stage_results', { filters: `stage_id=in.(${stageIds.join(',')})` }),
+      supaRest('picks', { select: 'stage_id,rider_id', filters: `stage_id=in.(${stageIds.join(',')})` }),
+    ]);
   }
 
-  // Calculate winner times per stage for gap display
-  // Use finish_position === 1 to find the winner's absolute time
+  // Count how many players picked each rider per stage
+  const pickerCounts = {};
+  for (const p of allPicksForStages) {
+    const key = `${p.stage_id}_${p.rider_id}`;
+    pickerCounts[key] = (pickerCounts[key] || 0) + 1;
+  }
+
+  // Calculate winner times and names per stage for gap display
   const winnerTimes = {};
+  const winnerNames = {};
   for (const r of allResults) {
     if (r.finish_position === 1 && !r.dnf && r.time_seconds > 0) {
       winnerTimes[r.stage_id] = r.time_seconds;
+      const wr = riders.find(rd => rd.id === r.rider_id);
+      winnerNames[r.stage_id] = wr?.name || '?';
     }
   }
 
@@ -931,7 +944,9 @@ async function loadHistory() {
       else if (gp >= 20) rowClass = 'history-good';
       else if (gp === 0 && (result.dnf || pick.is_late)) rowClass = 'history-bad';
     }
-    return { pick, stage, rider, result, gp, timeGap, bonif, rowClass };
+    const numPickers = pickerCounts[`${pick.stage_id}_${pick.rider_id}`] || 1;
+    const sharingPct = numPickers <= 1 ? 100 : numPickers === 2 ? 80 : numPickers === 3 ? 60 : numPickers === 4 ? 40 : 20;
+    return { pick, stage, rider, result, gp, timeGap, bonif, rowClass, numPickers, sharingPct };
   });
 
   // Stats
@@ -965,10 +980,10 @@ async function loadHistory() {
   $('history-table-header').innerHTML = histIsClassic
     ? '<th>Etappe</th><th>Renner</th><th class="text-end">Tijd</th><th class="text-end"><span class="info-tooltip" data-tip="Sprintpunten uit het puntenklassement">Pts &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Bergpunten (KOM)">Berg &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Spelpunten op basis van finishpositie, na deelpenalty">Spel &#9432;</span></th><th>Status</th>'
     : '<th>Etappe</th><th>Renner</th><th class="text-end"><span class="info-tooltip" data-tip="Tijdsverschil met etappewinnaar">Verschil &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Bonificatie: 1e −10s, 2e −6s, 3e −4s">Bonif. &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Sprintpunten uit het puntenklassement">Pts &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Bergpunten (KOM)">Berg &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Spelpunten op basis van finishpositie, na deelpenalty">Spel &#9432;</span></th><th>Status</th>';
-  $('history-table').innerHTML = rows.map(({ pick, stage, rider, result, gp, timeGap, bonif, rowClass }) =>
+  $('history-table').innerHTML = rows.map(({ pick, stage, rider, result, gp, timeGap, bonif, rowClass, numPickers, sharingPct }) =>
     `<tr class="${rowClass}">
-      <td>Etappe ${stage?.stage_number || '?'}</td>
-      <td>${rider?.name || '?'} ${rider ? teamBadge(rider.team) : ''}</td>
+      <td><div>Etappe ${stage?.stage_number || '?'}</div>${winnerNames[pick.stage_id] ? `<div style="font-size:0.65rem;color:var(--text-muted);">🏆 ${escapeHtml(winnerNames[pick.stage_id])}</div>` : ''}</td>
+      <td>${rider?.name || '?'} <span class="team-badge-sm">${rider ? teamBadge(rider.team) : ''}</span>${numPickers > 1 ? ` <span class="badge bg-secondary" style="font-size:0.6rem;">${numPickers}x → ${sharingPct}%</span>` : ''}</td>
       <td class="time text-end">${!histIsClassic && result ? formatGap(timeGap) : result ? formatTime(result.time_seconds) : '-'}</td>
       ${!histIsClassic ? `<td class="text-end">${bonif ? '-' + bonif + 's' : '-'}</td>` : ''}
       <td class="text-end">${result ? (pick.is_late ? '0' : result.points) : '-'}</td>
@@ -1063,6 +1078,20 @@ async function loadParticipants() {
     return;
   }
 
+  // Fetch stage winners (finish_position = 1) for display
+  const lockedStageIds = [...new Set(allPicks.map(p => p.stage_id))];
+  const stageWinners = {};
+  if (lockedStageIds.length) {
+    const winnerResults = await supaRest('stage_results', {
+      select: 'stage_id,rider_id,time_seconds,finish_position',
+      filters: `stage_id=in.(${lockedStageIds.join(',')})&finish_position=eq.1`
+    });
+    for (const w of winnerResults) {
+      const rider = riders.find(r => r.id === w.rider_id);
+      stageWinners[w.stage_id] = { name: rider?.name || '?', time: w.time_seconds };
+    }
+  }
+
   // Group by stage
   const byStage = {};
   allPicks.forEach(p => {
@@ -1082,13 +1111,16 @@ async function loadParticipants() {
     const partPcsUrl = partPcsBase ? `${partPcsBase}/stage-${num}` : null;
     const partPcsLink = partPcsUrl ? ` <a href="${partPcsUrl}" target="_blank" rel="noopener" class="pcs-link" title="Bekijk op PCS">PCS ↗</a>` : '';
     const stageName = `Etappe ${num}${partPcsLink}`;
+    const stageId = byStage[num].stage_id;
+    const winner = stageWinners[stageId];
+    const winnerInfo = winner ? `<span style="font-size:0.75rem; color:var(--text-muted); font-weight:400; margin-left:0.5rem;">🏆 ${escapeHtml(winner.name)} — ${formatTime(winner.time)}</span>` : '';
     const header = isClassic
-      ? '<tr><th>Speler</th><th>Renner</th><th class="text-end">Positie</th><th class="text-end"><span class="info-tooltip" data-tip="Spelpunten op basis van positie, na deelpenalty">Spel &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Percentage spelpunten bij gedeelde renner (2=80%, 3=60%, 4=40%, 5+=20%)">Delen &#9432;</span></th><th>Status</th></tr>'
+      ? '<tr><th>Speler</th><th>Renner</th><th class="text-end">Positie</th><th class="text-end"><span class="info-tooltip" data-tip="Spelpunten op basis van positie, na deelpenalty">Spel &#9432;</span></th><th>Status</th></tr>'
       : '<tr><th>Speler</th><th>Renner</th><th class="text-end"><span class="info-tooltip" data-tip="Tijdsverschil met etappewinnaar">Verschil &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="1e −10s, 2e −6s, 3e −4s">Bonif. &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Sprintpunten uit puntenklassement">Pts &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Bergpunten (KOM)">Berg &#9432;</span></th><th>Status</th></tr>';
     return `
       <div class="card mb-3">
-        <div class="card-header">
-          <h6 class="mb-0" style="font-size:0.9rem;">${stageName}</h6>
+        <div class="card-header d-flex align-items-center flex-wrap">
+          <h6 class="mb-0" style="font-size:0.9rem;">${stageName}</h6>${winnerInfo}
         </div>
         <div class="card-body p-0">
           <table class="table table-sm mb-0">
@@ -1096,19 +1128,19 @@ async function loadParticipants() {
             <tbody>
               ${picks.map(p => {
                 const sharingPct = p.num_pickers <= 1 ? 100 : p.num_pickers === 2 ? 80 : p.num_pickers === 3 ? 60 : p.num_pickers === 4 ? 40 : 20;
+                const pickersBadge = p.num_pickers > 1 ? ` <span class="badge bg-secondary" style="font-size:0.6rem;">${p.num_pickers}x → ${sharingPct}%</span>` : '';
                 if (isClassic) {
                   return `<tr>
                   <td>${escapeHtml(p.display_name)}</td>
-                  <td>${escapeHtml(p.rider_name)} ${teamBadge(p.rider_team)}</td>
+                  <td>${escapeHtml(p.rider_name)} <span class="team-badge-sm">${teamBadge(p.rider_team)}</span>${pickersBadge}</td>
                   <td class="text-end">${p.finish_position || '-'}</td>
                   <td class="text-end">${p.effective_game_points != null ? p.effective_game_points : '-'}</td>
-                  <td class="text-end">${p.num_pickers > 1 ? '<span class="badge bg-secondary">' + sharingPct + '%</span>' : ''}</td>
                   <td>${p.is_late ? '<span class="badge bg-warning">Te laat</span>' : ''}${p.is_random ? '<span class="badge bg-info">🎡 Rad</span>' : ''}${p.dnf ? '<span class="badge bg-danger">DNF</span>' : ''}</td>
                 </tr>`;
                 }
                 return `<tr>
                 <td>${escapeHtml(p.display_name)}</td>
-                <td>${escapeHtml(p.rider_name)} ${teamBadge(p.rider_team)}</td>
+                <td>${escapeHtml(p.rider_name)} <span class="team-badge-sm">${teamBadge(p.rider_team)}</span>${pickersBadge}</td>
                 <td class="time text-end">${p.time_gap != null ? formatGap(p.time_gap) : '-'}</td>
                 <td class="text-end">${p.bonification ? '-' + p.bonification + 's' : '-'}</td>
                 <td class="text-end">${p.points != null ? (p.is_late ? '0' : p.points) : '-'}</td>
