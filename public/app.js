@@ -186,10 +186,8 @@ function updateCompBanner() {
   const banner = $('comp-banner');
   const comp = competitions.find(c => c.id === activeCompId);
   if (!comp) { banner.style.display = 'none'; return; }
-  const labels = { tour: 'Tour', giro: 'Giro', vuelta: 'Vuelta', classic: 'Klassieker' };
-  const cls = { tour: 'comp-tour', giro: 'comp-giro', vuelta: 'comp-vuelta', classic: 'comp-classic' };
-  $('comp-banner-badge').className = `comp-badge ${cls[comp.competition_type] || 'comp-classic'}`;
-  $('comp-banner-badge').textContent = labels[comp.competition_type] || comp.competition_type;
+  $('comp-banner-badge').className = 'comp-badge comp-classic';
+  $('comp-banner-badge').textContent = '🏁';
   $('comp-banner-name').textContent = comp.name;
   banner.style.display = 'flex';
 }
@@ -760,7 +758,6 @@ async function loadAdminCompetitions() {
         <input type="text" class="form-control form-control-sm comp-name-input" value="${escapeHtml(c.name)}"
                data-comp-id="${c.id}" style="min-width:140px;" onchange="renameComp(${c.id}, this.value)">
       </td>
-      <td>${compBadge(c.competition_type)}</td>
       <td>${c.year}</td>
       <td>
         <input type="url" class="form-control form-control-sm" value="${escapeHtml(c.pcs_url || '')}"
@@ -777,7 +774,7 @@ async function loadAdminCompetitions() {
         <button class="btn btn-sm btn-outline-danger" onclick="deleteComp(${c.id})">Verwijder</button>
       </td>
     </tr>
-  `).join('') || '<tr><td colspan="6" class="text-muted">Geen competities</td></tr>';
+  `).join('') || '<tr><td colspan="5" class="text-muted">Geen competities</td></tr>';
 }
 
 window.updateCompPcsUrl = async function(compId, pcsUrl) {
@@ -789,12 +786,11 @@ window.updateCompPcsUrl = async function(compId, pcsUrl) {
 $('btn-add-comp').addEventListener('click', async () => {
   const name = $('new-comp-name').value.trim();
   const slug = $('new-comp-slug').value.trim();
-  const type = $('new-comp-type').value;
   const year = parseInt($('new-comp-year').value);
   if (!name || !slug || !year) return alert('Vul alle velden in');
   try {
     const pcsUrl = $('new-comp-pcs-url').value.trim() || null;
-    await supaRest('competitions', { method: 'POST', body: { name, slug, competition_type: type, year, is_active: false, pcs_url: pcsUrl } });
+    await supaRest('competitions', { method: 'POST', body: { name, slug, year, is_active: false, pcs_url: pcsUrl } });
     $('new-comp-name').value = '';
     $('new-comp-slug').value = '';
     $('new-comp-pcs-url').value = '';
@@ -908,7 +904,7 @@ async function loadAdminStages() {
     return `<tr>
       <td>${s.stage_number}</td>
       <td>${s.name}</td>
-      <td>${comp ? compBadge(comp.competition_type) + ' ' + comp.name : '<span class="text-muted">-</span>'}</td>
+      <td>${comp ? comp.name : '<span class="text-muted">-</span>'}</td>
       <td>${new Date(s.date).toLocaleDateString('nl-NL')}</td>
       <td>${s.start_time ? new Date(s.start_time).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
       <td>${typeLabels[s.stage_type] || s.stage_type}</td>
