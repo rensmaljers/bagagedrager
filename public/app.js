@@ -1673,6 +1673,69 @@ $('btn-pcs-sync-results').addEventListener('click', async () => {
   }
 });
 
+// Resync all locked stages with results from PCS
+$('btn-pcs-resync-all').addEventListener('click', async () => {
+  const comp = competitions.find(c => c.id === activeCompId);
+  if (!comp?.pcs_url) { alert('Geen PCS URL ingesteld voor deze ronde'); return; }
+  if (!confirm('Alle vergrendelde etappes opnieuw syncen met PCS? Dit kan even duren.')) return;
+
+  const status = $('pcs-results-sync-status');
+  const log = $('pcs-results-sync-log');
+  const pcsBase = comp.pcs_url.replace(/\/$/, '').replace(/\/(stages|startlist|gc|stage-\d+)$/, '');
+  const lockedStages = activeStages().filter(s => s.locked);
+
+  log.innerHTML = '';
+  let success = 0, failed = 0;
+
+  for (const stage of lockedStages) {
+    const pcsUrl = `${pcsBase}/stage-${stage.stage_number}`;
+    status.textContent = `⏳ Etappe ${stage.stage_number} syncen...`;
+    status.className = 'text-muted';
+    log.innerHTML += `<div>⏳ Etappe ${stage.stage_number}...</div>`;
+
+    try {
+      const data = await callEdgeFunction('sync-pcs-results', { pcs_url: pcsUrl });
+      if (!data.results?.length) {
+        log.innerHTML += `<div class="text-warning">⚠ Etappe ${stage.stage_number}: geen resultaten</div>`;
+        failed++;
+        continue;
+      }
+
+      let matched = 0;
+      const payload = [];
+      for (const r of data.results) {
+        const rider = riders.find(rd => rd.bib_number === r.bib_number);
+        if (rider) {
+          matched++;
+          payload.push({ rider_id: rider.id, time_seconds: r.time_seconds, points: r.points, mountain_points: r.mountain_points, dnf: r.dnf });
+        }
+      }
+
+      if (matched) {
+        await supaRpc('admin_save_results', { p_stage_id: stage.id, p_results: payload });
+        log.innerHTML += `<div class="text-success">✅ Etappe ${stage.stage_number}: ${matched} resultaten</div>`;
+        success++;
+      } else {
+        log.innerHTML += `<div class="text-warning">⚠ Etappe ${stage.stage_number}: geen renners gekoppeld</div>`;
+        failed++;
+      }
+    } catch (e) {
+      log.innerHTML += `<div class="text-danger">❌ Etappe ${stage.stage_number}: ${e.message}</div>`;
+      failed++;
+    }
+
+    // Scroll log to bottom
+    log.scrollTop = log.scrollHeight;
+    // Small delay to not overwhelm PCS
+    await new Promise(r => setTimeout(r, 1500));
+  }
+
+  status.textContent = `✅ Klaar! ${success} gelukt, ${failed} mislukt van ${lockedStages.length} etappes`;
+  status.className = success > 0 ? 'text-success' : 'text-danger';
+  _cache.standings = null;
+  _cache.participants = null;
+});
+
 $('btn-copy-results-script').addEventListener('click', () => {
   navigator.clipboard.writeText(PCS_RESULTS_SCRIPT);
   $('btn-copy-results-script').textContent = '✅ Gekopieerd!';
