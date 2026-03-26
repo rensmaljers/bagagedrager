@@ -11,3 +11,9 @@ additional_redirect_urls = ["http://localhost:8888"]
 [auth.email]
 enable_signup = true
 enable_confirmations = false
+
+[functions.sync-pcs-results]
+verify_jwt = false
+
+[functions.sync-pcs-race]
+verify_jwt = false
