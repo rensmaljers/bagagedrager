@@ -78,6 +78,7 @@ Deno.serve(async (req) => {
     const results: any[] = [];
     let winnerTime = 0; // Absolute time of the stage winner (first row)
     let lastTime = 0;   // Last assigned absolute time (for ,, same-time groups)
+    let position = 0;   // PCS finish position (row order = official result order)
 
     for (const row of rows) {
       const cells = row.querySelectorAll("td");
@@ -123,7 +124,8 @@ Deno.serve(async (req) => {
       }
 
       if (bib > 0) {
-        results.push({ bib_number: bib, time_seconds: time || lastTime, points: 0, mountain_points: 0, dnf });
+        position++;
+        results.push({ bib_number: bib, time_seconds: time || lastTime, finish_position: dnf ? null : position, points: 0, mountain_points: 0, dnf });
       }
     }
 

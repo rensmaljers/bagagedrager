@@ -984,7 +984,7 @@ async function loadHistory() {
     `<tr class="${rowClass}">
       <td><div>Etappe ${stage?.stage_number || '?'}</div>${winnerNames[pick.stage_id] ? `<div style="font-size:0.65rem;color:var(--text-muted);">🏆 ${escapeHtml(winnerNames[pick.stage_id])}</div>` : ''}</td>
       <td>${rider?.name || '?'} <span class="team-badge-sm">${rider ? teamBadge(rider.team) : ''}</span>${numPickers > 1 ? ` <span class="badge bg-secondary" style="font-size:0.6rem;">${numPickers}x → ${sharingPct}%</span>` : ''}</td>
-      <td class="time text-end">${!histIsClassic && result ? formatGap(timeGap) : result ? formatTime(result.time_seconds) : '-'}</td>
+      <td class="time text-end">${!histIsClassic && result ? (result.finish_position === 1 ? formatTime(result.time_seconds) : formatGap(timeGap)) : result ? formatTime(result.time_seconds) : '-'}</td>
       ${!histIsClassic ? `<td class="text-end">${bonif ? '-' + bonif + 's' : '-'}</td>` : ''}
       <td class="text-end">${result ? (pick.is_late ? '0' : Math.floor(result.points * sharingPct / 100)) : '-'}</td>
       <td class="text-end">${result ? (pick.is_late ? '0' : Math.floor(result.mountain_points * sharingPct / 100)) : '-'}</td>
@@ -1141,7 +1141,7 @@ async function loadParticipants() {
                 return `<tr>
                 <td>${escapeHtml(p.display_name)}</td>
                 <td>${escapeHtml(p.rider_name)} <span class="team-badge-sm">${teamBadge(p.rider_team)}</span>${pickersBadge}</td>
-                <td class="time text-end">${p.time_gap != null ? formatGap(p.time_gap) : '-'}</td>
+                <td class="time text-end">${p.finish_position === 1 ? formatTime(p.time_seconds) : (p.time_gap != null ? formatGap(p.time_gap) : '-')}</td>
                 <td class="text-end">${p.bonification ? '-' + p.bonification + 's' : '-'}</td>
                 <td class="text-end">${p.effective_points != null ? p.effective_points : (p.points != null ? (p.is_late ? '0' : p.points) : '-')}</td>
                 <td class="text-end">${p.effective_mountain_points != null ? p.effective_mountain_points : (p.mountain_points != null ? (p.is_late ? '0' : p.mountain_points) : '-')}</td>
@@ -1643,7 +1643,7 @@ $('btn-pcs-sync-results').addEventListener('click', async () => {
       const rider = riders.find(rd => rd.bib_number === r.bib_number);
       if (rider) {
         matched++;
-        payload.push({ rider_id: rider.id, time_seconds: r.time_seconds, points: r.points, mountain_points: r.mountain_points, dnf: r.dnf });
+        payload.push({ rider_id: rider.id, time_seconds: r.time_seconds, finish_position: r.finish_position || null, points: r.points, mountain_points: r.mountain_points, dnf: r.dnf });
       } else { unmatched++; }
     }
 
@@ -1660,10 +1660,12 @@ $('btn-pcs-sync-results').addEventListener('click', async () => {
     status.className = 'text-success';
 
     // Show top 10
+    const winnerTime = payload.length ? payload[0].time_seconds : 0;
     const top10 = payload.slice(0, 10);
     log.innerHTML = `<strong>Top 10:</strong><br>` + top10.map((r, i) => {
       const rider = riders.find(rd => rd.id === r.rider_id);
-      return `${i + 1}. ${rider?.name || '?'} — ${formatTime(r.time_seconds)}${r.dnf ? ' (DNF)' : ''}`;
+      const timeDisplay = i === 0 ? formatTime(r.time_seconds) : formatGap(r.time_seconds - winnerTime);
+      return `${i + 1}. ${rider?.name || '?'} — ${timeDisplay}${r.dnf ? ' (DNF)' : ''}`;
     }).join('<br>');
 
     loadAdminResults();
@@ -1707,7 +1709,7 @@ $('btn-pcs-resync-all').addEventListener('click', async () => {
         const rider = riders.find(rd => rd.bib_number === r.bib_number);
         if (rider) {
           matched++;
-          payload.push({ rider_id: rider.id, time_seconds: r.time_seconds, points: r.points, mountain_points: r.mountain_points, dnf: r.dnf });
+          payload.push({ rider_id: rider.id, time_seconds: r.time_seconds, finish_position: r.finish_position || null, points: r.points, mountain_points: r.mountain_points, dnf: r.dnf });
         }
       }
 
