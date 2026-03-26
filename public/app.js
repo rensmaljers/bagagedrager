@@ -14,6 +14,13 @@ let activeCompId = null;
 let _cache = { standings: null, standingsCompId: null, participants: null, participantsCompId: null };
 
 // --- SUPABASE REST HELPERS ---
+// Proactief token refreshen als het bijna verlopen is (< 60s)
+async function ensureFreshToken() {
+  if (!session?.expires_at || !session?.refresh_token) return;
+  if (Date.now() / 1000 < session.expires_at - 60) return; // nog vers genoeg
+  await refreshSession();
+}
+
 function authHeaders(extra = {}) {
   const h = { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, ...extra };
   if (session?.access_token) h['Authorization'] = `Bearer ${session.access_token}`;
@@ -50,6 +57,7 @@ async function supaPatch(table, filters, body) {
 
 // Call a Postgres RPC function
 async function supaRpc(fnName, params = {}) {
+  await ensureFreshToken();
   const url = `${SUPABASE_URL}/rest/v1/rpc/${fnName}`;
   const res = await fetch(url, {
     method: 'POST',
@@ -75,6 +83,22 @@ async function login(email, password) {
   const data = await res.json();
   if (!res.ok) throw new Error(dutchAuthError(data.error_description || data.msg));
   return data;
+}
+
+async function refreshSession() {
+  if (!session?.refresh_token) return false;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+      body: JSON.stringify({ refresh_token: session.refresh_token }),
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    session = { ...session, ...data };
+    localStorage.setItem('bagagedrager_session', JSON.stringify(session));
+    return true;
+  } catch { return false; }
 }
 
 function dutchAuthError(msg) {
@@ -397,6 +421,7 @@ $('btn-login').addEventListener('click', async () => {
   if (!email || !password) { showError('Vul je e-mailadres en wachtwoord in.'); return; }
   try {
     session = await login(email, password);
+    localStorage.setItem('bagagedrager_session', JSON.stringify(session));
     await initApp();
   } catch (e) { showError(e.message); }
 });
@@ -1559,7 +1584,8 @@ function loadSyncStageSelect() {
 
 // --- PCS DIRECTE SYNC ---
 async function callEdgeFunction(fnName, body) {
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/${fnName}`, {
+  await ensureFreshToken();
+  let res = await fetch(`${SUPABASE_URL}/functions/v1/${fnName}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -1568,6 +1594,18 @@ async function callEdgeFunction(fnName, body) {
     },
     body: JSON.stringify(body),
   });
+  // Auto-refresh token bij 401
+  if (res.status === 401 && await refreshSession()) {
+    res = await fetch(`${SUPABASE_URL}/functions/v1/${fnName}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+        'apikey': SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify(body),
+    });
+  }
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || `Fout ${res.status}`);
   return data;
