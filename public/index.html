@@ -215,7 +215,16 @@
     .tip-popup.visible { opacity: 1; }
 
     /* --- TABLES --- */
-    .table { color: var(--text); --bs-table-bg: transparent; --bs-table-striped-bg: var(--stripe); }
+    .table {
+      color: var(--text);
+      --bs-table-bg: transparent;
+      --bs-table-color: var(--text);
+      --bs-table-striped-bg: var(--stripe);
+      --bs-table-striped-color: var(--text);
+      --bs-table-hover-bg: var(--hover-overlay);
+      --bs-table-hover-color: var(--text);
+      --bs-table-border-color: var(--border);
+    }
     .table thead th {
       font-size: 0.7rem;
       text-transform: uppercase;
@@ -224,7 +233,7 @@
       border-bottom-color: var(--border);
       font-weight: 600;
     }
-    .table td { border-bottom-color: var(--border); vertical-align: middle; }
+    .table td { color: var(--text); border-bottom-color: var(--border); vertical-align: middle; }
     .table-striped > tbody > tr:nth-of-type(odd) > * { --bs-table-bg-type: var(--stripe); }
     .time { font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; font-size: 0.85rem; }
 
