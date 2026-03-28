@@ -598,6 +598,7 @@ async function initApp() {
   sel.innerHTML = competitions.map(c =>
     `<option value="${c.id}">${c.country_flag || ''} ${c.name}${c.is_active ? '' : ' (afgelopen)'}</option>`
   ).join('');
+  $('comp-count').textContent = competitions.length > 1 ? `${competitions.length} rondes` : '';
   // Onthoud laatst gekozen ronde, val terug op actieve, dan eerste
   const savedCompId = parseInt(localStorage.getItem('bagagedrager_comp'));
   const savedComp = savedCompId ? competitions.find(c => c.id === savedCompId) : null;

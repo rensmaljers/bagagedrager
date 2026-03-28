@@ -589,16 +589,35 @@
       color: var(--text);
       letter-spacing: 0.01em;
     }
+    .comp-selector {
+      position: relative;
+    }
     .comp-selector select {
       border-color: var(--accent-dim);
-      font-weight: 600;
+      font-weight: 700;
       background: var(--accent-bg);
       color: var(--text);
       min-width: 160px;
+      padding-right: 2.5rem;
+      font-size: 0.82rem;
     }
     .comp-selector select:focus {
       border-color: var(--accent);
       box-shadow: 0 0 0 2px var(--accent-dim);
+    }
+    .comp-count {
+      position: absolute;
+      right: 2rem;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.6rem;
+      font-weight: 700;
+      color: var(--accent);
+      background: var(--accent-dim);
+      padding: 0.1rem 0.35rem;
+      border-radius: 8px;
+      pointer-events: none;
+      letter-spacing: 0.02em;
     }
 
     /* --- FOCUS VISIBLE (keyboard users) --- */
@@ -1308,7 +1327,8 @@
         <button id="btn-logout" class="btn btn-ghost btn-sm">Logout</button>
       </div>
       <div class="comp-selector">
-        <select id="comp-select" class="form-select form-select-sm"></select>
+        <select id="comp-select" class="form-select form-select-sm" title="Wissel van ronde"></select>
+        <span id="comp-count" class="comp-count"></span>
       </div>
     </div>
   </nav>
