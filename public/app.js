@@ -792,7 +792,7 @@ window.openH2H = async function(opponentName) {
     content.innerHTML = `
       <div class="h2h-vs">
         <div class="h2h-player" style="color:var(--accent);">${escapeHtml(profile?.display_name || '?')}</div>
-        <div class="h2h-vs-label">VS</div>
+        <div class="h2h-vs-label">TEGEN</div>
         <div class="h2h-player">${escapeHtml(opponentName)}</div>
       </div>
       ${stageRows}
