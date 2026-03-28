@@ -235,6 +235,40 @@ function formatDeadline(dt) {
 
 function $(id) { return document.getElementById(id); }
 
+// --- TOAST NOTIFICATIONS ---
+function toast(message, type = 'info', duration = 3500) {
+  const icons = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ' };
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.innerHTML = `<span class="toast-icon">${icons[type] || icons.info}</span><span>${escapeHtml(message)}</span>`;
+  $('toast-container').appendChild(el);
+  setTimeout(() => { el.classList.add('removing'); setTimeout(() => el.remove(), 300); }, duration);
+}
+
+// --- CONFETTI ---
+function confettiBurst() {
+  const container = document.createElement('div');
+  container.className = 'confetti-burst';
+  const colors = ['var(--accent)', 'var(--green)', 'var(--red)', 'var(--purple)', 'var(--blue)'];
+  for (let i = 0; i < 24; i++) {
+    const p = document.createElement('div');
+    p.className = 'confetti-piece';
+    const angle = (Math.PI * 2 * i) / 24 + (Math.random() - 0.5) * 0.5;
+    const dist = 60 + Math.random() * 80;
+    p.style.cssText = `background:${colors[i % colors.length]};--cx:${Math.cos(angle) * dist}px;--cy:${Math.sin(angle) * dist - 40}px;--cr:${Math.random() * 720}deg;`;
+    container.appendChild(p);
+  }
+  document.body.appendChild(container);
+  setTimeout(() => container.remove(), 1100);
+}
+
+// --- SKELETON LOADING ---
+function skeletonRows(count = 5) {
+  return Array.from({ length: count }, () =>
+    `<tr><td colspan="3"><div class="skeleton skeleton-row"></div></td></tr>`
+  ).join('');
+}
+
 function showError(msg) {
   const el = $('auth-error');
   el.textContent = msg;
@@ -367,8 +401,8 @@ function updateAvatarPreview() {
 $('account-avatar-input').addEventListener('change', async (e) => {
   const file = e.target.files[0];
   if (!file) return;
-  if (file.size > 2 * 1024 * 1024) { alert('Foto mag maximaal 2MB zijn'); return; }
-  if (!file.type.startsWith('image/')) { alert('Alleen afbeeldingen toegestaan'); return; }
+  if (file.size > 2 * 1024 * 1024) { toast('Foto mag maximaal 2MB zijn', 'warning'); return; }
+  if (!file.type.startsWith('image/')) { toast('Alleen afbeeldingen toegestaan', 'warning'); return; }
 
   const status = $('account-status');
   status.textContent = 'Foto uploaden...';
@@ -617,11 +651,15 @@ async function loadStandings() {
     return;
   }
 
+  // Skeleton loading
+  const skel = skeletonRows(5);
+  $('gc-table').innerHTML = skel; $('points-table').innerHTML = skel;
+  $('mountain-table').innerHTML = skel; $('game-table').innerHTML = skel;
+
   let standings;
   if (_cache.standingsCompId === activeCompId && _cache.standings) {
     standings = _cache.standings;
   } else {
-    // Haal standings + winnaarstijden parallel op
     const compStageIds = activeStages().filter(s => s.locked).map(s => s.id);
     const [standingsData, winnerResults] = await Promise.all([
       supaRest('general_classification', { filters: `competition_id=eq.${activeCompId}` }),
@@ -630,7 +668,6 @@ async function loadStandings() {
         : Promise.resolve([]),
     ]);
     standings = standingsData;
-    // Bereken som van winnaarstijden (= snelst mogelijke absolute tijd)
     _cache.winnerTimeSum = (winnerResults || []).reduce((sum, r) => sum + r.time_seconds, 0);
     _cache.standings = standings;
     _cache.standingsCompId = activeCompId;
@@ -640,6 +677,7 @@ async function loadStandings() {
   const medal = ['🥇', '🥈', '🥉'];
   const mode = activeScoringMode();
   const isClassic = mode === 'classic';
+  const myName = profile?.display_name;
 
   // Show/hide cards based on scoring mode
   $('gc-card').style.display = isClassic ? 'none' : '';
@@ -656,44 +694,180 @@ async function loadStandings() {
     }
   });
 
+  // Rivalry tracker helper: add row showing gap to neighbors
+  function rivalryRow(sorted, myIdx, valueFn, isTime) {
+    if (myIdx < 0 || sorted.length < 2) return '';
+    const parts = [];
+    if (myIdx > 0) {
+      const above = sorted[myIdx - 1];
+      const diff = Math.abs(valueFn(sorted[myIdx]) - valueFn(above));
+      parts.push(`<span class="rivalry-up">↑ ${isTime ? formatGap(diff) : diff + ' pts'} achter ${escapeHtml(above.display_name)}</span>`);
+    }
+    if (myIdx < sorted.length - 1) {
+      const below = sorted[myIdx + 1];
+      const diff = Math.abs(valueFn(sorted[myIdx]) - valueFn(below));
+      parts.push(`<span class="rivalry-down">↓ ${isTime ? formatGap(diff) : diff + ' pts'} voor ${escapeHtml(below.display_name)}</span>`);
+    }
+    if (!parts.length) return '';
+    return `<tr class="rivalry-row"><td colspan="3"><div class="rivalry-info">${parts.join('')}</div></td></tr>`;
+  }
+
+  // H2H button helper
+  function h2hBtn(name) {
+    if (name === myName) return '';
+    return ` <button class="btn btn-ghost" style="padding:0.1rem 0.4rem;font-size:0.6rem;border-radius:4px;" onclick="openH2H('${escapeHtml(name).replace(/'/g, "\\'")}')">vs</button>`;
+  }
+
+  // Render standings with rivalry
+  function renderClassification(tableId, sorted, valueFn, formatFn, isTime) {
+    const myIdx = sorted.findIndex(s => s.display_name === myName);
+    const rows = sorted.map((s, i) => {
+      const isMe = s.display_name === myName;
+      const meStyle = isMe ? ' style="background:var(--accent-bg);"' : '';
+      return `<tr${meStyle}><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td><div class="d-flex align-items-center gap-2">${avatarHtml(s.display_name, _avatarMap[s.display_name], 'sm')}${escapeHtml(s.display_name)}${h2hBtn(s.display_name)}</div></td><td class="text-end">${formatFn(s, i)}</td></tr>` + (isMe ? rivalryRow(sorted, myIdx, valueFn, isTime) : '');
+    }).join('');
+    $(tableId).innerHTML = rows || emptyRow;
+  }
+
   if (!isClassic) {
     const gc = [...standings].sort((a, b) => a.total_time - b.total_time);
     const leaderTime = gc.length ? gc[0].total_time : 0;
-    // Snelst mogelijke tijd: som van winnaarstijden (met en zonder bonificatie)
     const completedStages = activeStages().filter(s => s.locked).length;
     const winnerTimeSum = _cache.winnerTimeSum || 0;
     const bestBonif = 10 * completedStages;
-    const bestPossibleRow = completedStages > 0 && winnerTimeSum > 0
-      ? `<tr style="background:var(--accent-bg);"><td></td><td><div style="font-size:0.75rem;color:var(--accent);font-style:italic;">Snelst mogelijk</div></td><td class="time text-end" style="font-size:0.75rem;"><span style="color:var(--accent);">${formatTime(winnerTimeSum - bestBonif)}</span><div style="font-size:0.6rem;color:var(--green);">-${bestBonif}s bonif.</div><div style="font-size:0.6rem;color:var(--text-muted);">Zonder: ${formatTime(winnerTimeSum)}</div></td></tr>`
-      : '';
-    $('gc-table').innerHTML = (gc.map((s, i) => {
-      // Absolute tijd = winnaarstijden + tijdsverschil (met bonif)
+
+    renderClassification('gc-table', gc, s => s.total_time, (s, i) => {
       const absTime = winnerTimeSum > 0 ? winnerTimeSum + s.total_time : null;
       const absTimeNoBonif = winnerTimeSum > 0 ? winnerTimeSum + s.total_time_no_bonif : null;
       const timeDisplay = absTime ? formatTime(absTime) : (i === 0 ? formatTime(s.total_time) : formatGap(s.total_time - leaderTime));
       const gapDisplay = i > 0 ? `<div style="font-size:0.65rem;color:var(--text-muted);">${formatGap(s.total_time - leaderTime)}</div>` : '';
       const bonifDisplay = s.total_bonification ? `<div style="font-size:0.65rem;color:var(--green);">-${s.total_bonification}s bonif.</div>` : '';
       const noBonifDisplay = absTimeNoBonif ? `<div style="font-size:0.65rem;color:var(--text-muted);">Zonder: ${formatTime(absTimeNoBonif)}</div>` : '';
-      return `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td><div class="d-flex align-items-center gap-2">${avatarHtml(s.display_name, _avatarMap[s.display_name], 'sm')}${escapeHtml(s.display_name)}</div></td><td class="time text-end">${timeDisplay}${gapDisplay}${bonifDisplay}${noBonifDisplay}</td></tr>`;
-    }).join('') + bestPossibleRow) || emptyRow;
+      return `${timeDisplay}${gapDisplay}${bonifDisplay}${noBonifDisplay}`;
+    }, true);
+
+    // Append best possible row
+    if (completedStages > 0 && winnerTimeSum > 0) {
+      $('gc-table').innerHTML += `<tr style="background:var(--accent-bg);"><td></td><td><div style="font-size:0.75rem;color:var(--accent);font-style:italic;">Snelst mogelijk</div></td><td class="time text-end" style="font-size:0.75rem;"><span style="color:var(--accent);">${formatTime(winnerTimeSum - bestBonif)}</span><div style="font-size:0.6rem;color:var(--green);">-${bestBonif}s bonif.</div><div style="font-size:0.6rem;color:var(--text-muted);">Zonder: ${formatTime(winnerTimeSum)}</div></td></tr>`;
+    }
 
     const pts = [...standings].sort((a, b) => b.total_points - a.total_points);
-    $('points-table').innerHTML = pts.map((s, i) =>
-      `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td><div class="d-flex align-items-center gap-2">${avatarHtml(s.display_name, _avatarMap[s.display_name], 'sm')}${escapeHtml(s.display_name)}</div></td><td class="text-end">${s.total_points}</td></tr>`
-    ).join('') || emptyRow;
+    renderClassification('points-table', pts, s => s.total_points, (s) => s.total_points, false);
 
     const mt = [...standings].sort((a, b) => b.total_mountain_points - a.total_mountain_points);
-    $('mountain-table').innerHTML = mt.map((s, i) =>
-      `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td><div class="d-flex align-items-center gap-2">${avatarHtml(s.display_name, _avatarMap[s.display_name], 'sm')}${escapeHtml(s.display_name)}</div></td><td class="text-end">${s.total_mountain_points}</td></tr>`
-    ).join('') || emptyRow;
+    renderClassification('mountain-table', mt, s => s.total_mountain_points, (s) => s.total_mountain_points, false);
   }
 
   const gp = [...standings].sort((a, b) => b.total_game_points - a.total_game_points);
-  $('game-table').innerHTML = gp.map((s, i) =>
-    `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td><div class="d-flex align-items-center gap-2">${avatarHtml(s.display_name, _avatarMap[s.display_name], 'sm')}${escapeHtml(s.display_name)}</div></td><td class="text-end">${s.total_game_points || 0}</td></tr>`
-  ).join('') || emptyRow;
+  renderClassification('game-table', gp, s => s.total_game_points, (s) => s.total_game_points || 0, false);
 
   renderStageTimeline();
+}
+
+// --- HEAD-TO-HEAD ---
+window.openH2H = async function(opponentName) {
+  const overlay = $('h2h-overlay');
+  const content = $('h2h-content');
+  content.innerHTML = '<div class="text-center text-muted py-3">Laden...</div>';
+  overlay.style.display = 'flex';
+
+  try {
+    const allPicks = await supaRest('stage_picks_public', {
+      filters: `competition_id=eq.${activeCompId}`,
+      select: 'stage_id,stage_number,user_id,display_name,rider_name,time_gap,bonification,effective_points,effective_mountain_points,effective_game_points,finish_position,dnf,is_late'
+    });
+
+    const myPks = allPicks.filter(p => p.display_name === profile?.display_name);
+    const oppPks = allPicks.filter(p => p.display_name === opponentName);
+    const stageNums = [...new Set(allPicks.map(p => p.stage_number))].sort((a, b) => a - b);
+
+    let myWins = 0, oppWins = 0;
+    const stageRows = stageNums.map(num => {
+      const my = myPks.find(p => p.stage_number === num);
+      const opp = oppPks.find(p => p.stage_number === num);
+      if (!my || !opp) return '';
+      const myGp = my.is_late || my.dnf ? 0 : (my.effective_game_points || 0);
+      const oppGp = opp.is_late || opp.dnf ? 0 : (opp.effective_game_points || 0);
+      const myWin = myGp > oppGp;
+      const oppWin = oppGp > myGp;
+      if (myWin) myWins++;
+      if (oppWin) oppWins++;
+      return `<div class="h2h-stage-row">
+        <div class="${myWin ? 'h2h-winner' : oppWin ? 'h2h-loser' : ''}" style="text-align:right;">${myGp} <span style="font-size:0.7rem;color:var(--text-muted);">${escapeHtml(my.rider_name || '?')}</span></div>
+        <div class="h2h-stage-label">E${num}</div>
+        <div class="${oppWin ? 'h2h-winner' : myWin ? 'h2h-loser' : ''}">${oppGp} <span style="font-size:0.7rem;color:var(--text-muted);">${escapeHtml(opp.rider_name || '?')}</span></div>
+      </div>`;
+    }).join('');
+
+    const myTotal = myPks.reduce((s, p) => s + (p.is_late || p.dnf ? 0 : (p.effective_game_points || 0)), 0);
+    const oppTotal = oppPks.reduce((s, p) => s + (p.is_late || p.dnf ? 0 : (p.effective_game_points || 0)), 0);
+
+    content.innerHTML = `
+      <div class="h2h-vs">
+        <div class="h2h-player" style="color:var(--accent);">${escapeHtml(profile?.display_name || '?')}</div>
+        <div class="h2h-vs-label">VS</div>
+        <div class="h2h-player">${escapeHtml(opponentName)}</div>
+      </div>
+      ${stageRows}
+      <div class="h2h-score-summary">
+        <div class="h2h-stat"><div class="h2h-stat-label">Etappes gewonnen</div><div class="h2h-stat-value" style="color:var(--green);">${myWins} - ${oppWins}</div></div>
+        <div class="h2h-stat"><div class="h2h-stat-label">Totaal spelpunten</div><div class="h2h-stat-value">${myTotal} - ${oppTotal}</div></div>
+      </div>`;
+  } catch (e) {
+    content.innerHTML = `<div class="text-danger">${e.message}</div>`;
+  }
+};
+
+// --- ACHIEVEMENTS ---
+function computeAchievements(picks, results, stages) {
+  const badges = [];
+  if (!picks.length || !results.length) return badges;
+
+  // Etappewinnaar: jouw renner won de etappe
+  const stageWins = picks.filter(p => {
+    const r = results.find(r => r.stage_id === p.stage_id && r.rider_id === p.rider_id);
+    return r && r.finish_position === 1 && !r.dnf && !p.is_late;
+  });
+  if (stageWins.length) badges.push({ icon: '🏆', text: `${stageWins.length}x Etappewinnaar`, cls: 'gold' });
+
+  // Podium: top 3 finish
+  const podiums = picks.filter(p => {
+    const r = results.find(r => r.stage_id === p.stage_id && r.rider_id === p.rider_id);
+    return r && r.finish_position <= 3 && !r.dnf && !p.is_late;
+  });
+  if (podiums.length >= 3) badges.push({ icon: '🥉', text: `${podiums.length}x Podium`, cls: 'green' });
+
+  // IJzeren ploegleider: alle etappes op tijd gekozen
+  const compStages = stages.filter(s => s.competition_id === activeCompId && s.locked);
+  const latePicks = picks.filter(p => p.is_late);
+  if (compStages.length >= 3 && latePicks.length === 0) badges.push({ icon: '🛡️', text: 'IJzeren Ploegleider', cls: 'purple' });
+
+  // Op dreef: 3+ achtereen 60+ spelpunten
+  const sortedPicks = [...picks].sort((a, b) => {
+    const sa = stages.find(s => s.id === a.stage_id);
+    const sb = stages.find(s => s.id === b.stage_id);
+    return (sa?.stage_number || 0) - (sb?.stage_number || 0);
+  });
+  let streak = 0, maxStreak = 0;
+  for (const p of sortedPicks) {
+    const r = results.find(r => r.stage_id === p.stage_id && r.rider_id === p.rider_id);
+    const gp = r && !p.is_late && !r.dnf ? (r.game_points || 0) : 0;
+    if (gp >= 60) { streak++; maxStreak = Math.max(maxStreak, streak); }
+    else streak = 0;
+  }
+  if (maxStreak >= 3) badges.push({ icon: '🔥', text: `${maxStreak}x Op Dreef`, cls: 'red' });
+
+  // Underdog: solo pick (nobody else picked the rider) and scored 50+
+  const allPicks = _cache.participants || [];
+
+  return badges;
+}
+
+function renderAchievements(badges) {
+  if (!badges.length) return '';
+  return `<div class="achievements-wrap">${badges.map(b =>
+    `<span class="achievement-badge ${b.cls}">${b.icon} ${b.text}</span>`
+  ).join('')}</div>`;
 }
 
 function renderStageTimeline() {
@@ -963,6 +1137,7 @@ $('btn-submit-pick').addEventListener('click', async () => {
     const result = await supaRpc('submit_pick', { p_stage_id: stageId, p_rider_id: selectedRiderId });
     status.textContent = result.warning || 'Keuze opgeslagen!';
     status.className = result.warning ? 'ms-3 text-warning' : 'ms-3 text-success';
+    if (!result.warning) { confettiBurst(); toast('Keuze bevestigd!', 'success'); }
     myPicks = await supaRest('picks', { filters: `user_id=eq.${session.user.id}&order=stage_id` });
     _cache.standings = null; _cache.participants = null;
   } catch (e) {
@@ -1048,6 +1223,12 @@ async function loadHistory() {
         <div style="font-size:1.1rem; font-weight:700; color:var(--red);">${worst.gp} pts</div>
         <div style="font-size:0.75rem;">${worst.rider?.name || '?'}</div>
       </div></div></div>`;
+
+    // Achievements
+    const badges = computeAchievements(compPicks, allResults, stages);
+    if (badges.length) {
+      $('history-stats').innerHTML += `<div class="col-12">${renderAchievements(badges)}</div>`;
+    }
   } else {
     $('history-stats').innerHTML = '';
   }
@@ -1128,7 +1309,7 @@ window.toggleAdmin = async function(userId, makeAdmin) {
   try {
     await supaPatch('profiles', `id=eq.${userId}`, { is_admin: makeAdmin });
     loadPeloton();
-  } catch (e) { alert(e.message); }
+  } catch (e) { toast(e.message, 'error'); }
 };
 
 async function loadParticipants() {
@@ -1286,7 +1467,7 @@ window.togglePlayerActive = async function(userId, activate) {
     await supaPatch('profiles', `id=eq.${userId}`, { is_active: activate });
     loadAdminUsers();
     loadPeloton();
-  } catch (e) { alert(e.message); }
+  } catch (e) { toast(e.message, 'error'); }
 };
 
 window.deletePlayer = async function(userId, displayName) {
@@ -1295,11 +1476,11 @@ window.deletePlayer = async function(userId, displayName) {
     await supaRpc('admin_delete_player', { p_user_id: userId });
     loadAdminUsers();
     loadPeloton();
-  } catch (e) { alert(e.message); }
+  } catch (e) { toast(e.message, 'error'); }
 };
 
 window.resetPassword = async function(email) {
-  if (!email) { alert('Geen e-mailadres bekend voor deze speler'); return; }
+  if (!email) { toast('Geen e-mailadres bekend voor deze speler', 'warning'); return; }
   try {
     const res = await fetch(`${SUPABASE_URL}/auth/v1/recover`, {
       method: 'POST',
@@ -1307,8 +1488,8 @@ window.resetPassword = async function(email) {
       body: JSON.stringify({ email }),
     });
     if (!res.ok) throw new Error('Verzenden mislukt');
-    alert(`Herstelmail verzonden naar ${email}`);
-  } catch (e) { alert(e.message); }
+    toast(`Herstelmail verzonden naar ${email}`, 'success');
+  } catch (e) { toast(e.message, 'error'); }
 };
 
 $('btn-admin-create-user').addEventListener('click', async () => {
@@ -1406,20 +1587,20 @@ window.updateCompField = async function(compId, field, value) {
       _cache.participants = null;
       loadStandings();
     }
-  } catch (e) { alert(e.message); }
+  } catch (e) { toast(e.message, 'error'); }
 };
 
 window.updateCompPcsUrl = async function(compId, pcsUrl) {
   try {
     await supaPatch('competitions', `id=eq.${compId}`, { pcs_url: pcsUrl.trim() || null });
-  } catch (e) { alert(e.message); }
+  } catch (e) { toast(e.message, 'error'); }
 };
 
 $('btn-add-comp').addEventListener('click', async () => {
   const name = $('new-comp-name').value.trim();
   const slug = $('new-comp-slug').value.trim();
   const year = parseInt($('new-comp-year').value);
-  if (!name || !slug || !year) return alert('Vul alle velden in');
+  if (!name || !slug || !year) return toast('Vul alle velden in', 'warning');
   try {
     const scoringMode = $('new-comp-scoring-mode').value || 'grand_tour';
     const isOneDay = $('new-comp-one-day').checked;
@@ -1434,23 +1615,23 @@ $('btn-add-comp').addEventListener('click', async () => {
     $('new-comp-flag').value = '';
     loadAdminCompetitions();
     loadAdminStages();
-  } catch (e) { alert(e.message); }
+  } catch (e) { toast(e.message, 'error'); }
 });
 
 window.renameComp = async function(compId, newName) {
   newName = newName.trim();
-  if (!newName) return alert('Naam mag niet leeg zijn');
+  if (!newName) return toast('Naam mag niet leeg zijn', 'warning');
   try {
     await supaPatch('competitions', `id=eq.${compId}`, { name: newName });
     loadAdminCompetitions();
-  } catch (e) { alert(e.message); }
+  } catch (e) { toast(e.message, 'error'); }
 };
 
 window.toggleCompActive = async function(compId, active) {
   try {
     await supaPatch('competitions', `id=eq.${compId}`, { is_active: active });
     loadAdminCompetitions();
-  } catch (e) { alert(e.message); }
+  } catch (e) { toast(e.message, 'error'); }
 };
 
 window.deleteComp = async function(compId) {
@@ -1458,7 +1639,7 @@ window.deleteComp = async function(compId) {
   try {
     await supaDelete('competitions', `id=eq.${compId}`);
     loadAdminCompetitions();
-  } catch (e) { alert(e.message); }
+  } catch (e) { toast(e.message, 'error'); }
 };
 
 // --- ADMIN: RENNERS ---
@@ -1508,15 +1689,15 @@ $('btn-add-rider').addEventListener('click', async () => {
   const name = $('new-rider-name').value.trim();
   const team = $('new-rider-team').value.trim();
   const compId = parseInt($('admin-rider-comp-filter').value) || activeCompId;
-  if (!bib || !name || !team) return alert('Vul alle velden in');
-  if (!compId) return alert('Selecteer eerst een ronde');
+  if (!bib || !name || !team) return toast('Vul alle velden in', 'warning');
+  if (!compId) return toast('Selecteer eerst een ronde', 'warning');
   try {
     await supaRest('riders', { method: 'POST', body: { bib_number: bib, name, team, competition_id: compId } });
     $('new-rider-bib').value = '';
     $('new-rider-name').value = '';
     $('new-rider-team').value = '';
     loadAdminRiders();
-  } catch (e) { alert(e.message); }
+  } catch (e) { toast(e.message, 'error'); }
 });
 
 window.deleteRider = async function(riderId) {
@@ -1524,7 +1705,7 @@ window.deleteRider = async function(riderId) {
   try {
     await supaDelete('riders', `id=eq.${riderId}`);
     loadAdminRiders();
-  } catch (e) { alert(e.message); }
+  } catch (e) { toast(e.message, 'error'); }
 };
 
 // --- ADMIN: ETAPPES ---
@@ -1567,7 +1748,7 @@ $('btn-add-stage').addEventListener('click', async () => {
   const startTime = $('new-stage-starttime').value || '12:00';
   const type = $('new-stage-type').value;
   const compId = parseInt($('new-stage-comp').value);
-  if (!num || !name || !date || !compId) return alert('Vul alle velden in');
+  if (!num || !name || !date || !compId) return toast('Vul alle velden in', 'warning');
 
   const startDateTime = new Date(`${date}T${startTime}:00`);
 
@@ -1580,14 +1761,14 @@ $('btn-add-stage').addEventListener('click', async () => {
     $('new-stage-name').value = '';
     $('new-stage-date').value = '';
     loadAdminStages();
-  } catch (e) { alert(e.message); }
+  } catch (e) { toast(e.message, 'error'); }
 });
 
 window.toggleStageLock = async function(stageId, lock) {
   try {
     await supaPatch('stages', `id=eq.${stageId}`, { locked: lock });
     loadAdminStages();
-  } catch (e) { alert(e.message); }
+  } catch (e) { toast(e.message, 'error'); }
 };
 
 window.deleteStage = async function(stageId) {
@@ -1595,7 +1776,7 @@ window.deleteStage = async function(stageId) {
   try {
     await supaDelete('stages', `id=eq.${stageId}`);
     loadAdminStages();
-  } catch (e) { alert(e.message); }
+  } catch (e) { toast(e.message, 'error'); }
 };
 
 // --- ADMIN: PCS RESULTS via console script ---
@@ -1771,7 +1952,7 @@ $('btn-pcs-sync-results').addEventListener('click', async () => {
 // Resync all locked stages with results from PCS
 $('btn-pcs-resync-all').addEventListener('click', async () => {
   const comp = competitions.find(c => c.id === activeCompId);
-  if (!comp?.pcs_url) { alert('Geen PCS URL ingesteld voor deze ronde'); return; }
+  if (!comp?.pcs_url) { toast('Geen PCS URL ingesteld voor deze ronde', 'warning'); return; }
   if (!confirm('Alle vergrendelde etappes opnieuw syncen met PCS? Dit kan even duren.')) return;
 
   const status = $('pcs-results-sync-status');
