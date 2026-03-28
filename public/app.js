@@ -581,7 +581,7 @@ async function initApp() {
     supaRest('competitions', { filters: 'order=year.desc,name' }),
     supaRest('stages', { filters: 'order=stage_number' }),
     supaRest('picks', { filters: `user_id=eq.${session.user.id}&order=stage_id` }),
-    supaRest('profiles', { select: 'id,display_name,avatar_url' }),
+    supaRest('profiles'),
   ]);
 
   profile = profiles[0];
