@@ -461,25 +461,41 @@ Deno.serve(async (req) => {
     }
     log.push(`📅 Etappes: ${stagesSaved} nieuw, ${stagesUpdated} bijgewerkt`);
 
-    // 5. Save riders (skip bestaande op basis van bib_number + competition_id)
-    let ridersSaved = 0, ridersSkipped = 0;
+    // 5. Save riders (match op pcs_slug of bib_number, update bestaande)
+    let ridersSaved = 0, ridersUpdated = 0;
     for (const r of riders) {
       try {
-        const { data: existing } = await adminClient
-          .from("riders")
-          .select("id")
-          .eq("competition_id", competition_id)
-          .eq("bib_number", r.bib_number)
-          .maybeSingle();
+        // Zoek eerst op pcs_slug (stabiel), dan op bib_number
+        let existing = null;
+        if (r.pcs_slug) {
+          const { data } = await adminClient
+            .from("riders").select("id")
+            .eq("competition_id", competition_id)
+            .eq("pcs_slug", r.pcs_slug)
+            .maybeSingle();
+          existing = data;
+        }
         if (!existing) {
+          const { data } = await adminClient
+            .from("riders").select("id")
+            .eq("competition_id", competition_id)
+            .eq("bib_number", r.bib_number)
+            .maybeSingle();
+          existing = data;
+        }
+        if (existing) {
+          // Update bestaande renner (bibnummer kan veranderd zijn)
+          await adminClient.from("riders").update({ ...r }).eq("id", existing.id);
+          ridersUpdated++;
+        } else {
           await adminClient.from("riders").insert({ ...r, competition_id });
           ridersSaved++;
-        } else {
-          ridersSkipped++;
         }
-      } catch { ridersSkipped++; }
+      } catch (e) {
+        log.push(`⚠️ ${r.name}: ${(e as Error).message}`);
+      }
     }
-    log.push(`🚴 Renners: ${ridersSaved} nieuw, ${ridersSkipped} al aanwezig`);
+    log.push(`🚴 Renners: ${ridersSaved} nieuw, ${ridersUpdated} bijgewerkt`);
 
     // Foto's worden apart opgehaald (te traag voor 1 request)
 

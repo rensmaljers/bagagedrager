@@ -82,17 +82,15 @@ Deno.serve(async (req) => {
       try {
         const url = `https://www.procyclingstats.com/rider/${r.pcs_slug}`;
         const res = await fetch(url, { headers: PCS_HEADERS });
-        if (!res.ok) { log.push(`⚠️ ${r.name}: HTTP ${res.status}`); continue; }
+        if (!res.ok) { log.push(`⚠️ ${r.name}: HTTP ${res.status} van ${url}`); continue; }
         const html = await res.text();
 
         // Parse alle renner-info uit de HTML
         const update: Record<string, any> = {};
 
-        // Debug: log eerste 3 renners wat we vinden
-        if (fetched < 3) {
-          const allImgs = [...html.matchAll(/src="([^"]*\.(?:jpeg|jpg|png|webp))"/gi)].map(m => m[1]).slice(0, 5);
-          log.push(`🔍 ${r.name}: ${allImgs.length} afbeeldingen gevonden: ${allImgs.join(' | ')}`);
-        }
+        // Debug: log voor alle renners
+        const allImgs = [...html.matchAll(/src="([^"]*\.(?:jpeg|jpg|png|webp))"/gi)].map(m => m[1]).slice(0, 8);
+        log.push(`🔍 ${r.name} (${html.length} bytes): ${allImgs.length} imgs: ${allImgs.join(' | ')}`);
 
         // Foto — PCS gebruikt paden als "images/riders/bp/xx/name.jpeg"
         const imgMatch = html.match(/images\/riders\/[^"]+\.(?:jpeg|jpg|png|webp)/i);
