@@ -321,6 +321,9 @@ function applyCompColor() {
   });
   // Apply to stage timeline dots (open state)
   document.documentElement.style.setProperty('--comp-accent', color);
+  // Apply to browser theme-color (adresbalk op mobiel)
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute('content', color);
 }
 
 // --- TAB NAVIGATION ---
