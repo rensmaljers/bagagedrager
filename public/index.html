@@ -831,6 +831,21 @@
     .h2h-stat-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; }
     .h2h-stat-value { font-size: 1.2rem; font-weight: 800; }
 
+    /* --- STAGE PROFILE IMAGE --- */
+    .stage-profile-img {
+      width: 100%;
+      max-height: 100px;
+      object-fit: contain;
+      border-radius: var(--radius);
+      margin-top: 0.5rem;
+      cursor: zoom-in;
+      transition: max-height 0.3s ease;
+    }
+    .stage-profile-img.expanded {
+      max-height: 80vh;
+      cursor: zoom-out;
+    }
+
     /* --- SPARKLINE --- */
     .sparkline { display: block; margin-top: 0.2rem; }
 
