@@ -189,47 +189,29 @@ Deno.serve(async (req) => {
     if (comp?.is_one_day) {
       // Eendagskoers: haal datum, afstand en profiel van de race-overzichtspagina
       try {
-        const overviewDoc = await fetchPCS(baseUrl);
+        // Haal ruwe HTML op (niet via DOM-parser, voor betere regex matching)
+        const pcsRes = await fetch(baseUrl, { headers: PCS_HEADERS });
+        if (!pcsRes.ok) throw new Error(`PCS gaf status ${pcsRes.status}`);
+        const rawHtml = await pcsRes.text();
+        const overviewDoc = new DOMParser().parseFromString(rawHtml, "text/html");
+
         let dateISO = `${raceYear}-01-01`;
         let distance_km = null;
 
-        // Methode 1: zoek in .infolist items
-        const infoItems = overviewDoc.querySelectorAll(".infolist li");
-        for (const li of infoItems) {
-          const divs = li.querySelectorAll("div");
-          const label = (divs[0]?.textContent?.trim() || "").toLowerCase();
-          const value = divs[1]?.textContent?.trim() || "";
-          if (label.includes("startdate") || label.includes("date")) {
-            if (value.match(/^\d{4}-\d{2}-\d{2}$/)) dateISO = value;
-            else if (value.includes("/")) {
-              const parts = value.split("/");
-              dateISO = `${raceYear}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
-            }
-          }
-          if (label.includes("distance") || label.includes("km")) {
-            distance_km = parseFloat(value) || null;
-          }
-        }
-
-        // Methode 2: fallback — zoek datum-patroon in hele HTML
+        // Zoek datum in ruwe HTML — PCS format: "Startdate:" gevolgd door "2026-03-30"
+        const dateMatch = rawHtml.match(new RegExp(`(${raceYear}-\\d{2}-\\d{2})`));
+        if (dateMatch) dateISO = dateMatch[1];
+        // Alternatief DD/MM formaat
         if (dateISO === `${raceYear}-01-01`) {
-          const html = overviewDoc.innerHTML || "";
-          // Zoek ISO datum (2026-03-30)
-          const isoMatch = html.match(new RegExp(`(${raceYear}-\\d{2}-\\d{2})`));
-          if (isoMatch) dateISO = isoMatch[1];
-          // Zoek DD/MM formaat nabij "Startdate"
-          const ddmmMatch = html.match(/[Ss]tartdate[^<]*<[^>]*>\s*(\d{1,2})\/(\d{1,2})/);
+          const ddmmMatch = rawHtml.match(/Startdate[^]*?(\d{1,2})\/(\d{1,2})/i);
           if (ddmmMatch) {
             dateISO = `${raceYear}-${ddmmMatch[2].padStart(2, "0")}-${ddmmMatch[1].padStart(2, "0")}`;
           }
         }
 
-        // Afstand fallback: zoek "Total distance" of km-getal in infolist
-        if (!distance_km) {
-          const html = overviewDoc.innerHTML || "";
-          const distMatch = html.match(/[Tt]otal\s*distance[^<]*<[^>]*>\s*(\d[\d.]*)/);
-          if (distMatch) distance_km = parseFloat(distMatch[1]) || null;
-        }
+        // Afstand: zoek "Total distance" of distance-getal
+        const distMatch = rawHtml.match(/Total\s*distance[^]*?(\d[\d.]+)/i);
+        if (distMatch) distance_km = parseFloat(distMatch[1]) || null;
         // Profiel-afbeelding
         let profileUrl = null;
         const imgs = overviewDoc.querySelectorAll("img");
@@ -320,9 +302,10 @@ Deno.serve(async (req) => {
         .eq("competition_id", competition_id)
         .eq("stage_number", s.stage_number)
         .maybeSingle();
+      // Log alle data die gesynct wordt
+      log.push(`📋 Etappe ${s.stage_number}: datum=${s.date}, naam=${s.name}, afstand=${s.distance_km || '?'}km, start=${s.departure || '?'}, finish=${s.arrival || '?'}, profiel=${profile_image_url || stageProfiles[s.stage_number] ? '✅' : '❌'}, ETA=${estimatedEnd.toISOString()}, ${existing ? 'UPDATE' : 'NIEUW'}`);
       try {
         if (existing) {
-          // Update bestaande etappe (behoud locked status en competition_id)
           const { locked, competition_id: _cid, ...updateData } = stageRow;
           await adminClient.from("stages").update(updateData).eq("id", existing.id);
           stagesUpdated++;
