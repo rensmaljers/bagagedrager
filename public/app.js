@@ -1240,8 +1240,8 @@ async function loadHistory() {
       <td>${rider?.name || '?'} <span class="team-badge-sm">${rider ? teamBadge(rider.team) : ''}</span>${numPickers > 1 ? ` <span class="badge bg-secondary" style="font-size:0.6rem;">${numPickers}x → ${sharingPct}%</span>` : ''}</td>
       <td class="time text-end">${!histIsClassic && result ? (result.finish_position === 1 ? formatTime(result.time_seconds) : formatGap(timeGap)) : result ? formatTime(result.time_seconds) : '-'}</td>
       ${!histIsClassic ? `<td class="text-end">${bonif ? '-' + bonif + 's' : '-'}</td>` : ''}
-      <td class="text-end">${result ? (pick.is_late ? '0' : Math.floor(result.points * sharingPct / 100)) : '-'}</td>
-      <td class="text-end">${result ? (pick.is_late ? '0' : Math.floor(result.mountain_points * sharingPct / 100)) : '-'}</td>
+      <td class="text-end">${result ? (pick.is_late ? '0' : result.points) : '-'}</td>
+      <td class="text-end">${result ? (pick.is_late ? '0' : result.mountain_points) : '-'}</td>
       <td class="text-end">${gp}</td>
       <td>${pick.is_late ? '<span class="badge bg-warning">Te laat</span>' : ''}${pick.is_random ? '<span class="badge bg-info">🎡 Rad</span>' : ''}</td>
     </tr>`
