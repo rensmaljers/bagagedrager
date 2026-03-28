@@ -172,6 +172,17 @@ const TEAMS = {
   'Uno-X Mobility':           { abbr: 'UXT', color: '#ff6600', color2: '#ffffff' },
 };
 
+// Renner weergave met optionele foto
+function riderDisplay(name, photoUrl, extra = '') {
+  const photo = photoUrl ? `<img src="${escapeHtml(photoUrl)}" class="rider-photo" alt="" onerror="this.style.display='none'">` : '';
+  return `<span class="d-inline-flex align-items-center gap-1">${photo}${escapeHtml(name || '?')}${extra}</span>`;
+}
+
+// Zoek foto bij rider_id
+function riderPhoto(riderId) {
+  return _riderMap[riderId]?.photo_url || null;
+}
+
 function escapeHtml(str) {
   const d = document.createElement('div');
   d.textContent = str;
@@ -792,9 +803,9 @@ window.openH2H = async function(opponentName) {
       if (myWin) myWins++;
       if (oppWin) oppWins++;
       return `<div class="h2h-stage-row">
-        <div class="${myWin ? 'h2h-winner' : oppWin ? 'h2h-loser' : ''}" style="text-align:right;">${myGp} <span style="font-size:0.7rem;color:var(--text-muted);">${escapeHtml(my.rider_name || '?')}</span></div>
+        <div class="${myWin ? 'h2h-winner' : oppWin ? 'h2h-loser' : ''}" style="text-align:right;">${myGp} <span style="font-size:0.7rem;color:var(--text-muted);">${riderDisplay(my.rider_name, riderPhoto(my.rider_id))}</span></div>
         <div class="h2h-stage-label">E${num}</div>
-        <div class="${oppWin ? 'h2h-winner' : myWin ? 'h2h-loser' : ''}">${oppGp} <span style="font-size:0.7rem;color:var(--text-muted);">${escapeHtml(opp.rider_name || '?')}</span></div>
+        <div class="${oppWin ? 'h2h-winner' : myWin ? 'h2h-loser' : ''}">${oppGp} <span style="font-size:0.7rem;color:var(--text-muted);">${riderDisplay(opp.rider_name, riderPhoto(opp.rider_id))}</span></div>
       </div>`;
     }).join('');
 
@@ -1024,7 +1035,7 @@ async function updateOthersPicks(stageId, isLocked) {
     const isMe = p.user_id === session.user.id;
     return `<div class="others-pick-row${isMe ? ' fw-bold' : ''}">
       <span>${escapeHtml(p.display_name)}</span>
-      <span>${escapeHtml(p.rider_name)} ${teamBadge(p.rider_team)}${p.is_random ? ' <span class="badge bg-info" style="font-size:0.6rem;">🎡</span>' : ''}</span>
+      <span>${riderDisplay(p.rider_name, riderPhoto(p.rider_id))} ${teamBadge(p.rider_team)}${p.is_random ? ' <span class="badge bg-info" style="font-size:0.6rem;">🎡</span>' : ''}</span>
     </div>`;
   }).join('');
 }
@@ -1048,7 +1059,7 @@ function updatePickBar(stage, currentPick) {
 
   if (rider) {
     const status = currentPick && rider.id === currentPick.rider_id ? '✓ Bevestigd' : '⚠ Nog niet bevestigd';
-    $('pick-bar-rider').textContent = `${rider.name} #${rider.bib_number} — ${status}`;
+    $('pick-bar-rider').innerHTML = `${riderDisplay(rider.name, rider.photo_url)} #${rider.bib_number} — ${status}`;
   }
 
   // Countdown
@@ -1245,7 +1256,7 @@ async function loadHistory() {
       <div class="col-4"><div class="card"><div class="card-body py-2 px-3 text-center">
         <div class="text-muted" style="font-size:0.7rem;">Beste etappe</div>
         <div style="font-size:1.1rem; font-weight:700; color:var(--green);">${best.gp} pts</div>
-        <div style="font-size:0.75rem;">${best.rider?.name || '?'}</div>
+        <div style="font-size:0.75rem;">${riderDisplay(best.rider?.name, best.rider?.photo_url)}</div>
       </div></div></div>
       <div class="col-4"><div class="card"><div class="card-body py-2 px-3 text-center">
         <div class="text-muted" style="font-size:0.7rem;">Gemiddeld</div>
@@ -1255,7 +1266,7 @@ async function loadHistory() {
       <div class="col-4"><div class="card"><div class="card-body py-2 px-3 text-center">
         <div class="text-muted" style="font-size:0.7rem;">Slechtste etappe</div>
         <div style="font-size:1.1rem; font-weight:700; color:var(--red);">${worst.gp} pts</div>
-        <div style="font-size:0.75rem;">${worst.rider?.name || '?'}</div>
+        <div style="font-size:0.75rem;">${riderDisplay(worst.rider?.name, worst.rider?.photo_url)}</div>
       </div></div></div>`;
 
     // Achievements
@@ -1274,7 +1285,7 @@ async function loadHistory() {
   $('history-table').innerHTML = rows.map(({ pick, stage, rider, result, gp, timeGap, bonif, rowClass, numPickers, sharingPct }) =>
     `<tr class="${rowClass}">
       <td><div>Etappe ${stage?.stage_number || '?'}</div>${winnerNames[pick.stage_id] ? `<div style="font-size:0.65rem;color:var(--text-muted);">🏆 ${escapeHtml(winnerNames[pick.stage_id])}</div>` : ''}</td>
-      <td>${rider?.name || '?'} <span class="team-badge-sm">${rider ? teamBadge(rider.team) : ''}</span>${numPickers > 1 ? ` <span class="badge bg-secondary" style="font-size:0.6rem;">${numPickers}x → ${sharingPct}%</span>` : ''}</td>
+      <td>${riderDisplay(rider?.name, rider?.photo_url)} <span class="team-badge-sm">${rider ? teamBadge(rider.team) : ''}</span>${numPickers > 1 ? ` <span class="badge bg-secondary" style="font-size:0.6rem;">${numPickers}x → ${sharingPct}%</span>` : ''}</td>
       <td class="time text-end">${!histIsClassic && result ? (result.finish_position === 1 ? formatTime(result.time_seconds) : formatGap(timeGap)) : result ? formatTime(result.time_seconds) : '-'}</td>
       ${!histIsClassic ? `<td class="text-end">${bonif ? '-' + bonif + 's' : '-'}</td>` : ''}
       <td class="text-end">${result ? (pick.is_late ? '0' : result.points) : '-'}</td>
@@ -1424,7 +1435,7 @@ async function loadParticipants() {
                 if (isClassic) {
                   return `<tr>
                   <td>${escapeHtml(p.display_name)}</td>
-                  <td>${escapeHtml(p.rider_name)} <span class="team-badge-sm">${teamBadge(p.rider_team)}</span>${pickersBadge}</td>
+                  <td>${riderDisplay(p.rider_name, riderPhoto(p.rider_id))} <span class="team-badge-sm">${teamBadge(p.rider_team)}</span>${pickersBadge}</td>
                   <td class="text-end">${p.finish_position || '-'}</td>
                   <td class="text-end">${p.effective_game_points != null ? p.effective_game_points : '-'}</td>
                   <td>${p.is_late ? '<span class="badge bg-warning">Te laat</span>' : ''}${p.is_random ? '<span class="badge bg-info">🎡 Rad</span>' : ''}${p.dnf ? '<span class="badge bg-danger">DNF</span>' : ''}</td>
@@ -2009,7 +2020,7 @@ $('btn-pcs-sync-results').addEventListener('click', async () => {
     log.innerHTML = `<strong>Top 10:</strong><br>` + top10.map((r, i) => {
       const rider = _riderMap[r.rider_id];
       const timeDisplay = i === 0 ? formatTime(r.time_seconds) : formatGap(r.time_seconds - winnerTime);
-      return `${i + 1}. ${rider?.name || '?'} — ${timeDisplay}${r.dnf ? ' (DNF)' : ''}`;
+      return `${i + 1}. ${rider?.name || '?'} — ${timeDisplay}${r.dnf ? ' (DNF)' : ''}${rider?.photo_url ? ` <img src="${rider.photo_url}" class="rider-photo" style="width:20px;height:20px;" onerror="this.style.display='none'">` : ''}`;
     }).join('<br>');
 
     loadAdminResults();
