@@ -1119,11 +1119,16 @@ function renderRiderGrid(usedInOtherStages, fullyLocked) {
                 <div class="card pick-card ${selected ? 'selected' : ''} ${used ? 'used' : ''}"
                      data-rider-id="${r.id}" ${fullyLocked || used ? '' : `onclick="selectRider(${r.id})"`}>
                   <div class="card-body py-2 px-3">
-                    <div class="d-flex justify-content-between align-items-start">
-                      <div class="fw-bold" style="font-size:0.88rem;">${escapeHtml(r.name)}</div>
-                      <span class="bib-badge">${r.bib_number}</span>
+                    <div class="d-flex align-items-center gap-2">
+                      ${r.photo_url ? `<img src="${escapeHtml(r.photo_url)}" class="rider-photo" alt="" onerror="this.style.display='none'">` : ''}
+                      <div class="flex-grow-1 min-width-0">
+                        <div class="d-flex justify-content-between align-items-start">
+                          <div class="fw-bold" style="font-size:0.88rem;">${escapeHtml(r.name)}</div>
+                          <span class="bib-badge">${r.bib_number}</span>
+                        </div>
+                        ${used ? '<small class="text-danger mt-1 d-block">Al gebruikt</small>' : ''}
+                      </div>
                     </div>
-                    ${used ? '<small class="text-danger mt-1 d-block">Al gebruikt</small>' : ''}
                   </div>
                 </div>
               </div>`;

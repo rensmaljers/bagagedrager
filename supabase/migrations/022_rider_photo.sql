@@ -1,0 +1,2 @@
+ALTER TABLE riders ADD COLUMN IF NOT EXISTS photo_url text;
+ALTER TABLE riders ADD COLUMN IF NOT EXISTS pcs_slug text;

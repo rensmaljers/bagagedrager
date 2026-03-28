@@ -133,6 +133,41 @@ async function fetchStageDetails(stages: any[]): Promise<{ profiles: Record<numb
   return { profiles, startTimes };
 }
 
+// Haal foto's op voor renners die er nog geen hebben
+async function fetchRiderPhotos(adminClient: any, competition_id: number, log: string[]) {
+  const { data: ridersWithoutPhoto } = await adminClient
+    .from("riders")
+    .select("id,pcs_slug")
+    .eq("competition_id", competition_id)
+    .is("photo_url", null)
+    .not("pcs_slug", "is", null);
+
+  if (!ridersWithoutPhoto?.length) return;
+
+  log.push(`📸 Foto's ophalen voor ${ridersWithoutPhoto.length} renners...`);
+  let fetched = 0;
+
+  for (const r of ridersWithoutPhoto) {
+    try {
+      const url = `https://www.procyclingstats.com/rider/${r.pcs_slug}`;
+      const res = await fetch(url, { headers: PCS_HEADERS });
+      if (!res.ok) continue;
+      const html = await res.text();
+      // Zoek rider foto: <img> in .riderProfileHeader of met rider naam in src
+      const imgMatch = html.match(/rider\/([^"]+\.(?:jpeg|jpg|png|webp))/i);
+      if (imgMatch) {
+        const photoUrl = `https://www.procyclingstats.com/rider/${imgMatch[1]}`;
+        await adminClient.from("riders").update({ photo_url: photoUrl }).eq("id", r.id);
+        fetched++;
+      }
+    } catch { /* niet fataal */ }
+    // Rate limit: 200ms tussen requests
+    await new Promise(resolve => setTimeout(resolve, 200));
+  }
+
+  log.push(`📸 ${fetched} foto's opgeslagen`);
+}
+
 function parseStartlist(doc: any) {
   const riders: any[] = [];
   const shirts: Record<string, string> = {};
@@ -153,9 +188,13 @@ function parseStartlist(doc: any) {
     for (const rider of riderEls) {
       const pcsNib = parseInt(rider.querySelector(".bib")?.textContent?.trim() || "0");
       const bib = pcsNib || autoBib++;
-      let name = rider.querySelector("a")?.textContent?.trim() || "";
+      const riderLink = rider.querySelector("a");
+      let name = riderLink?.textContent?.trim() || "";
       name = name.replace(/\s*\(.*\)$/, "");
-      if (bib && name) riders.push({ bib_number: bib, name, team: teamName });
+      // PCS slug uit de href (bijv. "rider/tadej-pogacar" → "tadej-pogacar")
+      const href = riderLink?.getAttribute("href") || "";
+      const pcs_slug = href.replace(/^.*rider\//, "").trim() || null;
+      if (bib && name) riders.push({ bib_number: bib, name, team: teamName, pcs_slug });
     }
   }
 
@@ -441,6 +480,9 @@ Deno.serve(async (req) => {
       } catch { ridersSkipped++; }
     }
     log.push(`🚴 Renners: ${ridersSaved} nieuw, ${ridersSkipped} al aanwezig`);
+
+    // 6. Foto's ophalen voor renners zonder foto
+    await fetchRiderPhotos(adminClient, competition_id, log);
 
     // Update last_synced_at
     await adminClient.from("competitions").update({ last_synced_at: new Date().toISOString() }).eq("id", competition_id);
