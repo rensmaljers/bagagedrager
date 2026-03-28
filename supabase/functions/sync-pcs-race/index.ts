@@ -367,7 +367,15 @@ Deno.serve(async (req) => {
     let stagesSaved = 0, stagesUpdated = 0;
     for (const s of stages) {
       // Starttijd: uit PCS (per etappe of eendags) of fallback 12:00
-      const timeStr = s._startTime || stageStartTimes[s.stage_number] || "12:00";
+      const rawTime = s._startTime || stageStartTimes[s.stage_number] || "";
+      // Normaliseer tijd: "0:00" → default (nog onbekend), "9:30" → "09:30"
+      let timeStr = "12:00";
+      if (rawTime && rawTime !== "0:00") {
+        const timeParts = rawTime.split(":");
+        if (timeParts.length === 2) {
+          timeStr = `${timeParts[0].padStart(2, "0")}:${timeParts[1].padStart(2, "0")}`;
+        }
+      }
       const dateStr = s.date && s.date.match(/^\d{4}-\d{2}-\d{2}$/) ? s.date : `${raceYear}-01-01`;
       const startTime = new Date(`${dateStr}T${timeStr}:00`);
       if (isNaN(startTime.getTime())) {
