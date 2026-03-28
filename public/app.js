@@ -647,12 +647,18 @@ async function loadStandings() {
   if (!isClassic) {
     const gc = [...standings].sort((a, b) => a.total_time - b.total_time);
     const leaderTime = gc.length ? gc[0].total_time : 0;
-    $('gc-table').innerHTML = gc.map((s, i) => {
+    // Snelst mogelijke tijd: elke etappe de winnaar = 0s gap - 10s bonif
+    const completedStages = activeStages().filter(s => s.locked).length;
+    const bestPossibleTime = -10 * completedStages;
+    const bestPossibleRow = completedStages > 0
+      ? `<tr style="background:var(--accent-bg);"><td></td><td><div class="d-flex align-items-center gap-2" style="font-size:0.75rem;color:var(--accent);font-style:italic;">Snelst mogelijk</div></td><td class="time text-end" style="font-size:0.75rem;color:var(--accent);">${formatGap(bestPossibleTime, true)}<div style="font-size:0.6rem;color:var(--text-muted);">${completedStages}x -10s bonif.</div></td></tr>`
+      : '';
+    $('gc-table').innerHTML = (gc.map((s, i) => {
       const timeDisplay = i === 0 ? formatTime(s.total_time) : formatGap(s.total_time - leaderTime);
       const bonifDisplay = s.total_bonification ? `<div style="font-size:0.65rem;color:var(--green);">-${s.total_bonification}s bonif.</div>` : '';
       const noBonifDisplay = s.total_bonification ? `<div style="font-size:0.65rem;color:var(--text-muted);">Zonder: ${i === 0 ? formatTime(s.total_time_no_bonif) : formatGap(s.total_time_no_bonif - (gc[0]?.total_time_no_bonif || 0))}</div>` : '';
       return `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td><div class="d-flex align-items-center gap-2">${avatarHtml(s.display_name, _avatarMap[s.display_name], 'sm')}${escapeHtml(s.display_name)}</div></td><td class="time text-end">${timeDisplay}${bonifDisplay}${noBonifDisplay}</td></tr>`;
-    }).join('') || emptyRow;
+    }).join('') + bestPossibleRow) || emptyRow;
 
     const pts = [...standings].sort((a, b) => b.total_points - a.total_points);
     $('points-table').innerHTML = pts.map((s, i) =>
