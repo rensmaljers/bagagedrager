@@ -89,28 +89,37 @@ function parseStages(doc: any, year: number) {
   return stages;
 }
 
-// Haal profiel-afbeelding op per etappe
-async function fetchStageProfiles(stages: any[], baseUrl: string): Promise<Record<number, string>> {
+// Haal profiel-afbeelding en starttijd op per etappe
+async function fetchStageDetails(stages: any[]): Promise<{ profiles: Record<number, string>, startTimes: Record<number, string> }> {
   const profiles: Record<number, string> = {};
+  const startTimes: Record<number, string> = {};
   for (const s of stages) {
     try {
       if (!s._href) continue;
       const url = s._href.startsWith("http") ? s._href : `https://www.procyclingstats.com/${s._href}`;
-      const doc = await fetchPCS(url);
-      // Zoek profiel-afbeelding: img src bevat "profile"
-      const imgs = doc.querySelectorAll("img");
-      for (const img of imgs) {
-        const src = img.getAttribute("src") || "";
-        if (src.includes("profile")) {
-          profiles[s.stage_number] = src.startsWith("http") ? src : `https://www.procyclingstats.com/${src}`;
-          break;
+      const res = await fetch(url, { headers: PCS_HEADERS });
+      if (!res.ok) continue;
+      const html = await res.text();
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      // Profiel-afbeelding
+      if (doc) {
+        const imgs = doc.querySelectorAll("img");
+        for (const img of imgs) {
+          const src = img.getAttribute("src") || "";
+          if (src.includes("profile")) {
+            profiles[s.stage_number] = src.startsWith("http") ? src : `https://www.procyclingstats.com/${src}`;
+            break;
+          }
         }
       }
+      // Starttijd uit ruwe HTML
+      const timeMatch = html.match(/Start\s*time[^]*?(\d{1,2}:\d{2})/i);
+      if (timeMatch) startTimes[s.stage_number] = timeMatch[1];
     } catch {
-      // Niet fataal — profiel is optioneel
+      // Niet fataal
     }
   }
-  return profiles;
+  return { profiles, startTimes };
 }
 
 function parseStartlist(doc: any) {
@@ -209,9 +218,15 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Afstand: zoek "Total distance" of distance-getal
+        // Afstand
         const distMatch = rawHtml.match(/Total\s*distance[^]*?(\d[\d.]+)/i);
         if (distMatch) distance_km = parseFloat(distMatch[1]) || null;
+
+        // Starttijd (PCS toont "Start time:" met "HH:MM")
+        let startTimeStr = "12:00";
+        const timeMatch = rawHtml.match(/Start\s*time[^]*?(\d{1,2}:\d{2})/i);
+        if (timeMatch) startTimeStr = timeMatch[1];
+
         // Profiel-afbeelding
         let profileUrl = null;
         const imgs = overviewDoc.querySelectorAll("img");
@@ -231,8 +246,9 @@ Deno.serve(async (req) => {
           departure: null,
           arrival: null,
           profile_image_url: profileUrl,
+          _startTime: startTimeStr,
         }];
-        log.push(`✅ 1 etappe (eendagskoers) — datum: ${dateISO}${distance_km ? ` — ${distance_km} km` : ''}${profileUrl ? ' — profiel gevonden' : ''}`);
+        log.push(`✅ 1 etappe (eendagskoers) — datum: ${dateISO}, start: ${startTimeStr}${distance_km ? `, ${distance_km} km` : ''}${profileUrl ? ', profiel ✅' : ''}`);
       } catch (e) {
         stages = [{
           stage_number: 1,
@@ -266,26 +282,31 @@ Deno.serve(async (req) => {
       log.push(`⚠️ Startlijst: ${e.message}`);
     }
 
-    // 3. Fetch stage profile images (parallel met startlijst kan niet, PCS rate limit)
+    // 3. Fetch stage details (profielen + starttijden)
     let stageProfiles: Record<number, string> = {};
+    let stageStartTimes: Record<number, string> = {};
     if (stages.length > 0 && !comp?.is_one_day) {
-      log.push("🏔️ Etappeprofielen ophalen...");
+      log.push("🏔️ Etappedetails ophalen...");
       try {
-        stageProfiles = await fetchStageProfiles(stages, baseUrl);
-        log.push(`✅ ${Object.keys(stageProfiles).length} profielen gevonden`);
+        const details = await fetchStageDetails(stages);
+        stageProfiles = details.profiles;
+        stageStartTimes = details.startTimes;
+        log.push(`✅ ${Object.keys(stageProfiles).length} profielen, ${Object.keys(stageStartTimes).length} starttijden`);
       } catch (e) {
-        log.push(`⚠️ Profielen: ${e.message}`);
+        log.push(`⚠️ Details: ${e.message}`);
       }
     }
 
     // 4. Save stages (upsert: update bestaande, insert nieuwe)
     let stagesSaved = 0, stagesUpdated = 0;
     for (const s of stages) {
-      const startTime = new Date(`${s.date}T12:00:00`);
+      // Starttijd: uit PCS (per etappe of eendags) of fallback 12:00
+      const timeStr = s._startTime || stageStartTimes[s.stage_number] || "12:00";
+      const startTime = new Date(`${s.date}T${timeStr}:00`);
       // ETA: start + (afstand / 40 km/u) + 1 uur buffer voor PCS verwerking
       const durationHours = s.distance_km ? (s.distance_km / 40) + 1 : 6;
       const estimatedEnd = new Date(startTime.getTime() + durationHours * 3600 * 1000);
-      const { _href, profile_image_url, ...stageData } = s; // interne velden apart
+      const { _href, _startTime, profile_image_url, ...stageData } = s; // interne velden apart
       const stageRow = {
         ...stageData,
         profile_image_url: profile_image_url || stageProfiles[s.stage_number] || null,
