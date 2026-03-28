@@ -42,12 +42,19 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Geen competitie geselecteerd" }), { status: 400, headers: corsHeaders });
     }
 
-    // Haal renners zonder foto op (null of lege string, max 25 per batch)
+    // Reset alle niet-URL foto's (lege string, "none", etc.) naar null
+    await adminClient
+      .from("riders")
+      .update({ photo_url: null })
+      .eq("competition_id", competition_id)
+      .not("photo_url", "like", "http%");
+
+    // Haal renners zonder foto op (max 25 per batch)
     const { data: ridersWithoutPhoto } = await adminClient
       .from("riders")
       .select("id,pcs_slug,name")
       .eq("competition_id", competition_id)
-      .or("photo_url.is.null,photo_url.eq.,photo_url.eq.none")
+      .is("photo_url", null)
       .not("pcs_slug", "is", null)
       .limit(25);
 
@@ -65,7 +72,7 @@ Deno.serve(async (req) => {
       .from("riders")
       .select("id", { count: "exact", head: true })
       .eq("competition_id", competition_id)
-      .or("photo_url.is.null,photo_url.eq.,photo_url.eq.none")
+      .is("photo_url", null)
       .not("pcs_slug", "is", null);
 
     let fetched = 0;
