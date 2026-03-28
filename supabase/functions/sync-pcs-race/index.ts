@@ -278,6 +278,9 @@ Deno.serve(async (req) => {
     let stagesSaved = 0, stagesSkipped = 0;
     for (const s of stages) {
       const startTime = new Date(`${s.date}T12:00:00`);
+      // ETA: start + (afstand / 40 km/u) + 1 uur buffer voor PCS verwerking
+      const durationHours = s.distance_km ? (s.distance_km / 40) + 1 : 6;
+      const estimatedEnd = new Date(startTime.getTime() + durationHours * 3600 * 1000);
       const { _href, ...stageData } = s; // _href niet opslaan in DB
       try {
         await adminClient.from("stages").insert({
@@ -285,6 +288,7 @@ Deno.serve(async (req) => {
           profile_image_url: stageProfiles[s.stage_number] || null,
           start_time: startTime.toISOString(),
           deadline: startTime.toISOString(),
+          estimated_end_time: estimatedEnd.toISOString(),
           locked: false,
           competition_id,
         });

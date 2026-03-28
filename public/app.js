@@ -2012,6 +2012,77 @@ $('btn-pcs-resync-all').addEventListener('click', async () => {
   _cache.participants = null;
 });
 
+// Auto-sync: sync etappes waarvan de geschatte eindtijd voorbij is
+$('btn-auto-sync').addEventListener('click', async () => {
+  const comp = competitions.find(c => c.id === activeCompId);
+  if (!comp?.pcs_url) { toast('Geen PCS URL ingesteld voor deze ronde', 'warning'); return; }
+
+  const now = new Date();
+  const readyStages = activeStages().filter(s =>
+    !s.locked && s.estimated_end_time && new Date(s.estimated_end_time) < now
+  );
+
+  if (!readyStages.length) {
+    toast('Geen etappes klaar om te syncen (ETA nog niet bereikt)', 'info');
+    return;
+  }
+
+  const status = $('pcs-results-sync-status');
+  const log = $('pcs-results-sync-log');
+  log.innerHTML = '';
+  let success = 0, failed = 0;
+
+  for (const stage of readyStages) {
+    const pcsUrl = buildPcsStageUrl(comp, stage.stage_number);
+    status.textContent = `⏳ Auto-sync etappe ${stage.stage_number}...`;
+    status.className = 'text-muted';
+    log.innerHTML += `<div>⏳ Etappe ${stage.stage_number} (ETA: ${new Date(stage.estimated_end_time).toLocaleTimeString('nl-NL', {hour:'2-digit',minute:'2-digit'})})...</div>`;
+
+    try {
+      const data = await callEdgeFunction('sync-pcs-results', { pcs_url: pcsUrl });
+      if (!data.results?.length) {
+        log.innerHTML += `<div class="text-warning">⚠ Etappe ${stage.stage_number}: nog geen resultaten op PCS</div>`;
+        failed++;
+        continue;
+      }
+
+      let matched = 0;
+      const payload = [];
+      for (const r of data.results) {
+        const rider = riders.find(rd => rd.bib_number === r.bib_number);
+        if (rider) {
+          matched++;
+          payload.push({ rider_id: rider.id, time_seconds: r.time_seconds, finish_position: r.finish_position || null, points: r.points, mountain_points: r.mountain_points, dnf: r.dnf });
+        }
+      }
+
+      if (matched) {
+        await supaRpc('admin_save_results', { p_stage_id: stage.id, p_results: payload });
+        log.innerHTML += `<div class="text-success">✅ Etappe ${stage.stage_number}: ${matched} resultaten opgeslagen</div>`;
+        success++;
+      } else {
+        log.innerHTML += `<div class="text-warning">⚠ Etappe ${stage.stage_number}: geen renners gekoppeld</div>`;
+        failed++;
+      }
+    } catch (e) {
+      log.innerHTML += `<div class="text-danger">❌ Etappe ${stage.stage_number}: ${e.message}</div>`;
+      failed++;
+    }
+
+    log.scrollTop = log.scrollHeight;
+    await new Promise(r => setTimeout(r, 1500));
+  }
+
+  status.textContent = `✅ Auto-sync klaar! ${success} gelukt, ${failed} mislukt`;
+  status.className = success > 0 ? 'text-success' : 'text-danger';
+  if (success > 0) {
+    _cache.standings = null;
+    _cache.participants = null;
+    toast(`${success} etappe(s) automatisch gesynct`, 'success');
+    loadAdminResults();
+  }
+});
+
 $('btn-copy-results-script').addEventListener('click', () => {
   navigator.clipboard.writeText(PCS_RESULTS_SCRIPT);
   $('btn-copy-results-script').textContent = '✅ Gekopieerd!';
