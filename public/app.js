@@ -296,8 +296,8 @@ function activeScoringMode() {
 // Build PCS stage URL: eendagskoersen hebben geen /stage-N suffix
 function buildPcsStageUrl(comp, stageNumber) {
   if (!comp?.pcs_url) return null;
-  const base = comp.pcs_url.replace(/\/$/, '').replace(/\/(stages|startlist|gc|stage-\d+|result)$/, '');
-  if (comp.is_one_day) return base;
+  const base = comp.pcs_url.replace(/\/$/, '').replace(/\/(stages|startlist|gc|stage-\d+|results?|resuts)$/, '');
+  if (comp.is_one_day) return `${base}/result`;
   return `${base}/stage-${stageNumber}`;
 }
 
