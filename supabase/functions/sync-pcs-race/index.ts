@@ -250,7 +250,7 @@ Deno.serve(async (req) => {
           arrival: null,
           profile_image_url: profileUrl,
         }];
-        log.push(`✅ 1 etappe (eendagskoers)${distance_km ? ` — ${distance_km} km` : ''}${profileUrl ? ' — profiel gevonden' : ''}`);
+        log.push(`✅ 1 etappe (eendagskoers) — datum: ${dateISO}${distance_km ? ` — ${distance_km} km` : ''}${profileUrl ? ' — profiel gevonden' : ''}`);
       } catch (e) {
         stages = [{
           stage_number: 1,
@@ -322,8 +322,8 @@ Deno.serve(async (req) => {
         .maybeSingle();
       try {
         if (existing) {
-          // Update bestaande etappe (behoud locked status)
-          const { locked, ...updateData } = stageRow;
+          // Update bestaande etappe (behoud locked status en competition_id)
+          const { locked, competition_id: _cid, ...updateData } = stageRow;
           await adminClient.from("stages").update(updateData).eq("id", existing.id);
           stagesUpdated++;
         } else {
