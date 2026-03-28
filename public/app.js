@@ -711,7 +711,7 @@ async function loadStandings() {
     const rows = sorted.map((s, i) => {
       const isMe = s.display_name === myName;
       const meStyle = isMe ? ' style="background:var(--accent-bg);"' : '';
-      return `<tr${meStyle}><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td><div class="d-flex align-items-center gap-2">${avatarHtml(s.display_name, _avatarMap[s.display_name], 'sm')}${escapeHtml(s.display_name)}${h2hBtn(s.display_name)}</div></td><td class="text-end">${formatFn(s, i)}</td></tr>` + (isMe ? rivalryRow(sorted, myIdx, valueFn, isTime) : '');
+      return `<tr${meStyle}><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td><div class="d-flex align-items-center gap-2">${avatarHtml(s.display_name, _avatarMap[s.display_name], 'sm')}${escapeHtml(s.display_name)}${h2hBtn(s.display_name)}</div></td><td class="text-end">${formatFn(s, i)}</td></tr>`;
     }).join('');
     $(tableId).innerHTML = rows || emptyRow;
   }
