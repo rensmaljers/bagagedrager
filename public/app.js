@@ -1707,7 +1707,7 @@ function renderAdminRiders(filter = '') {
     <tr>
       <td>${r.bib_number}</td>
       <td>${r.name}</td>
-      <td>${teamBadge(r.team)} ${r.team}</td>
+      <td>${teamBadge(r.team)}</td>
       <td>
         <button class="btn btn-sm btn-outline-danger" onclick="deleteRider(${r.id})">Verwijder</button>
       </td>
