@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.sync-pcs-race]
 verify_jwt = false
+
+[functions.sync-pcs-photos]
+verify_jwt = false
