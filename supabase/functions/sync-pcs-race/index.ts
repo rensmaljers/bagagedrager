@@ -296,38 +296,65 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 4. Save stages
-    let stagesSaved = 0, stagesSkipped = 0;
+    // 4. Save stages (upsert: update bestaande, insert nieuwe)
+    let stagesSaved = 0, stagesUpdated = 0;
     for (const s of stages) {
       const startTime = new Date(`${s.date}T12:00:00`);
       // ETA: start + (afstand / 40 km/u) + 1 uur buffer voor PCS verwerking
       const durationHours = s.distance_km ? (s.distance_km / 40) + 1 : 6;
       const estimatedEnd = new Date(startTime.getTime() + durationHours * 3600 * 1000);
       const { _href, profile_image_url, ...stageData } = s; // interne velden apart
+      const stageRow = {
+        ...stageData,
+        profile_image_url: profile_image_url || stageProfiles[s.stage_number] || null,
+        start_time: startTime.toISOString(),
+        deadline: startTime.toISOString(),
+        estimated_end_time: estimatedEnd.toISOString(),
+        locked: false,
+        competition_id,
+      };
+      // Check of etappe al bestaat
+      const { data: existing } = await adminClient
+        .from("stages")
+        .select("id")
+        .eq("competition_id", competition_id)
+        .eq("stage_number", s.stage_number)
+        .maybeSingle();
       try {
-        await adminClient.from("stages").insert({
-          ...stageData,
-          profile_image_url: profile_image_url || stageProfiles[s.stage_number] || null,
-          start_time: startTime.toISOString(),
-          deadline: startTime.toISOString(),
-          estimated_end_time: estimatedEnd.toISOString(),
-          locked: false,
-          competition_id,
-        });
-        stagesSaved++;
-      } catch { stagesSkipped++; }
+        if (existing) {
+          // Update bestaande etappe (behoud locked status)
+          const { locked, ...updateData } = stageRow;
+          await adminClient.from("stages").update(updateData).eq("id", existing.id);
+          stagesUpdated++;
+        } else {
+          await adminClient.from("stages").insert(stageRow);
+          stagesSaved++;
+        }
+      } catch (e) {
+        log.push(`⚠️ Etappe ${s.stage_number}: ${(e as Error).message}`);
+      }
     }
-    log.push(`📅 Etappes: ${stagesSaved} opgeslagen, ${stagesSkipped} overgeslagen`);
+    log.push(`📅 Etappes: ${stagesSaved} nieuw, ${stagesUpdated} bijgewerkt`);
 
-    // 4. Save riders
+    // 5. Save riders (skip bestaande op basis van bib_number + competition_id)
     let ridersSaved = 0, ridersSkipped = 0;
     for (const r of riders) {
       try {
-        await adminClient.from("riders").insert({ ...r, competition_id });
-        ridersSaved++;
+        const { data: existing } = await adminClient
+          .from("riders")
+          .select("id")
+          .eq("competition_id", competition_id)
+          .eq("bib_number", r.bib_number)
+          .maybeSingle();
+        if (!existing) {
+          await adminClient.from("riders").insert({ ...r, competition_id });
+          ridersSaved++;
+        } else {
+          ridersSkipped++;
+        }
       } catch { ridersSkipped++; }
     }
-    log.push(`🚴 Renners: ${ridersSaved} opgeslagen, ${ridersSkipped} overgeslagen`);
+    log.push(`🚴 Renners: ${ridersSaved} nieuw, ${ridersSkipped} al aanwezig`);
 
     return new Response(JSON.stringify({
       success: true,
