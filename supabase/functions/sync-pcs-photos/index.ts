@@ -81,6 +81,12 @@ Deno.serve(async (req) => {
         // Parse alle renner-info uit de HTML
         const update: Record<string, any> = {};
 
+        // Debug: log eerste 3 renners wat we vinden
+        if (fetched < 3) {
+          const allImgs = [...html.matchAll(/src="([^"]*\.(?:jpeg|jpg|png|webp))"/gi)].map(m => m[1]).slice(0, 5);
+          log.push(`🔍 ${r.name}: ${allImgs.length} afbeeldingen gevonden: ${allImgs.join(' | ')}`);
+        }
+
         // Foto — PCS gebruikt paden als "images/riders/bp/xx/name.jpeg"
         const imgMatch = html.match(/images\/riders\/[^"]+\.(?:jpeg|jpg|png|webp)/i);
         if (imgMatch) {
