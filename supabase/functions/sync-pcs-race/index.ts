@@ -222,10 +222,18 @@ Deno.serve(async (req) => {
         const distMatch = rawHtml.match(/Total\s*distance[^]*?(\d[\d.]+)/i);
         if (distMatch) distance_km = parseFloat(distMatch[1]) || null;
 
-        // Starttijd (PCS toont "Start time:" met "HH:MM")
-        let startTimeStr = "12:00";
-        const timeMatch = rawHtml.match(/Start\s*time[^]*?(\d{1,2}:\d{2})/i);
-        if (timeMatch) startTimeStr = timeMatch[1];
+        // Starttijd (PCS toont bijv. "Avg. speed:" of "Departure:" met tijden)
+        let startTimeStr = "10:00";
+        // Zoek specifiek naar "Departure" of "Start time" gevolgd door HH:MM
+        const departureMatch = rawHtml.match(/(?:Departure|Start\s*time)\s*(?:<[^>]*>)*\s*(\d{1,2}:\d{2})/i);
+        if (departureMatch) {
+          startTimeStr = departureMatch[1];
+        } else {
+          // Alternatief: zoek in de infolist structuur — "HH:MM" na een label met "time" of "departure"
+          const altMatch = rawHtml.match(/(?:departure|start.{0,5}time)[^>]*>[^<]*<[^>]*>\s*(\d{1,2}:\d{2})/i);
+          if (altMatch) startTimeStr = altMatch[1];
+        }
+        log.push(`⏰ Starttijd gevonden: ${startTimeStr}`);
 
         // Profiel-afbeelding
         let profileUrl = null;
