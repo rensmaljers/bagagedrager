@@ -481,8 +481,7 @@ Deno.serve(async (req) => {
     }
     log.push(`🚴 Renners: ${ridersSaved} nieuw, ${ridersSkipped} al aanwezig`);
 
-    // 6. Foto's ophalen voor renners zonder foto
-    await fetchRiderPhotos(adminClient, competition_id, log);
+    // Foto's worden apart opgehaald (te traag voor 1 request)
 
     // Update last_synced_at
     await adminClient.from("competitions").update({ last_synced_at: new Date().toISOString() }).eq("id", competition_id);

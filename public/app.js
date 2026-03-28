@@ -1925,6 +1925,34 @@ $('btn-pcs-sync-race').addEventListener('click', async () => {
   }
 });
 
+// Foto's ophalen in batches van 25
+$('btn-pcs-sync-photos').addEventListener('click', async () => {
+  const compId = parseInt($('race-sync-comp').value);
+  const status = $('pcs-sync-status');
+  const log = $('pcs-sync-log');
+  if (!compId) { status.textContent = 'Kies een ronde'; status.className = 'text-danger'; return; }
+
+  status.textContent = '📸 Foto\'s ophalen...';
+  status.className = 'text-muted';
+
+  try {
+    const result = await callEdgeFunction('sync-pcs-photos', { competition_id: compId });
+    status.textContent = result.message;
+    status.className = 'text-success';
+    if (result.log?.length) {
+      log.innerHTML = result.log.join('<br>');
+    }
+    if (result.remaining > 0) {
+      status.textContent += ' — klik nogmaals voor de rest';
+      status.className = 'text-warning';
+    }
+    await loadRidersForComp();
+  } catch (e) {
+    status.textContent = e.message;
+    status.className = 'text-danger';
+  }
+});
+
 $('btn-pcs-sync-results').addEventListener('click', async () => {
   const stageId = parseInt($('sync-stage-select').value);
   const stage = stages.find(s => s.id === stageId);
