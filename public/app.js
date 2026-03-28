@@ -174,7 +174,8 @@ const TEAMS = {
 
 // Renner weergave met optionele foto
 function riderDisplay(name, photoUrl, extra = '') {
-  const photo = photoUrl ? `<img src="${escapeHtml(photoUrl)}" class="rider-photo" alt="" onerror="this.style.display='none'">` : '';
+  const hasPhoto = photoUrl && photoUrl !== 'none';
+  const photo = hasPhoto ? `<img src="${escapeHtml(photoUrl)}" class="rider-photo" alt="" onerror="this.style.display='none'">` : '';
   return `<span class="d-inline-flex align-items-center gap-1">${photo}${escapeHtml(name || '?')}${extra}</span>`;
 }
 
@@ -1131,12 +1132,21 @@ function renderRiderGrid(usedInOtherStages, fullyLocked) {
                      data-rider-id="${r.id}" ${fullyLocked || used ? '' : `onclick="selectRider(${r.id})"`}>
                   <div class="card-body py-2 px-3">
                     <div class="d-flex align-items-center gap-2">
-                      ${r.photo_url ? `<img src="${escapeHtml(r.photo_url)}" class="rider-photo" alt="" onerror="this.style.display='none'">` : ''}
+                      ${r.photo_url && r.photo_url !== 'none' ? `<img src="${escapeHtml(r.photo_url)}" class="rider-photo" alt="" onerror="this.style.display='none'">` : ''}
                       <div class="flex-grow-1 min-width-0">
                         <div class="d-flex justify-content-between align-items-start">
-                          <div class="fw-bold" style="font-size:0.88rem;">${escapeHtml(r.name)}</div>
+                          <div class="fw-bold" style="font-size:0.88rem;">${r.pcs_slug ? `<a href="https://www.procyclingstats.com/rider/${escapeHtml(r.pcs_slug)}" target="_blank" rel="noopener" class="rider-name-link">${escapeHtml(r.name)}</a>` : escapeHtml(r.name)}</div>
                           <span class="bib-badge">${r.bib_number}</span>
                         </div>
+                        ${r.nationality || r.specialty_climber ? `<div class="rider-specs">${[
+                          r.nationality || null,
+                          r.weight_kg ? `${r.weight_kg}kg` : null,
+                          r.specialty_climber >= 70 ? '🏔️' : null,
+                          r.specialty_sprint >= 70 ? '⚡' : null,
+                          r.specialty_gc >= 70 ? '👑' : null,
+                          r.specialty_tt >= 70 ? '⏱️' : null,
+                          r.specialty_one_day >= 70 ? '🏆' : null,
+                        ].filter(Boolean).join(' · ')}</div>` : ''}
                         ${used ? '<small class="text-danger mt-1 d-block">Al gebruikt</small>' : ''}
                       </div>
                     </div>

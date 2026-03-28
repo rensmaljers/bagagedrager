@@ -42,12 +42,12 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Geen competitie geselecteerd" }), { status: 400, headers: corsHeaders });
     }
 
-    // Haal renners zonder foto op (max 25 per batch)
+    // Haal renners zonder foto op (null of lege string, max 25 per batch)
     const { data: ridersWithoutPhoto } = await adminClient
       .from("riders")
       .select("id,pcs_slug,name")
       .eq("competition_id", competition_id)
-      .is("photo_url", null)
+      .or("photo_url.is.null,photo_url.eq.,photo_url.eq.none")
       .not("pcs_slug", "is", null)
       .limit(25);
 
@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
       .from("riders")
       .select("id", { count: "exact", head: true })
       .eq("competition_id", competition_id)
-      .is("photo_url", null)
+      .or("photo_url.is.null,photo_url.eq.,photo_url.eq.none")
       .not("pcs_slug", "is", null);
 
     let fetched = 0;
@@ -78,17 +78,53 @@ Deno.serve(async (req) => {
         if (!res.ok) { log.push(`⚠️ ${r.name}: HTTP ${res.status}`); continue; }
         const html = await res.text();
 
-        // Zoek rider foto
-        const imgMatch = html.match(/rider\/([^"]+\.(?:jpeg|jpg|png|webp))/i);
+        // Parse alle renner-info uit de HTML
+        const update: Record<string, any> = {};
+
+        // Foto — PCS gebruikt paden als "images/riders/bp/xx/name.jpeg"
+        const imgMatch = html.match(/images\/riders\/[^"]+\.(?:jpeg|jpg|png|webp)/i);
         if (imgMatch) {
-          const photoUrl = `https://www.procyclingstats.com/rider/${imgMatch[1]}`;
-          await adminClient.from("riders").update({ photo_url: photoUrl }).eq("id", r.id);
-          fetched++;
+          update.photo_url = imgMatch[0].startsWith("http") ? imgMatch[0] : `https://www.procyclingstats.com/${imgMatch[0]}`;
         } else {
-          // Geen foto gevonden, markeer met lege string zodat we niet opnieuw proberen
-          await adminClient.from("riders").update({ photo_url: "" }).eq("id", r.id);
-          log.push(`⚠️ ${r.name}: geen foto gevonden`);
+          const altMatch = html.match(/src="([^"]*\.(?:jpeg|jpg|png|webp))"/i);
+          if (altMatch && !altMatch[1].includes("logo") && !altMatch[1].includes("shirt") && !altMatch[1].includes("flag") && !altMatch[1].includes("icon")) {
+            update.photo_url = altMatch[1].startsWith("http") ? altMatch[1] : `https://www.procyclingstats.com/${altMatch[1]}`;
+          } else {
+            update.photo_url = "none";
+          }
         }
+
+        // Nationaliteit
+        const natMatch = html.match(/Nationality[^>]*>[^<]*<[^>]*>\s*([^<]+)/i);
+        if (natMatch) update.nationality = natMatch[1].trim();
+
+        // Geboortedatum
+        const dobMatch = html.match(/(\d{1,2})(?:st|nd|rd|th)\s*(\w+)\s*(\d{4})/i);
+        if (dobMatch) {
+          const months: Record<string, string> = { january:'01',february:'02',march:'03',april:'04',may:'05',june:'06',july:'07',august:'08',september:'09',october:'10',november:'11',december:'12' };
+          const m = months[dobMatch[2].toLowerCase()];
+          if (m) update.date_of_birth = `${dobMatch[3]}-${m}-${dobMatch[1].padStart(2, '0')}`;
+        }
+
+        // Gewicht & lengte
+        const weightMatch = html.match(/Weight\s*(?:<[^>]*>)*\s*(\d+)\s*kg/i);
+        if (weightMatch) update.weight_kg = parseInt(weightMatch[1]);
+        const heightMatch = html.match(/Height\s*(?:<[^>]*>)*\s*([\d.]+)\s*m/i);
+        if (heightMatch) update.height_m = parseFloat(heightMatch[1]);
+
+        // Specialiteiten (PCS scores 0-100)
+        const specMap: Record<string, string> = {
+          'one.*day': 'specialty_one_day', 'gc': 'specialty_gc', 'tt': 'specialty_tt',
+          'sprint': 'specialty_sprint', 'climber': 'specialty_climber', 'hill': 'specialty_hills'
+        };
+        for (const [pattern, field] of Object.entries(specMap)) {
+          const specMatch = html.match(new RegExp(pattern + '[^>]*>\\s*(\\d+)', 'i'));
+          if (specMatch) update[field] = parseInt(specMatch[1]);
+        }
+
+        await adminClient.from("riders").update(update).eq("id", r.id);
+        if (update.photo_url && update.photo_url !== "none") fetched++;
+        else if (update.photo_url === "none") log.push(`⚠️ ${r.name}: geen foto`);
       } catch (e) {
         log.push(`❌ ${r.name}: ${(e as Error).message}`);
       }

@@ -847,7 +847,7 @@
     .h2h-stat-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; }
     .h2h-stat-value { font-size: 1.2rem; font-weight: 800; }
 
-    /* --- RIDER PHOTO --- */
+    /* --- RIDER PHOTO & DETAILS --- */
     .rider-photo {
       width: 32px;
       height: 32px;
@@ -855,6 +855,17 @@
       object-fit: cover;
       flex-shrink: 0;
       background: var(--badge-muted-bg);
+    }
+    .rider-name-link {
+      color: var(--text) !important;
+      text-decoration: none;
+    }
+    .rider-name-link:hover { color: var(--accent) !important; }
+    .rider-specs {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      margin-top: 0.1rem;
+      line-height: 1.3;
     }
 
     /* --- STAGE INFO BADGES --- */
