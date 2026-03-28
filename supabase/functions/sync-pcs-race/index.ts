@@ -195,68 +195,99 @@ Deno.serve(async (req) => {
     log.push("📅 Etappes ophalen...");
     let stages: any[] = [];
 
+    // Helper: parse alle race-info uit ruwe PCS HTML
+    function parseRaceInfo(rawHtml: string) {
+      const get = (label: string) => {
+        // PCS structuur: <div>Label:</div><div>Value</div>
+        const re = new RegExp(label + '[":]*\\s*(?:</div>)?\\s*<div[^>]*>\\s*([^<]+)', 'i');
+        const m = rawHtml.match(re);
+        return m ? m[1].trim() : null;
+      };
+      return {
+        date: get('Startdate') || get('Date'),
+        startTime: get('Start time'),
+        avgSpeed: get('Avg\\.\\s*speed winner') || get('Avg\\.\\s*speed'),
+        classification: get('Classification'),
+        raceCategory: get('Race category'),
+        distance: get('Distance') || get('Total distance'),
+        parcoursType: get('Parcours type'),
+        profileScore: get('ProfileScore'),
+        verticalMeters: get('Vertical meters'),
+        departure: get('Departure'),
+        arrival: get('Arrival'),
+        startlistQuality: get('Startlist quality score'),
+        avgTemperature: get('Avg\\.\\s*temperature'),
+      };
+    }
+
     if (comp?.is_one_day) {
-      // Eendagskoers: haal datum, afstand en profiel van de race-overzichtspagina
+      // Eendagskoers: haal alle info van de race-overzichtspagina
       try {
-        // Haal ruwe HTML op (niet via DOM-parser, voor betere regex matching)
         const pcsRes = await fetch(baseUrl, { headers: PCS_HEADERS });
         if (!pcsRes.ok) throw new Error(`PCS gaf status ${pcsRes.status}`);
         const rawHtml = await pcsRes.text();
         const overviewDoc = new DOMParser().parseFromString(rawHtml, "text/html");
 
-        let dateISO = `${raceYear}-01-01`;
-        let distance_km = null;
+        const info = parseRaceInfo(rawHtml);
+        log.push(`📋 PCS info: ${JSON.stringify(info)}`);
 
-        // Zoek datum in ruwe HTML — PCS format: "Startdate:" gevolgd door "2026-03-30"
-        const dateMatch = rawHtml.match(new RegExp(`(${raceYear}-\\d{2}-\\d{2})`));
-        if (dateMatch) dateISO = dateMatch[1];
-        // Alternatief DD/MM formaat
-        if (dateISO === `${raceYear}-01-01`) {
-          const ddmmMatch = rawHtml.match(/Startdate[^]*?(\d{1,2})\/(\d{1,2})/i);
-          if (ddmmMatch) {
-            dateISO = `${raceYear}-${ddmmMatch[2].padStart(2, "0")}-${ddmmMatch[1].padStart(2, "0")}`;
+        // Datum
+        let dateISO = `${raceYear}-01-01`;
+        if (info.date) {
+          const isoMatch = info.date.match(/(\d{4}-\d{2}-\d{2})/);
+          if (isoMatch) dateISO = isoMatch[1];
+          else {
+            // "29 March 2026" format
+            const longMatch = info.date.match(/(\d{1,2})\s+(\w+)\s+(\d{4})/);
+            if (longMatch) {
+              const months: Record<string, string> = { january:'01',february:'02',march:'03',april:'04',may:'05',june:'06',july:'07',august:'08',september:'09',october:'10',november:'11',december:'12' };
+              const m = months[longMatch[2].toLowerCase()];
+              if (m) dateISO = `${longMatch[3]}-${m}-${longMatch[1].padStart(2, '0')}`;
+            }
           }
         }
-
-        // Afstand
-        const distMatch = rawHtml.match(/Total\s*distance[^]*?(\d[\d.]+)/i);
-        if (distMatch) distance_km = parseFloat(distMatch[1]) || null;
-
-        // Starttijd (PCS toont bijv. "Avg. speed:" of "Departure:" met tijden)
-        let startTimeStr = "10:00";
-        // Zoek specifiek naar "Departure" of "Start time" gevolgd door HH:MM
-        const departureMatch = rawHtml.match(/(?:Departure|Start\s*time)\s*(?:<[^>]*>)*\s*(\d{1,2}:\d{2})/i);
-        if (departureMatch) {
-          startTimeStr = departureMatch[1];
-        } else {
-          // Alternatief: zoek in de infolist structuur — "HH:MM" na een label met "time" of "departure"
-          const altMatch = rawHtml.match(/(?:departure|start.{0,5}time)[^>]*>[^<]*<[^>]*>\s*(\d{1,2}:\d{2})/i);
-          if (altMatch) startTimeStr = altMatch[1];
+        // Fallback datum via regex
+        if (dateISO === `${raceYear}-01-01`) {
+          const dm = rawHtml.match(new RegExp(`(${raceYear}-\\d{2}-\\d{2})`));
+          if (dm) dateISO = dm[1];
         }
-        log.push(`⏰ Starttijd gevonden: ${startTimeStr}`);
+
+        const startTimeStr = info.startTime || "10:00";
+        const distance_km = info.distance ? parseFloat(info.distance) || null : null;
 
         // Profiel-afbeelding
         let profileUrl = null;
-        const imgs = overviewDoc.querySelectorAll("img");
-        for (const img of imgs) {
-          const src = img.getAttribute("src") || "";
-          if (src.includes("profile")) {
-            profileUrl = src.startsWith("http") ? src : `https://www.procyclingstats.com/${src}`;
-            break;
+        if (overviewDoc) {
+          const imgs = overviewDoc.querySelectorAll("img");
+          for (const img of imgs) {
+            const src = img.getAttribute("src") || "";
+            if (src.includes("profile")) {
+              profileUrl = src.startsWith("http") ? src : `https://www.procyclingstats.com/${src}`;
+              break;
+            }
           }
         }
+
         stages = [{
           stage_number: 1,
           name: comp.name || "Eendagskoers",
           date: dateISO,
           stage_type: "flat",
           distance_km,
-          departure: null,
-          arrival: null,
+          departure: info.departure || null,
+          arrival: info.arrival || null,
           profile_image_url: profileUrl,
+          classification: info.classification || null,
+          race_category: info.raceCategory || null,
+          parcours_type: info.parcoursType || null,
+          profile_score: info.profileScore ? parseInt(info.profileScore) || null : null,
+          vertical_meters: info.verticalMeters ? parseInt(info.verticalMeters) || null : null,
+          avg_speed_winner: info.avgSpeed || null,
+          startlist_quality_score: info.startlistQuality ? parseInt(info.startlistQuality) || null : null,
+          avg_temperature: info.avgTemperature || null,
           _startTime: startTimeStr,
         }];
-        log.push(`✅ 1 etappe (eendagskoers) — datum: ${dateISO}, start: ${startTimeStr}${distance_km ? `, ${distance_km} km` : ''}${profileUrl ? ', profiel ✅' : ''}`);
+        log.push(`✅ 1 etappe — datum: ${dateISO}, start: ${startTimeStr}, ${distance_km || '?'}km, ${info.departure || '?'} → ${info.arrival || '?'}, profiel: ${info.profileScore || '?'}, vert: ${info.verticalMeters || '?'}m`);
       } catch (e) {
         stages = [{
           stage_number: 1,

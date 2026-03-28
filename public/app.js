@@ -952,6 +952,23 @@ function renderPickStage() {
     isLocked ? '(VERGRENDELD)' : null,
   ].filter(Boolean).join(' · ');
   $('pick-deadline').textContent = stageDetails;
+
+  // Extra race-info badges
+  const infoBadges = [
+    stage.vertical_meters ? `↗ ${stage.vertical_meters}m` : null,
+    stage.profile_score ? `Profiel: ${stage.profile_score}` : null,
+    stage.classification || null,
+    stage.parcours_type || null,
+    stage.avg_speed_winner && stage.avg_speed_winner !== '-' ? `Gem: ${stage.avg_speed_winner} km/u` : null,
+    stage.avg_temperature && stage.avg_temperature !== '-' ? `${stage.avg_temperature}` : null,
+  ].filter(Boolean);
+  const infoEl = $('pick-stage-info');
+  if (infoEl) {
+    infoEl.innerHTML = infoBadges.length
+      ? infoBadges.map(b => `<span class="stage-info-badge">${b}</span>`).join('')
+      : '';
+  }
+
   // Profielplaatje tonen
   const profileContainer = $('pick-stage-profile');
   if (profileContainer) {
