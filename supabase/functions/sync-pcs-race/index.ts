@@ -94,6 +94,7 @@ async function fetchStageProfiles(stages: any[], baseUrl: string): Promise<Recor
   const profiles: Record<number, string> = {};
   for (const s of stages) {
     try {
+      if (!s._href) continue;
       const url = s._href.startsWith("http") ? s._href : `https://www.procyclingstats.com/${s._href}`;
       const doc = await fetchPCS(url);
       // Zoek profiel-afbeelding: img src bevat "profile"
@@ -281,11 +282,11 @@ Deno.serve(async (req) => {
       // ETA: start + (afstand / 40 km/u) + 1 uur buffer voor PCS verwerking
       const durationHours = s.distance_km ? (s.distance_km / 40) + 1 : 6;
       const estimatedEnd = new Date(startTime.getTime() + durationHours * 3600 * 1000);
-      const { _href, ...stageData } = s; // _href niet opslaan in DB
+      const { _href, profile_image_url, ...stageData } = s; // interne velden apart
       try {
         await adminClient.from("stages").insert({
           ...stageData,
-          profile_image_url: stageProfiles[s.stage_number] || null,
+          profile_image_url: profile_image_url || stageProfiles[s.stage_number] || null,
           start_time: startTime.toISOString(),
           deadline: startTime.toISOString(),
           estimated_end_time: estimatedEnd.toISOString(),
