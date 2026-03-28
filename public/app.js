@@ -733,10 +733,7 @@ async function loadStandings() {
       return `${timeDisplay}${gapDisplay}${bonifDisplay}${noBonifDisplay}`;
     }, true);
 
-    // Append best possible row
-    if (completedStages > 0 && winnerTimeSum > 0) {
-      $('gc-table').innerHTML += `<tr style="background:var(--accent-bg);"><td></td><td><div style="font-size:0.75rem;color:var(--accent);font-style:italic;">Snelst mogelijk</div></td><td class="time text-end" style="font-size:0.75rem;"><span style="color:var(--accent);">${formatTime(winnerTimeSum - bestBonif)}</span><div style="font-size:0.6rem;color:var(--green);">-${bestBonif}s bonif.</div><div style="font-size:0.6rem;color:var(--text-muted);">Zonder: ${formatTime(winnerTimeSum)}</div></td></tr>`;
-    }
+    // De nummer 1 toont al de absolute snelste tijd (met bonificatie) als eerste rij
 
     const pts = [...standings].sort((a, b) => b.total_points - a.total_points);
     renderClassification('points-table', pts, s => s.total_points, (s) => s.total_points, false);
