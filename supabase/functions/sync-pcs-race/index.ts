@@ -130,20 +130,56 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Geen competitie geselecteerd" }), { status: 400, headers: corsHeaders });
     }
 
-    const baseUrl = pcs_url.replace(/\/$/, "").replace(/\/(stages|startlist|gc|stage-\d+)$/, "");
+    const baseUrl = pcs_url.replace(/\/$/, "").replace(/\/(stages|startlist|gc|stage-\d+|results?|resuts)$/, "");
     const raceYear = parseInt(baseUrl.match(/\/(\d{4})/)?.[1] || String(new Date().getFullYear()));
+
+    // Check of het een eendagskoers is
+    const { data: comp } = await adminClient
+      .from("competitions").select("is_one_day,name").eq("id", competition_id).single();
 
     const log: string[] = [];
 
     // 1. Fetch & parse stages
     log.push("📅 Etappes ophalen...");
     let stages: any[] = [];
-    try {
-      const stagesDoc = await fetchPCS(baseUrl + "/stages");
-      stages = parseStages(stagesDoc, raceYear);
-      log.push(`✅ ${stages.length} etappes gevonden`);
-    } catch (e) {
-      log.push(`⚠️ Etappes: ${e.message}`);
+
+    if (comp?.is_one_day) {
+      // Eendagskoers: haal datum van de race-overzichtspagina
+      try {
+        const overviewDoc = await fetchPCS(baseUrl);
+        const dateEl = overviewDoc.querySelector(".infolist li div:last-child");
+        const dateText = dateEl?.textContent?.trim() || "";
+        // PCS format: "2026-03-27" of "27/03"
+        let dateISO = dateText;
+        if (dateText.includes("/")) {
+          const parts = dateText.split("/");
+          dateISO = `${raceYear}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+        }
+        stages = [{
+          stage_number: 1,
+          name: comp.name || "Eendagskoers",
+          date: dateISO || `${raceYear}-01-01`,
+          stage_type: "flat",
+        }];
+        log.push(`✅ 1 etappe (eendagskoers)`);
+      } catch (e) {
+        // Fallback: maak etappe aan zonder exacte datum
+        stages = [{
+          stage_number: 1,
+          name: comp.name || "Eendagskoers",
+          date: `${raceYear}-01-01`,
+          stage_type: "flat",
+        }];
+        log.push(`⚠️ Datum niet gevonden, etappe aangemaakt met standaarddatum`);
+      }
+    } else {
+      try {
+        const stagesDoc = await fetchPCS(baseUrl + "/stages");
+        stages = parseStages(stagesDoc, raceYear);
+        log.push(`✅ ${stages.length} etappes gevonden`);
+      } catch (e) {
+        log.push(`⚠️ Etappes: ${e.message}`);
+      }
     }
 
     // 2. Fetch & parse startlist + shirts
