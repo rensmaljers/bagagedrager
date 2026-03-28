@@ -54,10 +54,21 @@ function parseStages(doc: any, year: number) {
     if (!stageMatch) continue;
 
     const routeName = stageName.includes("|") ? stageName.split("|")[1].trim() : stageName;
-    const dateParts = dateText.split("/");
     let dateISO = "";
-    if (dateParts.length === 2) {
-      dateISO = `${year}-${dateParts[1].padStart(2, "0")}-${dateParts[0].padStart(2, "0")}`;
+    // PCS datum formaten: "5/07", "05/07", "5 Jul", etc.
+    if (dateText.includes("/")) {
+      const dateParts = dateText.split("/");
+      if (dateParts.length === 2) {
+        dateISO = `${year}-${dateParts[1].padStart(2, "0")}-${dateParts[0].padStart(2, "0")}`;
+      }
+    }
+    if (!dateISO) {
+      // Fallback: probeer dag + maandnaam (bijv. "5 Jul")
+      const months: Record<string, string> = { jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12' };
+      const m = dateText.match(/(\d{1,2})\s+(\w{3})/i);
+      if (m && months[m[2].toLowerCase()]) {
+        dateISO = `${year}-${months[m[2].toLowerCase()]}-${m[1].padStart(2, "0")}`;
+      }
     }
 
     // Afstand (km) — laatste kolom
@@ -357,13 +368,19 @@ Deno.serve(async (req) => {
     for (const s of stages) {
       // Starttijd: uit PCS (per etappe of eendags) of fallback 12:00
       const timeStr = s._startTime || stageStartTimes[s.stage_number] || "12:00";
-      const startTime = new Date(`${s.date}T${timeStr}:00`);
+      const dateStr = s.date && s.date.match(/^\d{4}-\d{2}-\d{2}$/) ? s.date : `${raceYear}-01-01`;
+      const startTime = new Date(`${dateStr}T${timeStr}:00`);
+      if (isNaN(startTime.getTime())) {
+        log.push(`⚠️ Etappe ${s.stage_number}: ongeldige datum "${s.date}" / tijd "${timeStr}", overgeslagen`);
+        continue;
+      }
       // ETA: start + (afstand / 40 km/u) + 1 uur buffer voor PCS verwerking
       const durationHours = s.distance_km ? (s.distance_km / 40) + 1 : 6;
       const estimatedEnd = new Date(startTime.getTime() + durationHours * 3600 * 1000);
-      const { _href, _startTime, profile_image_url, ...stageData } = s; // interne velden apart
+      const { _href, _startTime, profile_image_url, date: _date, ...stageData } = s; // interne velden apart
       const stageRow = {
         ...stageData,
+        date: dateStr,
         profile_image_url: profile_image_url || stageProfiles[s.stage_number] || null,
         start_time: startTime.toISOString(),
         deadline: startTime.toISOString(),
