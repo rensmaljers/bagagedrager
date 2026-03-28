@@ -686,7 +686,7 @@ async function loadStandings() {
   cards.forEach(id => {
     const el = $(id);
     if (el.style.display !== 'none') {
-      el.className = isClassic ? 'col-lg-6' : 'col-lg-3';
+      el.className = isClassic ? 'col-lg-8 mx-auto' : 'col-lg-3';
     }
   });
 
