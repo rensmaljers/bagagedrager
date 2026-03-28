@@ -1823,16 +1823,19 @@
       <div class="admin-sub" id="admin-results">
         <!-- PCS Resultaten Sync -->
         <div class="card mb-3">
-          <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">🔄 PCS Resultaten</h5></div>
+          <div class="card-header">
+            <h5 class="mb-0" style="font-size:0.95rem;">📊 Uitslagen importeren</h5>
+            <p class="mb-0 text-muted" style="font-size:0.72rem;">Haal finish-tijden, punten en bergpunten op van PCS na afloop van een etappe.</p>
+          </div>
           <div class="card-body">
             <div class="mb-2">
-              <label class="form-label" style="font-size:0.8rem;"><strong>Etappe</strong></label>
+              <label class="form-label" style="font-size:0.8rem;"><strong>Kies etappe</strong></label>
               <select id="sync-stage-select" class="form-select form-select-sm"></select>
             </div>
             <div class="d-flex gap-2 align-items-center flex-wrap mb-2">
-              <button id="btn-pcs-sync-results" class="btn btn-accent btn-sm">🔄 Sync resultaten van PCS</button>
-              <button id="btn-auto-sync" class="btn btn-success btn-sm">⚡ Auto-sync (afgelopen etappes)</button>
-              <button id="btn-pcs-resync-all" class="btn btn-ghost btn-sm">🔄 Alle opnieuw syncen</button>
+              <button id="btn-pcs-sync-results" class="btn btn-accent btn-sm">📊 Uitslagen ophalen</button>
+              <button id="btn-auto-sync" class="btn btn-success btn-sm">⚡ Alles ophalen (afgelopen etappes)</button>
+              <button id="btn-pcs-resync-all" class="btn btn-ghost btn-sm">🔄 Alles opnieuw</button>
               <span id="pcs-results-sync-status" style="font-size:0.8rem;"></span>
             </div>
             <div id="pcs-results-sync-log" class="mt-2" style="font-size:0.8rem; max-height:300px; overflow-y:auto;"></div>
@@ -1872,17 +1875,17 @@
       <div class="admin-sub" id="admin-import">
         <!-- Directe PCS Sync -->
         <div class="card mb-3" style="border-color: var(--accent);">
-          <div class="card-header" style="background: var(--accent-bg);"><h5 class="mb-0" style="font-size:0.95rem;">🔄 PCS Sync</h5></div>
+          <div class="card-header" style="background: var(--accent-bg);">
+            <h5 class="mb-0" style="font-size:0.95rem;">🏁 Ronde klaarzetten</h5>
+            <p class="mb-0 text-muted" style="font-size:0.72rem;">Importeer etappes, renners en race-info vanuit PCS. Doe dit <strong>voor</strong> de ronde begint.</p>
+          </div>
           <div class="card-body">
-            <p class="text-muted" style="font-size:0.8rem;">
-              Sync etappes en renners direct vanuit ProCyclingStats. Stel eerst een PCS URL in bij de ronde.
-            </p>
             <div class="mb-3">
-              <label class="form-label" style="font-size:0.8rem;"><strong>Ronde</strong></label>
+              <label class="form-label" style="font-size:0.8rem;"><strong>Kies ronde</strong></label>
               <select id="race-sync-comp" class="form-select form-select-sm"></select>
             </div>
             <div class="d-flex gap-2 align-items-center flex-wrap">
-              <button id="btn-pcs-sync-race" class="btn btn-accent btn-sm">🔄 Sync etappes + renners</button>
+              <button id="btn-pcs-sync-race" class="btn btn-accent btn-sm">🏁 Ronde importeren</button>
               <span id="pcs-sync-status" style="font-size:0.8rem;"></span>
             </div>
             <div id="pcs-sync-log" class="mt-2" style="font-size:0.8rem; line-height:1.8;"></div>

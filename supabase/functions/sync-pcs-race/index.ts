@@ -228,15 +228,23 @@ Deno.serve(async (req) => {
         const rawHtml = await pcsRes.text();
         const overviewDoc = new DOMParser().parseFromString(rawHtml, "text/html");
 
-        const info = parseRaceInfo(rawHtml);
-        // Debug: toon ruwe HTML rond "Start time" en "Departure"
-        const debugSnippets: string[] = [];
-        for (const keyword of ['Start time', 'Departure', 'Arrival', 'ProfileScore', 'Vertical']) {
-          const idx = rawHtml.indexOf(keyword);
-          if (idx >= 0) debugSnippets.push(`${keyword}: ...${rawHtml.substring(idx, idx + 120).replace(/\n/g, ' ')}...`);
-          else debugSnippets.push(`${keyword}: NOT FOUND`);
+        let info = parseRaceInfo(rawHtml);
+
+        // Als de overzichtspagina weinig info heeft, probeer de /result pagina
+        if (!info.startTime && !info.departure) {
+          try {
+            const resultRes = await fetch(baseUrl + "/result", { headers: PCS_HEADERS });
+            if (resultRes.ok) {
+              const resultHtml = await resultRes.text();
+              const resultInfo = parseRaceInfo(resultHtml);
+              // Vul ontbrekende velden aan
+              for (const key of Object.keys(resultInfo) as (keyof typeof resultInfo)[]) {
+                if (!info[key] && resultInfo[key]) (info as any)[key] = resultInfo[key];
+              }
+              log.push(`📄 Extra info van /result pagina opgehaald`);
+            }
+          } catch { /* niet fataal */ }
         }
-        log.push(`🔍 HTML snippets: ${debugSnippets.join(' | ')}`);
         log.push(`📋 PCS info: ${JSON.stringify(info)}`);
 
         // Datum
