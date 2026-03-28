@@ -11,7 +11,10 @@ let stages = [];
 let myPicks = [];
 let selectedRiderId = null;
 let activeCompId = null;
-let _cache = { standings: null, standingsCompId: null, participants: null, participantsCompId: null };
+let _cache = { standings: null, standingsCompId: null, participants: null, participantsCompId: null, allProfiles: null };
+
+// Rider lookup map (id → rider) — gebouwd bij loadRidersForComp
+let _riderMap = {};
 
 // --- SUPABASE REST HELPERS ---
 // Proactief token refreshen als het bijna verlopen is (< 60s)
@@ -299,15 +302,6 @@ function buildPcsStageUrl(comp, stageNumber) {
 }
 
 function updateCompBanner() {
-  const banner = $('comp-banner');
-  const comp = competitions.find(c => c.id === activeCompId);
-  if (!comp) { banner.style.display = 'none'; return; }
-  const flag = comp.country_flag || '🏁';
-  $('comp-banner-badge').textContent = flag;
-  $('comp-banner-badge').className = 'comp-badge';
-  $('comp-banner-badge').style.fontSize = '1.2rem';
-  $('comp-banner-name').textContent = comp.name;
-  banner.style.display = 'flex';
   applyCompColor();
 }
 
@@ -315,12 +309,6 @@ function applyCompColor() {
   const comp = competitions.find(c => c.id === activeCompId);
   const color = comp?.color || '#facc15';
   document.documentElement.style.setProperty('--comp-color', color);
-  // Apply to comp-banner border
-  const banner = $('comp-banner');
-  if (banner) {
-    banner.style.borderColor = color + '40';
-    banner.style.background = color + '10';
-  }
   // Apply to comp-select
   const sel = $('comp-select');
   if (sel) {
@@ -347,7 +335,7 @@ function navigateToTab(tab) {
   if (tab === 'dashboard') loadStandings();
   if (tab === 'pick') loadPickView();
   if (tab === 'history') loadHistory();
-  if (tab === 'participants') { loadPeloton(); loadParticipants(); }
+  if (tab === 'participants') { Promise.all([loadPeloton(), loadParticipants()]); }
   if (tab === 'account') loadAccountView();
   if (tab === 'admin') loadAdminView();
 }
@@ -516,6 +504,8 @@ $('btn-forgot-password').addEventListener('click', async (e) => {
   } catch (e) { showError(e.message); }
 });
 
+$('user-name').addEventListener('click', (e) => { e.preventDefault(); navigateToTab('account'); });
+
 $('btn-logout').addEventListener('click', () => {
   session = null; profile = null;
   localStorage.removeItem('bagagedrager_session');
@@ -582,21 +572,20 @@ $('comp-select').addEventListener('change', async () => {
 async function initApp() {
   localStorage.setItem('bagagedrager_session', JSON.stringify(session));
 
-  // Parallel fetch: all initial data at once
-  const [profiles, comps, allStages, picks] = await Promise.all([
+  // Parallel fetch: all initial data at once (inclusief profielen voor avatars)
+  const [profiles, comps, allStages, picks, allProfiles] = await Promise.all([
     supaRest('profiles', { filters: `id=eq.${session.user.id}` }),
     supaRest('competitions', { filters: 'order=year.desc,name' }),
     supaRest('stages', { filters: 'order=stage_number' }),
     supaRest('picks', { filters: `user_id=eq.${session.user.id}&order=stage_id` }),
+    supaRest('profiles', { select: 'id,display_name,avatar_url' }),
   ]);
 
   profile = profiles[0];
   competitions = comps;
   stages = allStages;
   myPicks = picks;
-
-  // Load all profiles for avatar display
-  const allProfiles = await supaRest('profiles', { select: 'id,display_name,avatar_url' });
+  _cache.allProfiles = allProfiles;
   allProfiles.forEach(p => { _avatarMap[p.display_name] = p.avatar_url; });
 
   $('user-name').textContent = profile?.display_name || session.user.email;
@@ -635,6 +624,9 @@ async function loadRidersForComp() {
   } else {
     riders = await supaRest('riders', { filters: 'order=bib_number' });
   }
+  // Bouw lookup map voor O(1) rider lookups
+  _riderMap = {};
+  for (const r of riders) _riderMap[r.id] = r;
   // Reset team filter dropdown (will be repopulated on render)
   const tf = $('rider-team-filter');
   if (tf) { tf.innerHTML = '<option value="">Alle teams</option>'; tf.value = ''; }
@@ -994,7 +986,7 @@ async function updateOthersPicks(stageId, isLocked) {
 let _countdownInterval;
 function updatePickBar(stage, currentPick) {
   const bar = $('pick-bar');
-  const rider = selectedRiderId ? riders.find(r => r.id === selectedRiderId) : null;
+  const rider = selectedRiderId ? _riderMap[selectedRiderId] : null;
   const isLocked = stage.locked || new Date() > new Date(stage.deadline);
 
   if (!rider && !currentPick) {
@@ -1165,7 +1157,7 @@ async function loadHistory() {
   for (const r of allResults) {
     if (r.finish_position === 1 && !r.dnf && r.time_seconds > 0) {
       winnerTimes[r.stage_id] = r.time_seconds;
-      const wr = riders.find(rd => rd.id === r.rider_id);
+      const wr = _riderMap[r.rider_id];
       winnerNames[r.stage_id] = wr?.name || '?';
     }
   }
@@ -1173,7 +1165,7 @@ async function loadHistory() {
   // Build rows with game_points for coloring
   const rows = compPicks.map(pick => {
     const stage = stages.find(s => s.id === pick.stage_id);
-    const rider = riders.find(r => r.id === pick.rider_id);
+    const rider = _riderMap[pick.rider_id];
     const result = allResults.find(r => r.stage_id === pick.stage_id && r.rider_id === pick.rider_id);
     const gp = result && !pick.is_late && !result.dnf ? (result.game_points || 0) : 0;
     const timeGap = result && result.time_seconds && winnerTimes[pick.stage_id]
@@ -1257,8 +1249,10 @@ function getPelotonRole(p, totalPicks) {
 }
 
 async function loadPeloton() {
-  const allProfiles = await supaRest('profiles', { filters: 'order=created_at' });
-  const allPicks = await supaRest('picks', { select: 'user_id' });
+  const [allProfiles, allPicks] = await Promise.all([
+    _cache.allProfiles || supaRest('profiles', { filters: 'order=created_at' }),
+    supaRest('picks', { select: 'user_id' }),
+  ]);
   const isAdmin = profile?.is_admin;
 
   // Show admin columns
@@ -1335,7 +1329,7 @@ async function loadParticipants() {
       filters: `stage_id=in.(${lockedStageIds.join(',')})&finish_position=eq.1`
     });
     for (const w of winnerResults) {
-      const rider = riders.find(r => r.id === w.rider_id);
+      const rider = _riderMap[w.rider_id];
       stageWinners[w.stage_id] = { name: rider?.name || '?', time: w.time_seconds };
     }
   }
@@ -1671,8 +1665,10 @@ $('admin-rider-comp-filter').addEventListener('change', () => {
   renderAdminRiders($('admin-rider-search').value.toLowerCase());
 });
 
+let _adminSearchDebounce;
 $('admin-rider-search').addEventListener('input', (e) => {
-  renderAdminRiders(e.target.value.toLowerCase());
+  clearTimeout(_adminSearchDebounce);
+  _adminSearchDebounce = setTimeout(() => renderAdminRiders(e.target.value.toLowerCase()), 200);
 });
 
 $('btn-add-rider').addEventListener('click', async () => {
@@ -1928,7 +1924,7 @@ $('btn-pcs-sync-results').addEventListener('click', async () => {
     const winnerTime = payload.length ? payload[0].time_seconds : 0;
     const top10 = payload.slice(0, 10);
     log.innerHTML = `<strong>Top 10:</strong><br>` + top10.map((r, i) => {
-      const rider = riders.find(rd => rd.id === r.rider_id);
+      const rider = _riderMap[r.rider_id];
       const timeDisplay = i === 0 ? formatTime(r.time_seconds) : formatGap(r.time_seconds - winnerTime);
       return `${i + 1}. ${rider?.name || '?'} — ${timeDisplay}${r.dnf ? ' (DNF)' : ''}`;
     }).join('<br>');
@@ -2069,7 +2065,7 @@ $('btn-import-results').addEventListener('click', async () => {
     preview.innerHTML = `<table class="table table-sm mb-0">
       <thead><tr><th>Renner</th><th>Tijd</th><th>Pts</th><th>DNF</th></tr></thead>
       <tbody>${top10.map(r => {
-        const rider = riders.find(rd => rd.id === r.rider_id);
+        const rider = _riderMap[r.rider_id];
         return `<tr>
           <td>${rider ? escapeHtml(rider.name) : '?'}</td>
           <td class="time">${formatTime(r.time_seconds)}</td>

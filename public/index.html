@@ -1303,21 +1303,17 @@
         Bagagedrager
       </span>
       <div class="d-flex align-items-center gap-2">
-        <span class="text-muted" style="font-size:0.85rem;" id="user-name"></span>
+        <a href="#account" id="user-name" class="text-muted" style="font-size:0.85rem;text-decoration:none;cursor:pointer;" title="Account instellingen"></a>
         <button id="btn-theme" class="theme-toggle" title="Wissel thema" aria-label="Wissel thema"></button>
         <button id="btn-logout" class="btn btn-ghost btn-sm">Logout</button>
       </div>
-      <div class="comp-selector w-100 mt-1">
+      <div class="comp-selector">
         <select id="comp-select" class="form-select form-select-sm"></select>
       </div>
     </div>
   </nav>
 
   <div class="container">
-    <div id="comp-banner" class="comp-banner mb-3" style="display:none;">
-      <span id="comp-banner-badge" class="comp-badge"></span>
-      <span id="comp-banner-name" class="comp-banner-name"></span>
-    </div>
     <ul class="nav nav-pills mb-4" id="main-tabs">
       <li class="nav-item">
         <a class="nav-link active" href="#" data-tab="dashboard">🏆 Klassement</a>
