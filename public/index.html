@@ -792,24 +792,30 @@
         gap: 0.5rem;
       }
       .navbar .d-flex {
-        flex-wrap: wrap;
         gap: 0.4rem !important;
-        justify-content: flex-end;
       }
-      .navbar .d-flex #comp-select {
-        width: 100% !important;
-        order: 10;
+      #user-name {
+        font-size: 0.75rem !important;
+        max-width: 100px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
-      /* Wrapping tabs on mobile */
+      /* Wrapping tabs on mobile — horizontaal scrollen i.p.v. wrappen */
       #main-tabs {
-        flex-wrap: wrap;
-        gap: 0.25rem;
-        justify-content: center;
+        flex-wrap: nowrap;
+        gap: 0.15rem;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding-bottom: 0.25rem;
       }
+      #main-tabs::-webkit-scrollbar { display: none; }
       #main-tabs .nav-link {
-        padding: 0.4rem 0.65rem;
-        font-size: 0.78rem;
+        padding: 0.4rem 0.55rem;
+        font-size: 0.75rem;
+        white-space: nowrap;
       }
 
       /* Admin sub-tabs scroll */
@@ -832,8 +838,8 @@
         -webkit-overflow-scrolling: touch;
       }
       .table th, .table td {
-        font-size: 0.78rem;
-        padding: 0.4rem 0.5rem;
+        font-size: 0.75rem;
+        padding: 0.35rem 0.4rem;
       }
 
       /* Rider cards smaller on mobile */
@@ -847,6 +853,12 @@
       .jersey-gc h5, .jersey-points h5, .jersey-mountain h5, .jersey-game h5 {
         font-size: 0.85rem !important;
       }
+      /* Standings row: 2 kolommen op tablet, 1 op telefoon */
+      #standings-row { gap: 0.75rem !important; }
+      #standings-row > [class*="col-"] {
+        flex: 0 0 100%;
+        max-width: 100%;
+      }
 
       /* Admin forms stack */
       .admin-sub .row.g-2 > [class*="col-md"] {
@@ -855,17 +867,33 @@
       }
 
       /* Stage select and pick header */
-      #section-pick .d-flex {
+      #section-pick > .card > .card-body > .d-flex {
         flex-direction: column;
         gap: 0.5rem;
+        align-items: stretch !important;
       }
       #section-pick .d-flex .form-select {
         width: 100% !important;
+      }
+      /* Stage nav compact */
+      #section-pick .d-flex .d-flex {
+        justify-content: space-between;
+      }
+      #stage-select {
+        flex: 1;
+        min-width: 0;
       }
 
       /* Full width buttons on mobile */
       #btn-submit-pick {
         width: 100%;
+      }
+
+      /* Pick bar compact */
+      .pick-bar-inner {
+        flex-direction: column;
+        gap: 0.5rem;
+        text-align: center;
       }
 
       /* Participants table compact */
@@ -874,12 +902,50 @@
         font-size: 0.72rem;
         padding: 0.3rem 0.35rem;
       }
+
+      /* History stats kleiner */
+      #history-stats .col-4 .card-body {
+        padding: 0.4rem 0.25rem !important;
+      }
+      #history-stats .col-4 div[style*="font-size:1.1rem"] {
+        font-size: 0.95rem !important;
+      }
+
+      /* Container minder padding op mobiel */
+      .container {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+      }
+
+      /* Stage timeline dots kleiner op mobiel */
+      .stage-dot {
+        width: 30px;
+        height: 30px;
+        font-size: 0.6rem;
+      }
+
+      /* Comp banner compact */
+      .comp-banner {
+        padding: 0.4rem 0.6rem !important;
+        font-size: 0.85rem;
+      }
+
+      /* Avatar kleiner in tabellen */
+      .table .avatar-sm {
+        width: 24px;
+        height: 24px;
+        font-size: 0.55rem;
+      }
     }
 
     @media (max-width: 400px) {
       .navbar-brand { font-size: 1rem; }
       #user-name { display: none; }
       .pick-card .fw-bold { font-size: 0.75rem; }
+      #main-tabs .nav-link {
+        padding: 0.35rem 0.45rem;
+        font-size: 0.7rem;
+      }
     }
   </style>
 </head>
@@ -933,13 +999,13 @@
   <nav class="navbar mb-4">
     <div class="container">
       <span class="navbar-brand">🚴 Bagagedrager</span>
-      <div class="d-flex align-items-center gap-3">
-        <div class="comp-selector">
-          <select id="comp-select" class="form-select form-select-sm"></select>
-        </div>
+      <div class="d-flex align-items-center gap-2">
         <span class="text-muted" style="font-size:0.85rem;" id="user-name"></span>
         <button id="btn-theme" class="theme-toggle" title="Wissel thema" aria-label="Wissel thema"></button>
         <button id="btn-logout" class="btn btn-ghost btn-sm">Logout</button>
+      </div>
+      <div class="comp-selector w-100 mt-1">
+        <select id="comp-select" class="form-select form-select-sm"></select>
       </div>
     </div>
   </nav>
@@ -1276,6 +1342,9 @@
                   <option value="grand_tour">Grote ronde</option>
                   <option value="classic">Klassieker</option>
                 </select>
+                <label class="form-check mt-1" style="font-size:0.75rem;">
+                  <input type="checkbox" id="new-comp-one-day" class="form-check-input form-check-input-sm"> Eendagskoers
+                </label>
               </div>
               <div class="col-md-2">
                 <input type="url" id="new-comp-pcs-url" class="form-control form-control-sm" placeholder="PCS URL" />

@@ -28,29 +28,47 @@ function authHeaders(extra = {}) {
 }
 
 async function supaRest(table, { method = 'GET', filters = '', body, select = '*' } = {}) {
+  await ensureFreshToken();
   const url = `${SUPABASE_URL}/rest/v1/${table}?select=${select}${filters ? '&' + filters : ''}`;
   const prefer = method === 'POST' ? 'return=representation' : method === 'PATCH' ? 'return=representation' : '';
   const opts = { method, headers: authHeaders({ 'Prefer': prefer }) };
   if (body) opts.body = JSON.stringify(body);
-  const res = await fetch(url, opts);
+  let res = await fetch(url, opts);
+  // Auto-refresh bij verlopen token
+  if (res.status === 401 && await refreshSession()) {
+    opts.headers = authHeaders({ 'Prefer': prefer });
+    res = await fetch(url, opts);
+  }
   if (!res.ok) throw new Error(await res.text());
   const text = await res.text();
   return text ? JSON.parse(text) : null;
 }
 
 async function supaDelete(table, filters) {
+  await ensureFreshToken();
   const url = `${SUPABASE_URL}/rest/v1/${table}?${filters}`;
-  const res = await fetch(url, { method: 'DELETE', headers: authHeaders() });
+  let res = await fetch(url, { method: 'DELETE', headers: authHeaders() });
+  if (res.status === 401 && await refreshSession()) {
+    res = await fetch(url, { method: 'DELETE', headers: authHeaders() });
+  }
   if (!res.ok) throw new Error(await res.text());
 }
 
 async function supaPatch(table, filters, body) {
+  await ensureFreshToken();
   const url = `${SUPABASE_URL}/rest/v1/${table}?${filters}`;
-  const res = await fetch(url, {
+  let res = await fetch(url, {
     method: 'PATCH',
     headers: authHeaders({ 'Prefer': 'return=representation' }),
     body: JSON.stringify(body),
   });
+  if (res.status === 401 && await refreshSession()) {
+    res = await fetch(url, {
+      method: 'PATCH',
+      headers: authHeaders({ 'Prefer': 'return=representation' }),
+      body: JSON.stringify(body),
+    });
+  }
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
@@ -236,6 +254,14 @@ function activeStages() {
 function activeScoringMode() {
   const comp = competitions.find(c => c.id === activeCompId);
   return comp?.scoring_mode || 'grand_tour';
+}
+
+// Build PCS stage URL: eendagskoersen hebben geen /stage-N suffix
+function buildPcsStageUrl(comp, stageNumber) {
+  if (!comp?.pcs_url) return null;
+  const base = comp.pcs_url.replace(/\/$/, '').replace(/\/(stages|startlist|gc|stage-\d+|result)$/, '');
+  if (comp.is_one_day) return base;
+  return `${base}/stage-${stageNumber}`;
 }
 
 function updateCompBanner() {
@@ -621,9 +647,12 @@ async function loadStandings() {
   if (!isClassic) {
     const gc = [...standings].sort((a, b) => a.total_time - b.total_time);
     const leaderTime = gc.length ? gc[0].total_time : 0;
-    $('gc-table').innerHTML = gc.map((s, i) =>
-      `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td><div class="d-flex align-items-center gap-2">${avatarHtml(s.display_name, _avatarMap[s.display_name], 'sm')}${escapeHtml(s.display_name)}</div></td><td class="time text-end">${i === 0 ? formatTime(s.total_time) : formatGap(s.total_time - leaderTime)}</td></tr>`
-    ).join('') || emptyRow;
+    $('gc-table').innerHTML = gc.map((s, i) => {
+      const timeDisplay = i === 0 ? formatTime(s.total_time) : formatGap(s.total_time - leaderTime);
+      const bonifDisplay = s.total_bonification ? `<div style="font-size:0.65rem;color:var(--green);">-${s.total_bonification}s bonif.</div>` : '';
+      const noBonifDisplay = s.total_bonification ? `<div style="font-size:0.65rem;color:var(--text-muted);">Zonder: ${i === 0 ? formatTime(s.total_time_no_bonif) : formatGap(s.total_time_no_bonif - (gc[0]?.total_time_no_bonif || 0))}</div>` : '';
+      return `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td><div class="d-flex align-items-center gap-2">${avatarHtml(s.display_name, _avatarMap[s.display_name], 'sm')}${escapeHtml(s.display_name)}</div></td><td class="time text-end">${timeDisplay}${bonifDisplay}${noBonifDisplay}</td></tr>`;
+    }).join('') || emptyRow;
 
     const pts = [...standings].sort((a, b) => b.total_points - a.total_points);
     $('points-table').innerHTML = pts.map((s, i) =>
@@ -716,8 +745,7 @@ function renderPickStage() {
 
   // Build PCS link for this stage
   const comp = competitions.find(c => c.id === stage.competition_id);
-  const pcsBase = comp?.pcs_url?.replace(/\/$/, '').replace(/\/(stages|startlist|gc|stage-\d+)$/, '');
-  const pcsStageUrl = pcsBase ? `${pcsBase}/stage-${stage.stage_number}` : null;
+  const pcsStageUrl = buildPcsStageUrl(comp, stage.stage_number);
   const pcsLink = pcsStageUrl ? ` <a href="${pcsStageUrl}" target="_blank" rel="noopener" class="pcs-link" title="Bekijk op PCS">PCS ↗</a>` : '';
 
   $('pick-stage-name').innerHTML = `Etappe ${stage.stage_number}: ${escapeHtml(stage.name)}${pcsLink}`;
@@ -1132,8 +1160,7 @@ async function loadParticipants() {
   $('participants-content').innerHTML = stageNums.map(num => {
     const { picks } = byStage[num];
     const partComp = competitions.find(c => c.id === activeCompId);
-    const partPcsBase = partComp?.pcs_url?.replace(/\/$/, '').replace(/\/(stages|startlist|gc|stage-\d+)$/, '');
-    const partPcsUrl = partPcsBase ? `${partPcsBase}/stage-${num}` : null;
+    const partPcsUrl = buildPcsStageUrl(partComp, num);
     const partPcsLink = partPcsUrl ? ` <a href="${partPcsUrl}" target="_blank" rel="noopener" class="pcs-link" title="Bekijk op PCS">PCS ↗</a>` : '';
     const stageName = `Etappe ${num}${partPcsLink}`;
     const stageId = byStage[num].stage_id;
@@ -1310,6 +1337,10 @@ async function loadAdminCompetitions() {
           <option value="grand_tour" ${c.scoring_mode !== 'classic' ? 'selected' : ''}>Grote ronde</option>
           <option value="classic" ${c.scoring_mode === 'classic' ? 'selected' : ''}>Klassieker</option>
         </select>
+        <label class="form-check mt-1" style="font-size:0.7rem;">
+          <input type="checkbox" class="form-check-input" ${c.is_one_day ? 'checked' : ''}
+                 onchange="updateCompField(${c.id}, 'is_one_day', this.checked)"> 1-dag
+        </label>
       </td>
       <td>
         <input type="color" class="form-control form-control-color" value="${c.color || '#facc15'}"
@@ -1368,10 +1399,11 @@ $('btn-add-comp').addEventListener('click', async () => {
   if (!name || !slug || !year) return alert('Vul alle velden in');
   try {
     const scoringMode = $('new-comp-scoring-mode').value || 'grand_tour';
+    const isOneDay = $('new-comp-one-day').checked;
     const pcsUrl = $('new-comp-pcs-url').value.trim() || null;
     const color = $('new-comp-color').value || '#facc15';
     const flag = $('new-comp-flag').value.trim() || '';
-    await supaRest('competitions', { method: 'POST', body: { name, slug, competition_type: scoringMode === 'classic' ? 'classic' : 'tour', year, is_active: false, scoring_mode: scoringMode, pcs_url: pcsUrl, color, country_flag: flag } });
+    await supaRest('competitions', { method: 'POST', body: { name, slug, competition_type: scoringMode === 'classic' ? 'classic' : 'tour', year, is_active: false, scoring_mode: scoringMode, is_one_day: isOneDay, pcs_url: pcsUrl, color, country_flag: flag } });
     $('new-comp-name').value = '';
     $('new-comp-slug').value = '';
     $('new-comp-pcs-url').value = '';
@@ -1659,7 +1691,7 @@ $('btn-pcs-sync-results').addEventListener('click', async () => {
   const comp = competitions.find(c => c.id === stage.competition_id);
   if (!comp?.pcs_url) { status.textContent = 'Geen PCS URL ingesteld voor deze ronde'; status.className = 'text-danger'; return; }
 
-  const pcsUrl = comp.pcs_url.replace(/\/$/, '').replace(/\/(stages|startlist|gc|stage-\d+)$/, '') + '/stage-' + stage.stage_number;
+  const pcsUrl = buildPcsStageUrl(comp, stage.stage_number);
 
   status.textContent = '⏳ Resultaten ophalen van PCS...';
   status.className = 'text-muted';
@@ -1721,14 +1753,13 @@ $('btn-pcs-resync-all').addEventListener('click', async () => {
 
   const status = $('pcs-results-sync-status');
   const log = $('pcs-results-sync-log');
-  const pcsBase = comp.pcs_url.replace(/\/$/, '').replace(/\/(stages|startlist|gc|stage-\d+)$/, '');
   const lockedStages = activeStages().filter(s => s.locked);
 
   log.innerHTML = '';
   let success = 0, failed = 0;
 
   for (const stage of lockedStages) {
-    const pcsUrl = `${pcsBase}/stage-${stage.stage_number}`;
+    const pcsUrl = buildPcsStageUrl(comp, stage.stage_number);
     status.textContent = `⏳ Etappe ${stage.stage_number} syncen...`;
     status.className = 'text-muted';
     log.innerHTML += `<div>⏳ Etappe ${stage.stage_number}...</div>`;
@@ -2267,15 +2298,35 @@ function loadImportCompSelect() {
   if (saved) {
     try {
       session = JSON.parse(saved);
-      // Check token expiration
+
+      // Als access token verlopen is, probeer eerst te refreshen
       if (session.expires_at && Date.now() / 1000 > session.expires_at) {
-        throw new Error('Token expired');
+        if (!await refreshSession()) {
+          throw new Error('Token expired en refresh mislukt');
+        }
       }
+
       const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
         headers: { 'Authorization': `Bearer ${session.access_token}`, 'apikey': SUPABASE_ANON_KEY },
       });
-      if (res.ok) { session.user = await res.json(); await initApp(); }
-      else { localStorage.removeItem('bagagedrager_session'); }
+
+      if (res.ok) {
+        session.user = await res.json();
+        await initApp();
+      } else if (res.status === 401 && await refreshSession()) {
+        // Access token was ongeldig maar refresh lukte — opnieuw proberen
+        const retry = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+          headers: { 'Authorization': `Bearer ${session.access_token}`, 'apikey': SUPABASE_ANON_KEY },
+        });
+        if (retry.ok) {
+          session.user = await retry.json();
+          await initApp();
+        } else {
+          throw new Error('Sessie verlopen');
+        }
+      } else {
+        throw new Error('Sessie ongeldig');
+      }
     } catch (e) {
       localStorage.removeItem('bagagedrager_session');
       session = null;
