@@ -136,6 +136,7 @@ async function fetchStageDetails(stages: any[]): Promise<{ profiles: Record<numb
 function parseStartlist(doc: any) {
   const riders: any[] = [];
   const shirts: Record<string, string> = {};
+  let autoBib = 1; // Tijdelijk bibnummer als PCS er nog geen heeft
 
   const teams = doc.querySelectorAll("ul.startlist_v4 > li");
   for (const li of teams) {
@@ -150,7 +151,8 @@ function parseStartlist(doc: any) {
 
     const riderEls = li.querySelectorAll(".ridersCont ul li");
     for (const rider of riderEls) {
-      const bib = parseInt(rider.querySelector(".bib")?.textContent?.trim() || "0");
+      const pcsNib = parseInt(rider.querySelector(".bib")?.textContent?.trim() || "0");
+      const bib = pcsNib || autoBib++;
       let name = rider.querySelector("a")?.textContent?.trim() || "";
       name = name.replace(/\s*\(.*\)$/, "");
       if (bib && name) riders.push({ bib_number: bib, name, team: teamName });
