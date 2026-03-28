@@ -536,6 +536,7 @@ function checkDeadlineNotifications() {
 // --- COMPETITION SELECTOR ---
 $('comp-select').addEventListener('change', async () => {
   activeCompId = parseInt($('comp-select').value);
+  localStorage.setItem('bagagedrager_comp', activeCompId);
   _cache.standings = null; _cache.participants = null;
   updateCompBanner();
   await loadRidersForComp();
@@ -572,10 +573,13 @@ async function initApp() {
 
   const sel = $('comp-select');
   sel.innerHTML = competitions.map(c =>
-    `<option value="${c.id}" ${c.is_active ? 'selected' : ''}>${c.country_flag || ''} ${c.name}</option>`
+    `<option value="${c.id}">${c.country_flag || ''} ${c.name}${c.is_active ? '' : ' (afgelopen)'}</option>`
   ).join('');
-  const active = competitions.find(c => c.is_active) || competitions[0];
-  if (active) { sel.value = active.id; activeCompId = active.id; }
+  // Onthoud laatst gekozen ronde, val terug op actieve, dan eerste
+  const savedCompId = parseInt(localStorage.getItem('bagagedrager_comp'));
+  const savedComp = savedCompId ? competitions.find(c => c.id === savedCompId) : null;
+  const activeComp = savedComp || competitions.find(c => c.is_active) || competitions[0];
+  if (activeComp) { sel.value = activeComp.id; activeCompId = activeComp.id; }
   updateCompBanner();
 
   await loadRidersForComp();
@@ -617,9 +621,17 @@ async function loadStandings() {
   if (_cache.standingsCompId === activeCompId && _cache.standings) {
     standings = _cache.standings;
   } else {
-    standings = await supaRest('general_classification', {
-      filters: `competition_id=eq.${activeCompId}`
-    });
+    // Haal standings + winnaarstijden parallel op
+    const compStageIds = activeStages().filter(s => s.locked).map(s => s.id);
+    const [standingsData, winnerResults] = await Promise.all([
+      supaRest('general_classification', { filters: `competition_id=eq.${activeCompId}` }),
+      compStageIds.length
+        ? supaRest('stage_results', { filters: `stage_id=in.(${compStageIds.join(',')})&finish_position=eq.1&dnf=eq.false&time_seconds=gt.0`, select: 'stage_id,time_seconds' })
+        : Promise.resolve([]),
+    ]);
+    standings = standingsData;
+    // Bereken som van winnaarstijden (= snelst mogelijke absolute tijd)
+    _cache.winnerTimeSum = (winnerResults || []).reduce((sum, r) => sum + r.time_seconds, 0);
     _cache.standings = standings;
     _cache.standingsCompId = activeCompId;
   }
@@ -647,17 +659,22 @@ async function loadStandings() {
   if (!isClassic) {
     const gc = [...standings].sort((a, b) => a.total_time - b.total_time);
     const leaderTime = gc.length ? gc[0].total_time : 0;
-    // Snelst mogelijke tijd: elke etappe de winnaar = 0s gap - 10s bonif
+    // Snelst mogelijke tijd: som van winnaarstijden (met en zonder bonificatie)
     const completedStages = activeStages().filter(s => s.locked).length;
-    const bestPossibleTime = -10 * completedStages;
-    const bestPossibleRow = completedStages > 0
-      ? `<tr style="background:var(--accent-bg);"><td></td><td><div class="d-flex align-items-center gap-2" style="font-size:0.75rem;color:var(--accent);font-style:italic;">Snelst mogelijk</div></td><td class="time text-end" style="font-size:0.75rem;color:var(--accent);">${formatGap(bestPossibleTime, true)}<div style="font-size:0.6rem;color:var(--text-muted);">${completedStages}x -10s bonif.</div></td></tr>`
+    const winnerTimeSum = _cache.winnerTimeSum || 0;
+    const bestBonif = 10 * completedStages;
+    const bestPossibleRow = completedStages > 0 && winnerTimeSum > 0
+      ? `<tr style="background:var(--accent-bg);"><td></td><td><div style="font-size:0.75rem;color:var(--accent);font-style:italic;">Snelst mogelijk</div></td><td class="time text-end" style="font-size:0.75rem;"><span style="color:var(--accent);">${formatTime(winnerTimeSum - bestBonif)}</span><div style="font-size:0.6rem;color:var(--green);">-${bestBonif}s bonif.</div><div style="font-size:0.6rem;color:var(--text-muted);">Zonder: ${formatTime(winnerTimeSum)}</div></td></tr>`
       : '';
     $('gc-table').innerHTML = (gc.map((s, i) => {
-      const timeDisplay = i === 0 ? formatTime(s.total_time) : formatGap(s.total_time - leaderTime);
+      // Absolute tijd = winnaarstijden + tijdsverschil (met bonif)
+      const absTime = winnerTimeSum > 0 ? winnerTimeSum + s.total_time : null;
+      const absTimeNoBonif = winnerTimeSum > 0 ? winnerTimeSum + s.total_time_no_bonif : null;
+      const timeDisplay = absTime ? formatTime(absTime) : (i === 0 ? formatTime(s.total_time) : formatGap(s.total_time - leaderTime));
+      const gapDisplay = i > 0 ? `<div style="font-size:0.65rem;color:var(--text-muted);">${formatGap(s.total_time - leaderTime)}</div>` : '';
       const bonifDisplay = s.total_bonification ? `<div style="font-size:0.65rem;color:var(--green);">-${s.total_bonification}s bonif.</div>` : '';
-      const noBonifDisplay = s.total_bonification ? `<div style="font-size:0.65rem;color:var(--text-muted);">Zonder: ${i === 0 ? formatTime(s.total_time_no_bonif) : formatGap(s.total_time_no_bonif - (gc[0]?.total_time_no_bonif || 0))}</div>` : '';
-      return `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td><div class="d-flex align-items-center gap-2">${avatarHtml(s.display_name, _avatarMap[s.display_name], 'sm')}${escapeHtml(s.display_name)}</div></td><td class="time text-end">${timeDisplay}${bonifDisplay}${noBonifDisplay}</td></tr>`;
+      const noBonifDisplay = absTimeNoBonif ? `<div style="font-size:0.65rem;color:var(--text-muted);">Zonder: ${formatTime(absTimeNoBonif)}</div>` : '';
+      return `<tr><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td><div class="d-flex align-items-center gap-2">${avatarHtml(s.display_name, _avatarMap[s.display_name], 'sm')}${escapeHtml(s.display_name)}</div></td><td class="time text-end">${timeDisplay}${gapDisplay}${bonifDisplay}${noBonifDisplay}</td></tr>`;
     }).join('') + bestPossibleRow) || emptyRow;
 
     const pts = [...standings].sort((a, b) => b.total_points - a.total_points);
@@ -2299,6 +2316,11 @@ function loadImportCompSelect() {
 // Edge Function race sync removed — using console script approach instead
 
 // --- BOOT ---
+function hideSplash() {
+  const splash = $('splash');
+  if (splash) { splash.classList.add('hide'); setTimeout(() => splash.remove(), 300); }
+}
+
 (async () => {
   const saved = localStorage.getItem('bagagedrager_session');
   if (saved) {
@@ -2319,14 +2341,17 @@ function loadImportCompSelect() {
       if (res.ok) {
         session.user = await res.json();
         await initApp();
+        hideSplash();
+        return;
       } else if (res.status === 401 && await refreshSession()) {
-        // Access token was ongeldig maar refresh lukte — opnieuw proberen
         const retry = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
           headers: { 'Authorization': `Bearer ${session.access_token}`, 'apikey': SUPABASE_ANON_KEY },
         });
         if (retry.ok) {
           session.user = await retry.json();
           await initApp();
+          hideSplash();
+          return;
         } else {
           throw new Error('Sessie verlopen');
         }
@@ -2338,4 +2363,7 @@ function loadImportCompSelect() {
       session = null;
     }
   }
+  // Geen geldige sessie: toon login scherm
+  $('auth-screen').style.display = 'block';
+  hideSplash();
 })();
