@@ -694,22 +694,13 @@ async function loadStandings() {
     }
   });
 
-  // Rivalry tracker helper: add row showing gap to neighbors
+  // Rivalry tracker helper: add row showing gap to neighbor above only
   function rivalryRow(sorted, myIdx, valueFn, isTime) {
-    if (myIdx < 0 || sorted.length < 2) return '';
-    const parts = [];
-    if (myIdx > 0) {
-      const above = sorted[myIdx - 1];
-      const diff = Math.abs(valueFn(sorted[myIdx]) - valueFn(above));
-      parts.push(`<span class="rivalry-up">↑ ${isTime ? formatGap(diff) : diff + ' pts'} achter ${escapeHtml(above.display_name)}</span>`);
-    }
-    if (myIdx < sorted.length - 1) {
-      const below = sorted[myIdx + 1];
-      const diff = Math.abs(valueFn(sorted[myIdx]) - valueFn(below));
-      parts.push(`<span class="rivalry-down">↓ ${isTime ? formatGap(diff) : diff + ' pts'} voor ${escapeHtml(below.display_name)}</span>`);
-    }
-    if (!parts.length) return '';
-    return `<tr class="rivalry-row"><td colspan="3"><div class="rivalry-info">${parts.join('')}</div></td></tr>`;
+    if (myIdx <= 0 || sorted.length < 2) return '';
+    const above = sorted[myIdx - 1];
+    const diff = Math.abs(valueFn(sorted[myIdx]) - valueFn(above));
+    if (diff === 0) return '';
+    return `<tr class="rivalry-row"><td colspan="3"><div class="rivalry-info"><span class="rivalry-up">↑ ${isTime ? formatGap(diff) : diff + ' pts'} achter ${escapeHtml(above.display_name)}</span></div></td></tr>`;
   }
 
   // H2H button helper
