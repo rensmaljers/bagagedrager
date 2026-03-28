@@ -229,6 +229,14 @@ Deno.serve(async (req) => {
         const overviewDoc = new DOMParser().parseFromString(rawHtml, "text/html");
 
         const info = parseRaceInfo(rawHtml);
+        // Debug: toon ruwe HTML rond "Start time" en "Departure"
+        const debugSnippets: string[] = [];
+        for (const keyword of ['Start time', 'Departure', 'Arrival', 'ProfileScore', 'Vertical']) {
+          const idx = rawHtml.indexOf(keyword);
+          if (idx >= 0) debugSnippets.push(`${keyword}: ...${rawHtml.substring(idx, idx + 120).replace(/\n/g, ' ')}...`);
+          else debugSnippets.push(`${keyword}: NOT FOUND`);
+        }
+        log.push(`🔍 HTML snippets: ${debugSnippets.join(' | ')}`);
         log.push(`📋 PCS info: ${JSON.stringify(info)}`);
 
         // Datum
