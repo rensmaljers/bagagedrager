@@ -339,6 +339,9 @@ Deno.serve(async (req) => {
     }
     log.push(`🚴 Renners: ${ridersSaved} nieuw, ${ridersSkipped} al aanwezig`);
 
+    // Update last_synced_at
+    await adminClient.from("competitions").update({ last_synced_at: new Date().toISOString() }).eq("id", competition_id);
+
     return new Response(JSON.stringify({
       success: true,
       log,

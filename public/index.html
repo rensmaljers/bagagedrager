@@ -627,6 +627,13 @@
       white-space: nowrap;
       flex-shrink: 0;
     }
+    .comp-sync-info {
+      font-size: 0.6rem;
+      color: var(--text-muted);
+      margin-left: 0.4rem;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
 
     /* --- FOCUS VISIBLE (keyboard users) --- */
     :focus-visible {
@@ -1352,6 +1359,7 @@
       <div class="comp-selector">
         <select id="comp-select" class="form-select form-select-sm" title="Wissel van ronde"></select>
         <span id="comp-count" class="comp-count"></span>
+        <span id="comp-sync-info" class="comp-sync-info" style="display:none;"></span>
       </div>
     </div>
   </nav>
@@ -1707,7 +1715,7 @@
         <div class="card">
           <div class="card-body p-0">
             <table class="table table-sm table-striped mb-0">
-              <thead><tr><th>Naam</th><th>Jaar</th><th>Modus</th><th>Kleur</th><th>Vlag</th><th>PCS URL</th><th>Actief</th><th>Acties</th></tr></thead>
+              <thead><tr><th>Naam</th><th>Jaar</th><th>Modus</th><th>Kleur</th><th>Vlag</th><th>PCS URL</th><th>Sync</th><th>Actief</th><th>Acties</th></tr></thead>
               <tbody id="admin-comp-table"></tbody>
             </table>
           </div>

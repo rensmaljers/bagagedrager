@@ -303,6 +303,20 @@ function buildPcsStageUrl(comp, stageNumber) {
 
 function updateCompBanner() {
   applyCompColor();
+  updateSyncInfo();
+}
+
+function updateSyncInfo() {
+  const comp = competitions.find(c => c.id === activeCompId);
+  const el = $('comp-sync-info');
+  if (!el) return;
+  if (comp?.last_synced_at) {
+    const d = new Date(comp.last_synced_at);
+    el.textContent = `Gesynct: ${d.toLocaleString('nl-NL', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}`;
+    el.style.display = '';
+  } else {
+    el.style.display = 'none';
+  }
 }
 
 function applyCompColor() {
@@ -602,6 +616,7 @@ async function initApp() {
     `<option value="${c.id}">${c.country_flag || ''} ${c.name}${c.is_active ? '' : ' (afgelopen)'}</option>`
   ).join('');
   $('comp-count').textContent = competitions.length > 1 ? `${competitions.length} rondes` : '';
+  updateSyncInfo();
   // Onthoud laatst gekozen ronde, val terug op actieve, dan eerste
   const savedCompId = parseInt(localStorage.getItem('bagagedrager_comp'));
   const savedComp = savedCompId ? competitions.find(c => c.id === savedCompId) : null;
@@ -1559,6 +1574,9 @@ async function loadAdminCompetitions() {
                placeholder="PCS URL" style="min-width:140px; font-size:0.75rem;"
                onchange="updateCompPcsUrl(${c.id}, this.value)">
       </td>
+      <td style="font-size:0.7rem;color:var(--text-muted);white-space:nowrap;">
+        ${c.last_synced_at ? new Date(c.last_synced_at).toLocaleString('nl-NL', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }) : '—'}
+      </td>
       <td>
         <div class="form-check form-switch d-inline-block">
           <input class="form-check-input" type="checkbox" ${c.is_active ? 'checked' : ''}
@@ -1930,6 +1948,7 @@ $('btn-pcs-sync-results').addEventListener('click', async () => {
 
     status.textContent = `⏳ ${matched} resultaten opslaan...`;
     await supaRpc('admin_save_results', { p_stage_id: stageId, p_results: payload });
+    await supaPatch('competitions', `id=eq.${activeCompId}`, { last_synced_at: new Date().toISOString() });
 
     status.textContent = `✅ ${matched} resultaten opgeslagen!` + (unmatched ? ` (${unmatched} onbekend)` : '');
     status.className = 'text-success';
