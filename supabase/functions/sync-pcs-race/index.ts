@@ -60,14 +60,56 @@ function parseStages(doc: any, year: number) {
       dateISO = `${year}-${dateParts[1].padStart(2, "0")}-${dateParts[0].padStart(2, "0")}`;
     }
 
+    // Afstand (km) — laatste kolom
+    const distanceText = cells[cells.length - 1]?.textContent?.trim() || "";
+    const distance_km = parseFloat(distanceText) || null;
+
+    // Start/finish uit routenaam (bijv. "Figueres - Banyoles")
+    let departure = null, arrival = null;
+    const routeParts = routeName.split(/\s*[-–›→]\s*/);
+    if (routeParts.length >= 2) {
+      departure = routeParts[0].replace(/Stage\s+\d+\s*/i, "").trim() || null;
+      arrival = routeParts[routeParts.length - 1].trim() || null;
+    }
+
+    // PCS stage URL voor profiel-ophaling
+    const stageHref = stageLink.getAttribute("href") || "";
+
     stages.push({
       stage_number: parseInt(stageMatch[1]),
       name: routeName.replace(/\s+/g, " ").trim(),
       date: dateISO,
       stage_type: mapStageType(iconClass, stageName),
+      distance_km,
+      departure,
+      arrival,
+      _href: stageHref,
     });
   }
   return stages;
+}
+
+// Haal profiel-afbeelding op per etappe
+async function fetchStageProfiles(stages: any[], baseUrl: string): Promise<Record<number, string>> {
+  const profiles: Record<number, string> = {};
+  for (const s of stages) {
+    try {
+      const url = s._href.startsWith("http") ? s._href : `https://www.procyclingstats.com/${s._href}`;
+      const doc = await fetchPCS(url);
+      // Zoek profiel-afbeelding: img src bevat "profile"
+      const imgs = doc.querySelectorAll("img");
+      for (const img of imgs) {
+        const src = img.getAttribute("src") || "";
+        if (src.includes("profile")) {
+          profiles[s.stage_number] = src.startsWith("http") ? src : `https://www.procyclingstats.com/${src}`;
+          break;
+        }
+      }
+    } catch {
+      // Niet fataal — profiel is optioneel
+    }
+  }
+  return profiles;
 }
 
 function parseStartlist(doc: any) {
@@ -144,26 +186,50 @@ Deno.serve(async (req) => {
     let stages: any[] = [];
 
     if (comp?.is_one_day) {
-      // Eendagskoers: haal datum van de race-overzichtspagina
+      // Eendagskoers: haal datum, afstand en profiel van de race-overzichtspagina
       try {
         const overviewDoc = await fetchPCS(baseUrl);
-        const dateEl = overviewDoc.querySelector(".infolist li div:last-child");
-        const dateText = dateEl?.textContent?.trim() || "";
-        // PCS format: "2026-03-27" of "27/03"
-        let dateISO = dateText;
-        if (dateText.includes("/")) {
-          const parts = dateText.split("/");
-          dateISO = `${raceYear}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+        // Zoek infolist items
+        const infoItems = overviewDoc.querySelectorAll(".infolist li");
+        let dateISO = `${raceYear}-01-01`;
+        let distance_km = null;
+        for (const li of infoItems) {
+          const divs = li.querySelectorAll("div");
+          const label = (divs[0]?.textContent?.trim() || "").toLowerCase();
+          const value = divs[1]?.textContent?.trim() || "";
+          if (label.includes("startdate") || label.includes("date")) {
+            dateISO = value.includes("-") ? value : dateISO;
+            if (value.includes("/")) {
+              const parts = value.split("/");
+              dateISO = `${raceYear}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+            }
+          }
+          if (label.includes("distance")) {
+            distance_km = parseFloat(value) || null;
+          }
+        }
+        // Profiel-afbeelding
+        let profileUrl = null;
+        const imgs = overviewDoc.querySelectorAll("img");
+        for (const img of imgs) {
+          const src = img.getAttribute("src") || "";
+          if (src.includes("profile")) {
+            profileUrl = src.startsWith("http") ? src : `https://www.procyclingstats.com/${src}`;
+            break;
+          }
         }
         stages = [{
           stage_number: 1,
           name: comp.name || "Eendagskoers",
-          date: dateISO || `${raceYear}-01-01`,
+          date: dateISO,
           stage_type: "flat",
+          distance_km,
+          departure: null,
+          arrival: null,
+          profile_image_url: profileUrl,
         }];
-        log.push(`✅ 1 etappe (eendagskoers)`);
+        log.push(`✅ 1 etappe (eendagskoers)${distance_km ? ` — ${distance_km} km` : ''}${profileUrl ? ' — profiel gevonden' : ''}`);
       } catch (e) {
-        // Fallback: maak etappe aan zonder exacte datum
         stages = [{
           stage_number: 1,
           name: comp.name || "Eendagskoers",
@@ -196,13 +262,27 @@ Deno.serve(async (req) => {
       log.push(`⚠️ Startlijst: ${e.message}`);
     }
 
-    // 3. Save stages
+    // 3. Fetch stage profile images (parallel met startlijst kan niet, PCS rate limit)
+    let stageProfiles: Record<number, string> = {};
+    if (stages.length > 0 && !comp?.is_one_day) {
+      log.push("🏔️ Etappeprofielen ophalen...");
+      try {
+        stageProfiles = await fetchStageProfiles(stages, baseUrl);
+        log.push(`✅ ${Object.keys(stageProfiles).length} profielen gevonden`);
+      } catch (e) {
+        log.push(`⚠️ Profielen: ${e.message}`);
+      }
+    }
+
+    // 4. Save stages
     let stagesSaved = 0, stagesSkipped = 0;
     for (const s of stages) {
       const startTime = new Date(`${s.date}T12:00:00`);
+      const { _href, ...stageData } = s; // _href niet opslaan in DB
       try {
         await adminClient.from("stages").insert({
-          ...s,
+          ...stageData,
+          profile_image_url: stageProfiles[s.stage_number] || null,
           start_time: startTime.toISOString(),
           deadline: startTime.toISOString(),
           locked: false,

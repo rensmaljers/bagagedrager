@@ -862,7 +862,7 @@ function renderStageTimeline() {
     const deadline = new Date(s.deadline);
     const isPast = now > deadline;
     let cls = 'upcoming';
-    let title = `Etappe ${s.stage_number}: ${s.name}`;
+    let title = `Etappe ${s.stage_number}: ${s.name}${s.distance_km ? ` (${s.distance_km} km)` : ''}`;
     if (hasResults) { cls = 'completed'; title += ' (afgerond)'; }
     else if (isPast) { cls = 'locked'; title += ' (vergrendeld)'; }
     else if (!hasResults && !isPast) {
@@ -930,7 +930,20 @@ function renderPickStage() {
   const pcsLink = pcsStageUrl ? ` <a href="${pcsStageUrl}" target="_blank" rel="noopener" class="pcs-link" title="Bekijk op PCS">PCS ↗</a>` : '';
 
   $('pick-stage-name').innerHTML = `Etappe ${stage.stage_number}: ${escapeHtml(stage.name)}${pcsLink}`;
-  $('pick-deadline').textContent = `Start: ${formatDeadline(stage.start_time || stage.deadline)}${isLocked ? ' (VERGRENDELD)' : ''}`;
+  const stageDetails = [
+    `Start: ${formatDeadline(stage.start_time || stage.deadline)}`,
+    stage.distance_km ? `${stage.distance_km} km` : null,
+    stage.departure && stage.arrival ? `${stage.departure} → ${stage.arrival}` : null,
+    isLocked ? '(VERGRENDELD)' : null,
+  ].filter(Boolean).join(' · ');
+  $('pick-deadline').textContent = stageDetails;
+  // Profielplaatje tonen
+  const profileContainer = $('pick-stage-profile');
+  if (profileContainer) {
+    profileContainer.innerHTML = stage.profile_image_url
+      ? `<img src="${escapeHtml(stage.profile_image_url)}" alt="Etappeprofiel" style="width:100%;max-height:120px;object-fit:contain;border-radius:var(--radius);margin-top:0.5rem;">`
+      : '';
+  }
   $('pick-locked-msg').style.display = isLocked ? 'block' : 'none';
 
   const currentPick = myPicks.find(p => p.stage_id === stageId);
