@@ -624,10 +624,11 @@ async function initApp() {
   if (profile?.is_admin) $('admin-tab').style.display = 'block';
 
   const sel = $('comp-select');
-  sel.innerHTML = competitions.map(c =>
-    `<option value="${c.id}">${c.country_flag || ''} ${c.name}${c.is_active ? '' : ' (afgelopen)'}</option>`
+  const activeComps = competitions.filter(c => c.is_active);
+  sel.innerHTML = activeComps.map(c =>
+    `<option value="${c.id}">${c.country_flag || ''} ${c.name}</option>`
   ).join('');
-  $('comp-count').textContent = competitions.length > 1 ? `${competitions.length} rondes` : '';
+  $('comp-count').textContent = activeComps.length > 1 ? `${activeComps.length} rondes` : '';
   updateSyncInfo();
   // Onthoud laatst gekozen ronde, val terug op actieve, dan eerste
   const savedCompId = parseInt(localStorage.getItem('bagagedrager_comp'));
