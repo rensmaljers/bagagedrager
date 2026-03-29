@@ -409,9 +409,9 @@ Deno.serve(async (req) => {
     for (const s of stages) {
       // Starttijd: uit PCS (per etappe of eendags) of fallback 12:00
       const rawTime = s._startTime || stageStartTimes[s.stage_number] || "";
-      // Normaliseer tijd: "0:00" → default (nog onbekend), "9:30" → "09:30"
+      const hasRealTime = rawTime && rawTime !== "0:00";
       let timeStr = "12:00";
-      if (rawTime && rawTime !== "0:00") {
+      if (hasRealTime) {
         const timeParts = rawTime.split(":");
         if (timeParts.length === 2) {
           timeStr = `${timeParts[0].padStart(2, "0")}:${timeParts[1].padStart(2, "0")}`;
@@ -448,7 +448,12 @@ Deno.serve(async (req) => {
       log.push(`📋 Etappe ${s.stage_number}: datum=${s.date}, naam=${s.name}, afstand=${s.distance_km || '?'}km, start=${s.departure || '?'}, finish=${s.arrival || '?'}, profiel=${profile_image_url || stageProfiles[s.stage_number] ? '✅' : '❌'}, ETA=${estimatedEnd.toISOString()}, ${existing ? 'UPDATE' : 'NIEUW'}`);
       try {
         if (existing) {
+          // Behoud locked, competition_id, en start_time/deadline als we geen echte tijd hebben
           const { locked, competition_id: _cid, ...updateData } = stageRow;
+          if (!hasRealTime) {
+            delete (updateData as any).start_time;
+            delete (updateData as any).deadline;
+          }
           await adminClient.from("stages").update(updateData).eq("id", existing.id);
           stagesUpdated++;
         } else {
