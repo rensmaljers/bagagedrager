@@ -1296,7 +1296,7 @@ async function loadHistory() {
   $('history-table').innerHTML = rows.map(({ pick, stage, rider, result, gp, timeGap, bonif, rowClass, numPickers, sharingPct }) =>
     `<tr class="${rowClass}">
       <td><div>Etappe ${stage?.stage_number || '?'}</div>${winnerNames[pick.stage_id] ? `<div style="font-size:0.65rem;color:var(--text-muted);">🏆 ${escapeHtml(winnerNames[pick.stage_id])}</div>` : ''}</td>
-      <td>${riderDisplay(rider?.name, rider?.photo_url)} <span class="team-badge-sm">${rider ? teamBadge(rider.team) : ''}</span>${numPickers > 1 ? ` <span class="badge bg-secondary" style="font-size:0.6rem;">${numPickers}x → ${sharingPct}%</span>` : ''}</td>
+      <td>${riderDisplay(rider?.name, rider?.photo_url)} <span class="team-badge-sm">${rider ? teamBadge(rider.team) : ''}</span></td>
       <td class="time text-end">${!histIsClassic && result ? (result.finish_position === 1 ? formatTime(result.time_seconds) : formatGap(timeGap)) : result ? formatTime(result.time_seconds) : '-'}</td>
       ${!histIsClassic ? `<td class="text-end">${bonif ? '-' + bonif + 's' : '-'}</td>` : ''}
       <td class="text-end">${result ? (pick.is_late ? '0' : result.points) : '-'}</td>
