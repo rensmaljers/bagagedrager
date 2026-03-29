@@ -1440,8 +1440,10 @@ async function loadParticipants() {
             <thead>${header}</thead>
             <tbody>
               ${picks.map(p => {
+                const stg = stages.find(s => s.id === p.stage_id);
+                const isLocked = stg?.locked;
                 const sharingPct = p.num_pickers <= 1 ? 100 : p.num_pickers === 2 ? 80 : p.num_pickers === 3 ? 60 : p.num_pickers === 4 ? 40 : 20;
-                const pickersBadge = p.num_pickers > 1 ? ` <span class="badge bg-secondary" style="font-size:0.6rem;">${p.num_pickers}x → ${sharingPct}%</span>` : '';
+                const pickersBadge = isLocked && p.num_pickers > 1 ? ` <span class="badge bg-secondary" style="font-size:0.6rem;">${p.num_pickers}x → ${sharingPct}%</span>` : '';
                 if (isClassic) {
                   return `<tr>
                   <td>${escapeHtml(p.display_name)}</td>
