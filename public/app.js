@@ -305,8 +305,13 @@ function activeScoringMode() {
   return comp?.scoring_mode || 'grand_tour';
 }
 
-// Build PCS stage URL: eendagskoersen hebben geen /stage-N suffix
-function buildPcsStageUrl(comp, stageNumber) {
+// Build PCS stage URL: stage-level URL heeft voorrang, anders competitie-level
+function buildPcsStageUrl(comp, stageNumber, stage) {
+  // Stage heeft eigen PCS URL (klassiekers-bundel)
+  if (stage?.pcs_url) {
+    const base = stage.pcs_url.replace(/\/$/, '').replace(/\/(stages|startlist|gc|stage-\d+|results?|resuts)$/, '');
+    return `${base}/result`;
+  }
   if (!comp?.pcs_url) return null;
   const base = comp.pcs_url.replace(/\/$/, '').replace(/\/(stages|startlist|gc|stage-\d+|results?|resuts)$/, '');
   if (comp.is_one_day) return `${base}/result`;
@@ -954,7 +959,7 @@ function renderPickStage() {
 
   // Build PCS link for this stage
   const comp = competitions.find(c => c.id === stage.competition_id);
-  const pcsStageUrl = buildPcsStageUrl(comp, stage.stage_number);
+  const pcsStageUrl = buildPcsStageUrl(comp, stage.stage_number, stage);
   const pcsLink = pcsStageUrl ? ` <a href="${pcsStageUrl}" target="_blank" rel="noopener" class="pcs-link" title="Bekijk op PCS">PCS ↗</a>` : '';
 
   $('pick-stage-name').innerHTML = `Etappe ${stage.stage_number}: ${escapeHtml(stage.name)}${pcsLink}`;
@@ -1422,7 +1427,8 @@ async function loadParticipants() {
   $('participants-content').innerHTML = stageNums.map(num => {
     const { picks } = byStage[num];
     const partComp = competitions.find(c => c.id === activeCompId);
-    const partPcsUrl = buildPcsStageUrl(partComp, num);
+    const partStage = stages.find(s => s.competition_id === activeCompId && s.stage_number === num);
+    const partPcsUrl = buildPcsStageUrl(partComp, num, partStage);
     const partPcsLink = partPcsUrl ? ` <a href="${partPcsUrl}" target="_blank" rel="noopener" class="pcs-link" title="Bekijk op PCS">PCS ↗</a>` : '';
     const stageName = `Etappe ${num}${partPcsLink}`;
     const stageId = byStage[num].stage_id;
@@ -1792,6 +1798,14 @@ async function loadAdminStages() {
       <td>${new Date(s.date).toLocaleDateString('nl-NL')}</td>
       <td>${s.start_time ? new Date(s.start_time).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
       <td>${typeLabels[s.stage_type] || s.stage_type}</td>
+      <td>
+        <div class="input-group input-group-sm" style="min-width:180px;">
+          <input type="url" class="form-control form-control-sm" value="${escapeHtml(s.pcs_url || '')}"
+                 placeholder="PCS URL etappe" style="font-size:0.7rem;"
+                 onchange="updateStagePcsUrl(${s.id}, this.value)">
+          ${s.pcs_url ? `<button class="btn btn-outline-primary btn-sm" onclick="syncStageFromPcs(${s.id}, ${s.competition_id})" title="Sync deze etappe">⟳</button>` : ''}
+        </div>
+      </td>
       <td>${s.locked
         ? '<span class="badge bg-secondary">Vergrendeld</span>'
         : '<span class="badge bg-success">Open</span>'}</td>
@@ -1803,7 +1817,7 @@ async function loadAdminStages() {
         <button class="btn btn-sm btn-outline-danger" onclick="deleteStage(${s.id})">Verwijder</button>
       </td>
     </tr>`;
-  }).join('') || '<tr><td colspan="8" class="text-muted">Geen etappes</td></tr>';
+  }).join('') || '<tr><td colspan="9" class="text-muted">Geen etappes</td></tr>';
 }
 
 $('btn-add-stage').addEventListener('click', async () => {
@@ -1842,6 +1856,46 @@ window.deleteStage = async function(stageId) {
     await supaDelete('stages', `id=eq.${stageId}`);
     loadAdminStages();
   } catch (e) { toast(e.message, 'error'); }
+};
+
+window.updateStagePcsUrl = async function(stageId, pcsUrl) {
+  try {
+    await supaPatch('stages', `id=eq.${stageId}`, { pcs_url: pcsUrl.trim() || null });
+    const stage = stages.find(s => s.id === stageId);
+    if (stage) stage.pcs_url = pcsUrl.trim() || null;
+    loadAdminStages();
+  } catch (e) { toast(e.message, 'error'); }
+};
+
+window.syncStageFromPcs = async function(stageId, compId) {
+  const status = $('pcs-sync-status');
+  const log = $('pcs-sync-log');
+  status.textContent = '⏳ Etappe syncen met PCS...';
+  status.className = 'text-muted';
+  log.innerHTML = '';
+
+  try {
+    const result = await callEdgeFunction('sync-pcs-race', {
+      competition_id: compId,
+      stage_id: stageId,
+    });
+
+    if (result.shirts && Object.keys(result.shirts).length) {
+      const existingShirts = JSON.parse(localStorage.getItem('bagagedrager_shirts') || '{}');
+      localStorage.setItem('bagagedrager_shirts', JSON.stringify({ ...existingShirts, ...result.shirts }));
+    }
+
+    status.textContent = '✅ Etappe sync voltooid!';
+    status.className = 'text-success';
+    log.innerHTML = (result.log || []).join('<br>');
+
+    loadAdminStages();
+    loadAdminRiders();
+    await loadRidersForComp();
+  } catch (e) {
+    status.textContent = e.message;
+    status.className = 'text-danger';
+  }
 };
 
 // --- ADMIN: PCS RESULTS via console script ---
@@ -1986,9 +2040,9 @@ $('btn-pcs-sync-results').addEventListener('click', async () => {
   if (!stage) { status.textContent = 'Kies een etappe'; status.className = 'text-danger'; return; }
 
   const comp = competitions.find(c => c.id === stage.competition_id);
-  if (!comp?.pcs_url) { status.textContent = 'Geen PCS URL ingesteld voor deze ronde'; status.className = 'text-danger'; return; }
+  if (!comp?.pcs_url && !stage.pcs_url) { status.textContent = 'Geen PCS URL ingesteld voor deze ronde of etappe'; status.className = 'text-danger'; return; }
 
-  const pcsUrl = buildPcsStageUrl(comp, stage.stage_number);
+  const pcsUrl = buildPcsStageUrl(comp, stage.stage_number, stage);
 
   status.textContent = '⏳ Resultaten ophalen van PCS...';
   status.className = 'text-muted';
@@ -2003,11 +2057,11 @@ $('btn-pcs-sync-results').addEventListener('click', async () => {
       return;
     }
 
-    // Match bib numbers to rider IDs
+    // Match riders by pcs_slug (klassiekers) or bib_number (grote rondes)
     let matched = 0, unmatched = 0;
     const payload = [];
     for (const r of data.results) {
-      const rider = riders.find(rd => rd.bib_number === r.bib_number);
+      const rider = riders.find(rd => (r.pcs_slug && rd.pcs_slug === r.pcs_slug) || (r.bib_number && rd.bib_number === r.bib_number));
       if (rider) {
         matched++;
         payload.push({ rider_id: rider.id, time_seconds: r.time_seconds, finish_position: r.finish_position || null, points: r.points, mountain_points: r.mountain_points, dnf: r.dnf });
@@ -2015,7 +2069,7 @@ $('btn-pcs-sync-results').addEventListener('click', async () => {
     }
 
     if (!matched) {
-      status.textContent = `Geen renners gekoppeld (${unmatched} onbekende bibnummers)`;
+      status.textContent = `Geen renners gekoppeld (${unmatched} onbekend)`;
       status.className = 'text-danger';
       return;
     }
@@ -2046,7 +2100,8 @@ $('btn-pcs-sync-results').addEventListener('click', async () => {
 // Resync all locked stages with results from PCS
 $('btn-pcs-resync-all').addEventListener('click', async () => {
   const comp = competitions.find(c => c.id === activeCompId);
-  if (!comp?.pcs_url) { toast('Geen PCS URL ingesteld voor deze ronde', 'warning'); return; }
+  const hasAnyPcsUrl = comp?.pcs_url || activeStages().some(s => s.pcs_url);
+  if (!hasAnyPcsUrl) { toast('Geen PCS URL ingesteld voor deze ronde of etappes', 'warning'); return; }
   if (!confirm('Alle vergrendelde etappes opnieuw syncen met PCS? Dit kan even duren.')) return;
 
   const status = $('pcs-results-sync-status');
@@ -2057,7 +2112,8 @@ $('btn-pcs-resync-all').addEventListener('click', async () => {
   let success = 0, failed = 0;
 
   for (const stage of lockedStages) {
-    const pcsUrl = buildPcsStageUrl(comp, stage.stage_number);
+    const pcsUrl = buildPcsStageUrl(comp, stage.stage_number, stage);
+    if (!pcsUrl) { log.innerHTML += `<div class="text-warning">⚠ Etappe ${stage.stage_number}: geen PCS URL</div>`; failed++; continue; }
     status.textContent = `⏳ Etappe ${stage.stage_number} syncen...`;
     status.className = 'text-muted';
     log.innerHTML += `<div>⏳ Etappe ${stage.stage_number}...</div>`;
@@ -2073,7 +2129,7 @@ $('btn-pcs-resync-all').addEventListener('click', async () => {
       let matched = 0;
       const payload = [];
       for (const r of data.results) {
-        const rider = riders.find(rd => rd.bib_number === r.bib_number);
+        const rider = riders.find(rd => (r.pcs_slug && rd.pcs_slug === r.pcs_slug) || (r.bib_number && rd.bib_number === r.bib_number));
         if (rider) {
           matched++;
           payload.push({ rider_id: rider.id, time_seconds: r.time_seconds, finish_position: r.finish_position || null, points: r.points, mountain_points: r.mountain_points, dnf: r.dnf });
@@ -2108,7 +2164,8 @@ $('btn-pcs-resync-all').addEventListener('click', async () => {
 // Auto-sync: sync etappes waarvan de geschatte eindtijd voorbij is
 $('btn-auto-sync').addEventListener('click', async () => {
   const comp = competitions.find(c => c.id === activeCompId);
-  if (!comp?.pcs_url) { toast('Geen PCS URL ingesteld voor deze ronde', 'warning'); return; }
+  const hasAnyPcsUrl2 = comp?.pcs_url || activeStages().some(s => s.pcs_url);
+  if (!hasAnyPcsUrl2) { toast('Geen PCS URL ingesteld voor deze ronde of etappes', 'warning'); return; }
 
   const now = new Date();
   const readyStages = activeStages().filter(s =>
@@ -2126,7 +2183,8 @@ $('btn-auto-sync').addEventListener('click', async () => {
   let success = 0, failed = 0;
 
   for (const stage of readyStages) {
-    const pcsUrl = buildPcsStageUrl(comp, stage.stage_number);
+    const pcsUrl = buildPcsStageUrl(comp, stage.stage_number, stage);
+    if (!pcsUrl) { log.innerHTML += `<div class="text-warning">⚠ Etappe ${stage.stage_number}: geen PCS URL</div>`; failed++; continue; }
     status.textContent = `⏳ Auto-sync etappe ${stage.stage_number}...`;
     status.className = 'text-muted';
     log.innerHTML += `<div>⏳ Etappe ${stage.stage_number} (ETA: ${new Date(stage.estimated_end_time).toLocaleTimeString('nl-NL', {hour:'2-digit',minute:'2-digit'})})...</div>`;
@@ -2142,7 +2200,7 @@ $('btn-auto-sync').addEventListener('click', async () => {
       let matched = 0;
       const payload = [];
       for (const r of data.results) {
-        const rider = riders.find(rd => rd.bib_number === r.bib_number);
+        const rider = riders.find(rd => (r.pcs_slug && rd.pcs_slug === r.pcs_slug) || (r.bib_number && rd.bib_number === r.bib_number));
         if (rider) {
           matched++;
           payload.push({ rider_id: rider.id, time_seconds: r.time_seconds, finish_position: r.finish_position || null, points: r.points, mountain_points: r.mountain_points, dnf: r.dnf });

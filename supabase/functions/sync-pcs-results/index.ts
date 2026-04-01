@@ -86,6 +86,14 @@ Deno.serve(async (req) => {
 
       // Find cells by class
       let bib = 0, time = 0, dnf = false;
+      let pcs_slug: string | null = null;
+
+      // Extract pcs_slug from rider link (href="rider/tadej-pogacar")
+      const riderLink = row.querySelector("a[href*='rider/']");
+      if (riderLink) {
+        const href = riderLink.getAttribute("href") || "";
+        pcs_slug = href.replace(/^.*rider\//, "").trim() || null;
+      }
 
       for (const cell of cells) {
         const cls = cell.className || "";
@@ -123,9 +131,9 @@ Deno.serve(async (req) => {
         }
       }
 
-      if (bib > 0) {
+      if (bib > 0 || pcs_slug) {
         position++;
-        results.push({ bib_number: bib, time_seconds: time || lastTime, finish_position: dnf ? null : position, points: 0, mountain_points: 0, dnf });
+        results.push({ bib_number: bib, pcs_slug, time_seconds: time || lastTime, finish_position: dnf ? null : position, points: 0, mountain_points: 0, dnf });
       }
     }
 
@@ -152,15 +160,23 @@ Deno.serve(async (req) => {
       const classRows = classTable.querySelectorAll("tbody tr");
       for (const row of classRows) {
         const cells = row.querySelectorAll("td");
-        let classBib = 0, classPts = 0;
+        let classBib = 0, classPts = 0, classSlug: string | null = null;
+        // Extract pcs_slug from rider link
+        const riderLink = row.querySelector("a[href*='rider/']");
+        if (riderLink) {
+          const href = riderLink.getAttribute("href") || "";
+          classSlug = href.replace(/^.*rider\//, "").trim() || null;
+        }
         for (const cell of cells) {
           const cls = cell.className || "";
           const text = cell.textContent?.trim() || "";
           if (cls.includes("bibs")) classBib = parseInt(text) || 0;
           if (cls.includes("pnt") && !cls.includes("uci")) classPts = parseInt(text) || 0;
         }
-        if (classBib > 0 && classPts > 0) {
-          const existing = results.find(r => r.bib_number === classBib);
+        if ((classBib > 0 || classSlug) && classPts > 0) {
+          const existing = results.find(r =>
+            (classSlug && r.pcs_slug === classSlug) || (classBib > 0 && r.bib_number === classBib)
+          );
           if (existing) existing[field] = classPts;
         }
       }

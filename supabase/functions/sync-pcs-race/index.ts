@@ -226,20 +226,203 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Admin toegang vereist" }), { status: 403, headers: corsHeaders });
     }
 
-    const { pcs_url, competition_id } = await req.json();
-    if (!pcs_url || !pcs_url.includes("procyclingstats.com")) {
-      return new Response(JSON.stringify({ error: "Ongeldige PCS URL" }), { status: 400, headers: corsHeaders });
-    }
+    const { pcs_url, competition_id, stage_id } = await req.json();
     if (!competition_id) {
       return new Response(JSON.stringify({ error: "Geen competitie geselecteerd" }), { status: 400, headers: corsHeaders });
     }
 
-    const baseUrl = pcs_url.replace(/\/$/, "").replace(/\/(stages|startlist|gc|stage-\d+|results?|resuts)$/, "");
-    const raceYear = parseInt(baseUrl.match(/\/(\d{4})/)?.[1] || String(new Date().getFullYear()));
-
     // Check of het een eendagskoers is
     const { data: comp } = await adminClient
       .from("competitions").select("is_one_day,name").eq("id", competition_id).single();
+
+    // Per-stage sync: sync één etappe met eigen PCS URL (voor klassiekers-bundel)
+    if (stage_id) {
+      const { data: stage } = await adminClient
+        .from("stages").select("id,stage_number,pcs_url,name").eq("id", stage_id).single();
+      if (!stage?.pcs_url) {
+        return new Response(JSON.stringify({ error: "Geen PCS URL ingesteld voor deze etappe" }), { status: 400, headers: corsHeaders });
+      }
+
+      const stageBaseUrl = stage.pcs_url.replace(/\/$/, "").replace(/\/(stages|startlist|gc|stage-\d+|results?|resuts)$/, "");
+      const stageYear = parseInt(stageBaseUrl.match(/\/(\d{4})/)?.[1] || String(new Date().getFullYear()));
+      const log: string[] = [];
+
+      // Helper: parse race-info (zelfde als hieronder)
+      function parseSingleRaceInfo(rawHtml: string) {
+        const get = (label: string) => {
+          const re = new RegExp(label + '[":]*\\s*(?:</div>)?\\s*<div[^>]*>\\s*([^<]+)', 'i');
+          const m = rawHtml.match(re);
+          return m ? m[1].trim() : null;
+        };
+        return {
+          date: get('Startdate') || get('Date'),
+          startTime: get('Start time'),
+          avgSpeed: get('Avg\\.\\s*speed winner') || get('Avg\\.\\s*speed'),
+          classification: get('Classification'),
+          raceCategory: get('Race category'),
+          distance: get('Distance') || get('Total distance'),
+          parcoursType: get('Parcours type'),
+          profileScore: get('ProfileScore'),
+          verticalMeters: get('Vertical meters'),
+          departure: get('Departure'),
+          arrival: get('Arrival'),
+          startlistQuality: get('Startlist quality score'),
+          avgTemperature: get('Avg\\.\\s*temperature'),
+        };
+      }
+
+      // 1. Race-info ophalen
+      log.push(`📅 Race-info ophalen voor ${stage.name}...`);
+      try {
+        const pcsRes = await fetch(stageBaseUrl, { headers: PCS_HEADERS });
+        if (!pcsRes.ok) throw new Error(`PCS gaf status ${pcsRes.status}`);
+        const rawHtml = await pcsRes.text();
+        const overviewDoc = new DOMParser().parseFromString(rawHtml, "text/html");
+        let info = parseSingleRaceInfo(rawHtml);
+
+        // Probeer /result pagina voor extra info
+        if (!info.startTime && !info.departure) {
+          try {
+            const resultRes = await fetch(stageBaseUrl + "/result", { headers: PCS_HEADERS });
+            if (resultRes.ok) {
+              const resultInfo = parseSingleRaceInfo(await resultRes.text());
+              for (const key of Object.keys(resultInfo) as (keyof typeof resultInfo)[]) {
+                if (!info[key] && resultInfo[key]) (info as any)[key] = resultInfo[key];
+              }
+            }
+          } catch { /* niet fataal */ }
+        }
+
+        // Datum parsen
+        let dateISO = `${stageYear}-01-01`;
+        if (info.date) {
+          const isoMatch = info.date.match(/(\d{4}-\d{2}-\d{2})/);
+          if (isoMatch) dateISO = isoMatch[1];
+          else {
+            const longMatch = info.date.match(/(\d{1,2})\s+(\w+)\s+(\d{4})/);
+            if (longMatch) {
+              const months: Record<string, string> = { january:'01',february:'02',march:'03',april:'04',may:'05',june:'06',july:'07',august:'08',september:'09',october:'10',november:'11',december:'12' };
+              const m = months[longMatch[2].toLowerCase()];
+              if (m) dateISO = `${longMatch[3]}-${m}-${longMatch[1].padStart(2, '0')}`;
+            }
+          }
+        }
+        if (dateISO === `${stageYear}-01-01`) {
+          const dm = rawHtml.match(new RegExp(`(${stageYear}-\\d{2}-\\d{2})`));
+          if (dm) dateISO = dm[1];
+        }
+
+        const startTimeStr = info.startTime || "10:00";
+        const timeParts = startTimeStr.split(":");
+        const timeFormatted = timeParts.length === 2 ? `${timeParts[0].padStart(2, "0")}:${timeParts[1].padStart(2, "0")}` : "12:00";
+        const startTime = new Date(`${dateISO}T${timeFormatted}:00`);
+        const distance_km = info.distance ? parseFloat(info.distance) || null : null;
+        const durationHours = distance_km ? (distance_km / 40) + 1 : 6;
+        const estimatedEnd = new Date(startTime.getTime() + durationHours * 3600 * 1000);
+
+        // Profiel-afbeelding
+        let profileUrl = null;
+        if (overviewDoc) {
+          const imgs = overviewDoc.querySelectorAll("img");
+          for (const img of imgs) {
+            const src = img.getAttribute("src") || "";
+            if (src.includes("profile")) {
+              profileUrl = src.startsWith("http") ? src : `https://www.procyclingstats.com/${src}`;
+              break;
+            }
+          }
+        }
+
+        // Stage updaten
+        const updateData: any = {
+          date: dateISO,
+          distance_km,
+          departure: info.departure || null,
+          arrival: info.arrival || null,
+          profile_image_url: profileUrl,
+          classification: info.classification || null,
+          race_category: info.raceCategory || null,
+          parcours_type: info.parcoursType || null,
+          profile_score: info.profileScore ? parseInt(info.profileScore) || null : null,
+          vertical_meters: info.verticalMeters ? parseInt(info.verticalMeters) || null : null,
+          avg_speed_winner: info.avgSpeed || null,
+          startlist_quality_score: info.startlistQuality ? parseInt(info.startlistQuality) || null : null,
+          avg_temperature: info.avgTemperature || null,
+          estimated_end_time: estimatedEnd.toISOString(),
+        };
+        if (startTimeStr && startTimeStr !== "0:00") {
+          updateData.start_time = startTime.toISOString();
+          updateData.deadline = startTime.toISOString();
+        }
+        await adminClient.from("stages").update(updateData).eq("id", stage_id);
+        log.push(`✅ Etappe ${stage.stage_number}: datum=${dateISO}, ${distance_km || '?'}km, ${info.departure || '?'} → ${info.arrival || '?'}`);
+      } catch (e) {
+        log.push(`⚠️ Race-info: ${(e as Error).message}`);
+      }
+
+      // 2. Startlijst ophalen en riders mergen in competitie
+      log.push("🚴 Startlijst ophalen...");
+      let shirts: Record<string, string> = {};
+      try {
+        const startDoc = await fetchPCS(stageBaseUrl + "/startlist");
+        const result = parseStartlist(startDoc);
+        shirts = result.shirts;
+        log.push(`✅ ${result.riders.length} renners + ${Object.keys(shirts).length} team shirts gevonden`);
+
+        // Riders mergen op pcs_slug (bestaande updaten, nieuwe toevoegen)
+        let ridersSaved = 0, ridersUpdated = 0;
+        for (const r of result.riders) {
+          try {
+            let existing = null;
+            if (r.pcs_slug) {
+              const { data } = await adminClient
+                .from("riders").select("id,bib_number")
+                .eq("competition_id", competition_id)
+                .eq("pcs_slug", r.pcs_slug)
+                .maybeSingle();
+              existing = data;
+            }
+            if (!existing) {
+              // Niet op bib zoeken — bij klassiekers wisselen bibnummers per koers
+              // Nieuwe renner toevoegen met uniek bibnummer
+              // Vind hoogste bestaande bibnummer in competitie
+              const { data: maxBib } = await adminClient
+                .from("riders").select("bib_number")
+                .eq("competition_id", competition_id)
+                .order("bib_number", { ascending: false })
+                .limit(1)
+                .maybeSingle();
+              const nextBib = (maxBib?.bib_number || 0) + 1;
+              await adminClient.from("riders").insert({ ...r, bib_number: nextBib, competition_id });
+              ridersSaved++;
+            } else {
+              // Update naam/team (bib_number behouden — is intern)
+              await adminClient.from("riders").update({ name: r.name, team: r.team, pcs_slug: r.pcs_slug }).eq("id", existing.id);
+              ridersUpdated++;
+            }
+          } catch (e) {
+            log.push(`⚠️ ${r.name}: ${(e as Error).message}`);
+          }
+        }
+        log.push(`🚴 Renners: ${ridersSaved} nieuw, ${ridersUpdated} bijgewerkt`);
+      } catch (e) {
+        log.push(`⚠️ Startlijst: ${(e as Error).message}`);
+      }
+
+      await adminClient.from("competitions").update({ last_synced_at: new Date().toISOString() }).eq("id", competition_id);
+
+      return new Response(JSON.stringify({ success: true, log, shirts }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Normale competitie-sync (grote ronde of losse eendagskoers)
+    if (!pcs_url || !pcs_url.includes("procyclingstats.com")) {
+      return new Response(JSON.stringify({ error: "Ongeldige PCS URL" }), { status: 400, headers: corsHeaders });
+    }
+
+    const baseUrl = pcs_url.replace(/\/$/, "").replace(/\/(stages|startlist|gc|stage-\d+|results?|resuts)$/, "");
+    const raceYear = parseInt(baseUrl.match(/\/(\d{4})/)?.[1] || String(new Date().getFullYear()));
 
     const log: string[] = [];
 
