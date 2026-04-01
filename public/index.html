@@ -1503,11 +1503,26 @@
       </div>
       <!-- Renner beschikbaarheid teller -->
       <div id="rider-availability" class="rider-availability mb-2"></div>
-      <div class="mb-3 d-flex gap-2">
-        <input type="text" id="rider-search" class="form-control" placeholder="Zoek renner..." />
-        <select id="rider-team-filter" class="form-select" style="max-width:250px;">
+      <div class="mb-3 d-flex gap-2 flex-wrap">
+        <input type="text" id="rider-search" class="form-control" placeholder="Zoek renner..." style="min-width:140px;flex:1;" />
+        <select id="rider-team-filter" class="form-select" style="max-width:220px;">
           <option value="">Alle teams</option>
         </select>
+        <select id="rider-specialty-filter" class="form-select" style="max-width:180px;">
+          <option value="">Alle types</option>
+          <option value="climber">🏔️ Klimmer</option>
+          <option value="sprint">⚡ Sprinter</option>
+          <option value="gc">👑 Klassement</option>
+          <option value="tt">⏱️ Tijdrijder</option>
+          <option value="one_day">🏆 Eendags</option>
+          <option value="hills">⛰️ Heuvels</option>
+        </select>
+        <select id="rider-nationality-filter" class="form-select" style="max-width:180px;">
+          <option value="">Alle landen</option>
+        </select>
+        <label class="form-check d-flex align-items-center gap-1 mb-0 ms-1" style="white-space:nowrap;">
+          <input type="checkbox" id="rider-hide-used" class="form-check-input"> Verberg gebruikt
+        </label>
       </div>
       <div id="rider-grid" class="row g-2"></div>
 

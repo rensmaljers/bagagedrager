@@ -1102,6 +1102,9 @@ function updatePickBar(stage, currentPick) {
 function renderRiderGrid(usedInOtherStages, fullyLocked) {
   const search = $('rider-search').value.toLowerCase();
   const teamFilter = $('rider-team-filter').value;
+  const specialtyFilter = $('rider-specialty-filter').value;
+  const nationalityFilter = $('rider-nationality-filter').value;
+  const hideUsed = $('rider-hide-used').checked;
 
   // Populate team dropdown if empty
   if ($('rider-team-filter').options.length <= 1 && riders.length) {
@@ -1110,9 +1113,21 @@ function renderRiderGrid(usedInOtherStages, fullyLocked) {
       teams.map(t => `<option value="${t}">${t}</option>`).join('');
   }
 
+  // Populate nationality dropdown if empty
+  if ($('rider-nationality-filter').options.length <= 1 && riders.length) {
+    const nats = [...new Set(riders.map(r => r.nationality).filter(Boolean))].sort();
+    $('rider-nationality-filter').innerHTML = '<option value="">Alle landen</option>' +
+      nats.map(n => `<option value="${n}">${n}</option>`).join('');
+  }
+
+  const specialtyKey = specialtyFilter ? `specialty_${specialtyFilter}` : null;
+
   const filtered = riders.filter(r =>
     (r.name.toLowerCase().includes(search) || r.team.toLowerCase().includes(search)) &&
-    (!teamFilter || r.team === teamFilter)
+    (!teamFilter || r.team === teamFilter) &&
+    (!specialtyKey || (r[specialtyKey] && r[specialtyKey] >= 70)) &&
+    (!nationalityFilter || r.nationality === nationalityFilter) &&
+    (!hideUsed || !usedInOtherStages.has(r.id))
   );
 
   // Group riders by team
@@ -1186,6 +1201,9 @@ $('rider-search').addEventListener('input', () => {
   _searchDebounce = setTimeout(() => renderPickStage(), 150);
 });
 $('rider-team-filter').addEventListener('change', () => renderPickStage());
+$('rider-specialty-filter').addEventListener('change', () => renderPickStage());
+$('rider-nationality-filter').addEventListener('change', () => renderPickStage());
+$('rider-hide-used').addEventListener('change', () => renderPickStage());
 
 // Submit pick via Postgres RPC
 $('btn-submit-pick').addEventListener('click', async () => {
