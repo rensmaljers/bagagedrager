@@ -217,6 +217,31 @@ function parseStartlist(doc: any) {
   return { riders, shirts };
 }
 
+// Haal bestaande rider-details op uit andere competities (foto, nationaliteit, specialiteiten, etc.)
+async function enrichFromExisting(adminClient: any, pcs_slug: string | null): Promise<Record<string, any>> {
+  if (!pcs_slug) return {};
+  const { data } = await adminClient
+    .from("riders")
+    .select("photo_url,nationality,date_of_birth,weight_kg,height_m,specialty_one_day,specialty_gc,specialty_tt,specialty_sprint,specialty_climber,specialty_hills")
+    .eq("pcs_slug", pcs_slug)
+    .not("photo_url", "is", null)
+    .limit(1)
+    .maybeSingle();
+  if (!data) {
+    // Probeer zonder photo_url filter — pak gewoon de eerste met details
+    const { data: fallback } = await adminClient
+      .from("riders")
+      .select("photo_url,nationality,date_of_birth,weight_kg,height_m,specialty_one_day,specialty_gc,specialty_tt,specialty_sprint,specialty_climber,specialty_hills")
+      .eq("pcs_slug", pcs_slug)
+      .limit(1)
+      .maybeSingle();
+    if (!fallback) return {};
+    // Filter null values
+    return Object.fromEntries(Object.entries(fallback).filter(([_, v]) => v != null));
+  }
+  return Object.fromEntries(Object.entries(data).filter(([_, v]) => v != null));
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -409,7 +434,8 @@ Deno.serve(async (req) => {
                 .limit(1)
                 .maybeSingle();
               const nextBib = (maxBib?.bib_number || 0) + 1;
-              await adminClient.from("riders").insert({ ...r, bib_number: nextBib, competition_id });
+              const enriched = await enrichFromExisting(adminClient, r.pcs_slug);
+              await adminClient.from("riders").insert({ ...enriched, ...r, bib_number: nextBib, competition_id });
               ridersSaved++;
             } else {
               // Update naam/team (bib_number behouden — is intern)
@@ -692,7 +718,9 @@ Deno.serve(async (req) => {
           await adminClient.from("riders").update({ ...r }).eq("id", existing.id);
           ridersUpdated++;
         } else {
-          await adminClient.from("riders").insert({ ...r, competition_id });
+          // Neem details over van dezelfde renner in andere competities
+          const enriched = await enrichFromExisting(adminClient, r.pcs_slug);
+          await adminClient.from("riders").insert({ ...enriched, ...r, competition_id });
           ridersSaved++;
         }
       } catch (e) {
