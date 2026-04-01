@@ -13,6 +13,22 @@ const PCS_HEADERS = {
   "Accept-Language": "en-US,en;q=0.5",
 };
 
+// PCS tijden zijn in CET/CEST — bepaal juiste UTC offset voor een datum
+function cetOffsetForDate(dateISO: string): string {
+  // CEST (UTC+2): laatste zondag maart t/m laatste zondag oktober
+  const d = new Date(dateISO + "T12:00:00Z");
+  const year = d.getFullYear();
+  // Laatste zondag van maart
+  const marchLast = new Date(Date.UTC(year, 2, 31));
+  marchLast.setUTCDate(31 - marchLast.getUTCDay());
+  // Laatste zondag van oktober
+  const octLast = new Date(Date.UTC(year, 9, 31));
+  octLast.setUTCDate(31 - octLast.getUTCDay());
+  // CEST als datum valt in zomertijd
+  if (d >= marchLast && d < octLast) return "+02:00";
+  return "+01:00";
+}
+
 function mapStageType(iconClass: string, name: string): string {
   if (name.toLowerCase().includes("itt") || name.toLowerCase().includes("(tt)")) return "tt";
   if (iconClass.includes("p5") || iconClass.includes("p4")) return "mountain";
@@ -315,7 +331,7 @@ Deno.serve(async (req) => {
         const startTimeStr = info.startTime || "10:00";
         const timeParts = startTimeStr.split(":");
         const timeFormatted = timeParts.length === 2 ? `${timeParts[0].padStart(2, "0")}:${timeParts[1].padStart(2, "0")}` : "12:00";
-        const startTime = new Date(`${dateISO}T${timeFormatted}:00`);
+        const startTime = new Date(`${dateISO}T${timeFormatted}:00${cetOffsetForDate(dateISO)}`);
         const distance_km = info.distance ? parseFloat(info.distance) || null : null;
         const durationHours = distance_km ? (distance_km / 40) + 1 : 6;
         const estimatedEnd = new Date(startTime.getTime() + durationHours * 3600 * 1000);
@@ -601,7 +617,7 @@ Deno.serve(async (req) => {
         }
       }
       const dateStr = s.date && s.date.match(/^\d{4}-\d{2}-\d{2}$/) ? s.date : `${raceYear}-01-01`;
-      const startTime = new Date(`${dateStr}T${timeStr}:00`);
+      const startTime = new Date(`${dateStr}T${timeStr}:00${cetOffsetForDate(dateStr)}`);
       if (isNaN(startTime.getTime())) {
         log.push(`⚠️ Etappe ${s.stage_number}: ongeldige datum "${s.date}" / tijd "${timeStr}", overgeslagen`);
         continue;
