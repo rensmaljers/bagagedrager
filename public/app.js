@@ -922,9 +922,11 @@ async function loadPickView() {
   const compStages = activeStages();
   const sel = $('stage-select');
   const now = new Date();
+  const typeIcons = { flat: '🟢', mountain: '⛰️', tt: '⏱️', sprint: '⚡' };
   sel.innerHTML = compStages.map(s => {
     const locked = s.locked || now > new Date(s.deadline);
-    return `<option value="${s.id}">${locked ? '🔒 ' : ''} Etappe ${s.stage_number}: ${s.name}</option>`;
+    const icon = typeIcons[s.stage_type] || '';
+    return `<option value="${s.id}">${locked ? '🔒 ' : ''}${icon} Etappe ${s.stage_number}: ${s.name}</option>`;
   }).join('');
 
   const nextStage = compStages.find(s => !s.locked) || compStages[0];
