@@ -1,15 +1,25 @@
 [build]
-  publish = "public"
-  command = "echo 'Static site, no build needed'"
+  publish = "dist"
+  command = "npm run build"
 
 [build.environment]
   NODE_VERSION = "20"
 
+# Security headers voor alle pagina's
 [[headers]]
   for = "/*"
   [headers.values]
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
+    X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+# Lange cache voor gehashte assets (Vite voegt hash toe aan bestandsnamen)
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
 
 [[redirects]]
   from = "/*"
