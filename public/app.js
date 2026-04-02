@@ -1187,7 +1187,7 @@ function renderRiderGrid(usedInOtherStages, fullyLocked) {
   }).join('') : '<div class="col-12"><p class="text-muted text-center py-4">Geen renners gevonden</p></div>';
 }
 
-function selectRider(riderId) {
+window.selectRider = function selectRider(riderId) {
   selectedRiderId = riderId;
   const stageId = parseInt($('stage-select').value);
   const compStageIds = new Set(activeStages().map(s => s.id));
