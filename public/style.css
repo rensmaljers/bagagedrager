@@ -843,6 +843,43 @@
       text-decoration: none;
     }
     .rider-name-link:hover { color: var(--accent) !important; }
+    .rider-pcs-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      font-size: 0.7rem;
+      line-height: 1;
+      color: var(--text-muted);
+      background: var(--badge-muted-bg);
+      text-decoration: none;
+      flex-shrink: 0;
+      transition: all 0.15s ease;
+    }
+    .rider-pcs-icon:hover {
+      color: var(--accent-text);
+      background: var(--accent);
+    }
+    /* Refresh button: only visible when app runs as installed PWA (no browser chrome) */
+    .pwa-only { display: none; }
+    @media (display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui) {
+      .pwa-only { display: inline-flex; }
+    }
+    /* Horizontal scroll wrapper for tables on mobile */
+    .table-responsive-wrapper {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .table-responsive-wrapper > table {
+      min-width: 100%;
+    }
+    @media (max-width: 640px) {
+      .table-responsive-wrapper > table {
+        min-width: 520px;
+      }
+    }
     .rider-specs {
       font-size: 0.65rem;
       color: var(--text-muted);

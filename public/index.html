@@ -22,6 +22,17 @@
 <!-- Toast container -->
 <div id="toast-container" class="toast-container"></div>
 
+<!-- Admin: edit user picks modal -->
+<div id="admin-picks-overlay" class="h2h-overlay" style="display:none;" onclick="if(event.target===this)this.style.display='none'">
+  <div class="h2h-modal">
+    <div class="h2h-header">
+      <h3 id="admin-picks-title">Keuzes bewerken</h3>
+      <button class="h2h-close" onclick="$('admin-picks-overlay').style.display='none'">&times;</button>
+    </div>
+    <div id="admin-picks-content" class="p-2"></div>
+  </div>
+</div>
+
 <!-- Head-to-head modal -->
 <div id="h2h-overlay" class="h2h-overlay" style="display:none;" onclick="if(event.target===this)this.style.display='none'">
   <div class="h2h-modal">
@@ -103,6 +114,7 @@
       </span>
       <div class="d-flex align-items-center gap-2">
         <a href="#account" id="user-name" class="text-muted" style="font-size:0.85rem;text-decoration:none;cursor:pointer;" title="Account instellingen"></a>
+        <button id="btn-refresh" class="theme-toggle pwa-only" title="Ververs" aria-label="Ververs" onclick="location.reload()">↻</button>
         <button id="btn-theme" class="theme-toggle" title="Wissel thema" aria-label="Wissel thema"></button>
         <button id="btn-logout" class="btn btn-ghost btn-sm">Uitloggen</button>
       </div>

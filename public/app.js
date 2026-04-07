@@ -1163,7 +1163,7 @@ function renderRiderGrid(usedInOtherStages, fullyLocked) {
                       ${r.photo_url && r.photo_url !== 'none' ? `<img src="${escapeHtml(r.photo_url)}" class="rider-photo" alt="" onerror="this.style.display='none'">` : ''}
                       <div class="flex-grow-1 min-width-0">
                         <div class="d-flex justify-content-between align-items-start">
-                          <div class="fw-bold" style="font-size:0.88rem;">${r.pcs_slug ? `<a href="https://www.procyclingstats.com/rider/${escapeHtml(r.pcs_slug)}" target="_blank" rel="noopener" class="rider-name-link">${escapeHtml(r.name)}</a>` : escapeHtml(r.name)}</div>
+                          <div class="fw-bold d-flex align-items-center gap-1" style="font-size:0.88rem;">${escapeHtml(r.name)}${r.pcs_slug ? ` <a href="https://www.procyclingstats.com/rider/${escapeHtml(r.pcs_slug)}" target="_blank" rel="noopener" class="rider-pcs-icon" title="Bekijk op PCS" onclick="event.stopPropagation()">↗</a>` : ''}</div>
                           <span class="bib-badge">${r.bib_number}</span>
                         </div>
                         ${r.nationality || r.specialty_climber ? `<div class="rider-specs">${[
@@ -1543,6 +1543,10 @@ async function loadAdminUsers() {
                   onclick="resetPassword('${escapeHtml(p.email || '')}')">
             Reset ww
           </button>
+          <button class="btn btn-sm btn-outline-primary"
+                  onclick="openAdminPicks('${p.id}', '${escapeHtml(p.display_name).replace(/'/g, "\\'")}')">
+            Keuzes
+          </button>
           <button class="btn btn-sm btn-outline-danger"
                   onclick="deletePlayer('${p.id}', '${escapeHtml(p.display_name)}')" ${isSelf ? 'disabled' : ''}>
             Verwijder
@@ -1552,6 +1556,99 @@ async function loadAdminUsers() {
     </tr>`;
   }).join('') || '<tr><td colspan="4" class="text-muted">Geen gebruikers</td></tr>';
 }
+
+// --- ADMIN: Keuzes van andere spelers bewerken ---
+window.openAdminPicks = async function(userId, displayName) {
+  const overlay = $('admin-picks-overlay');
+  $('admin-picks-title').textContent = `Keuzes — ${displayName}`;
+  $('admin-picks-content').innerHTML = '<p class="text-muted">Laden…</p>';
+  overlay.style.display = 'flex';
+  try {
+    const compStages = activeStages();
+    if (!compStages.length) {
+      $('admin-picks-content').innerHTML = '<p class="text-muted">Geen etappes in deze ronde</p>';
+      return;
+    }
+    const stageIds = compStages.map(s => s.id);
+    const userPicks = await supaRest('picks', {
+      filters: `user_id=eq.${userId}&stage_id=in.(${stageIds.join(',')})`,
+    });
+    const pickMap = new Map(userPicks.map(p => [p.stage_id, p]));
+    const usedRiderIds = new Set(userPicks.map(p => p.rider_id));
+
+    const ridersSorted = [...riders].sort((a, b) =>
+      (a.team || '').localeCompare(b.team || '') || a.name.localeCompare(b.name)
+    );
+
+    $('admin-picks-content').innerHTML = `
+      <div class="table-responsive-wrapper">
+        <table class="table table-sm table-striped mb-0">
+          <thead><tr><th>Etappe</th><th>Huidige keuze</th><th>Wijzigen naar</th><th></th></tr></thead>
+          <tbody>
+            ${compStages.map(s => {
+              const pick = pickMap.get(s.id);
+              const currentRider = pick ? riders.find(r => r.id === pick.rider_id) : null;
+              const options = ridersSorted.map(r => {
+                const disabled = usedRiderIds.has(r.id) && (!pick || pick.rider_id !== r.id);
+                return `<option value="${r.id}" ${disabled ? 'disabled' : ''}>${escapeHtml(r.name)} (${escapeHtml(r.team || '')})</option>`;
+              }).join('');
+              return `<tr>
+                <td style="white-space:nowrap;">E${s.stage_number}${s.locked ? ' 🔒' : ''}</td>
+                <td>${currentRider ? escapeHtml(currentRider.name) + (pick.is_late ? ' <span class="badge bg-warning">laat</span>' : '') : '<span class="text-muted">—</span>'}</td>
+                <td>
+                  <select class="form-select form-select-sm admin-pick-rider" data-stage-id="${s.id}">
+                    <option value="">-- kies --</option>
+                    ${options}
+                  </select>
+                  <label style="font-size:0.7rem;" class="mt-1 d-block">
+                    <input type="checkbox" class="admin-pick-late" data-stage-id="${s.id}" ${pick?.is_late ? 'checked' : ''}> laat (geen punten)
+                  </label>
+                </td>
+                <td style="white-space:nowrap;">
+                  <button class="btn btn-sm btn-primary" onclick="saveAdminPick('${userId}', ${s.id})">Opslaan</button>
+                  ${pick ? `<button class="btn btn-sm btn-outline-danger" onclick="deleteAdminPick('${userId}', ${s.id})">×</button>` : ''}
+                </td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+      <p class="text-muted mt-2" style="font-size:0.75rem;">Wijzigingen zijn direct van kracht. Punten worden automatisch herberekend.</p>
+    `;
+  } catch (e) {
+    $('admin-picks-content').innerHTML = `<p class="text-danger">${escapeHtml(e.message)}</p>`;
+  }
+};
+
+window.saveAdminPick = async function(userId, stageId) {
+  const sel = document.querySelector(`select.admin-pick-rider[data-stage-id="${stageId}"]`);
+  const lateCb = document.querySelector(`input.admin-pick-late[data-stage-id="${stageId}"]`);
+  const riderId = parseInt(sel.value);
+  if (!riderId) { toast('Kies een renner', 'warning'); return; }
+  try {
+    await supaRpc('admin_upsert_pick', {
+      p_user_id: userId,
+      p_stage_id: stageId,
+      p_rider_id: riderId,
+      p_is_late: !!lateCb?.checked,
+    });
+    toast('Keuze opgeslagen', 'success');
+    const title = $('admin-picks-title').textContent.replace('Keuzes — ', '');
+    openAdminPicks(userId, title);
+    loadStandings();
+  } catch (e) { toast(e.message, 'error'); }
+};
+
+window.deleteAdminPick = async function(userId, stageId) {
+  if (!confirm('Keuze verwijderen?')) return;
+  try {
+    await supaRpc('admin_delete_pick', { p_user_id: userId, p_stage_id: stageId });
+    toast('Keuze verwijderd', 'success');
+    const title = $('admin-picks-title').textContent.replace('Keuzes — ', '');
+    openAdminPicks(userId, title);
+    loadStandings();
+  } catch (e) { toast(e.message, 'error'); }
+};
 
 window.togglePlayerActive = async function(userId, activate) {
   try {
