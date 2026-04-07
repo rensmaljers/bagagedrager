@@ -867,16 +867,21 @@
     @media (display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui) {
       .pwa-only { display: inline-flex; }
     }
-    /* Horizontal scroll wrapper for tables on mobile */
-    .table-responsive-wrapper {
+    /* Horizontal scroll wrapper for tables on mobile.
+       Applies to dedicated wrappers AND any card-body.p-0 with a direct table child,
+       so admin/JS-rendered cards (peloton, deelnemers per etappe) ook scrollen. */
+    .table-responsive-wrapper,
+    .card-body.p-0:has(> table) {
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
     }
-    .table-responsive-wrapper > table {
+    .table-responsive-wrapper > table,
+    .card-body.p-0 > table {
       min-width: 100%;
     }
     @media (max-width: 640px) {
-      .table-responsive-wrapper > table {
+      .table-responsive-wrapper > table,
+      .card-body.p-0 > table {
         min-width: 520px;
       }
     }
