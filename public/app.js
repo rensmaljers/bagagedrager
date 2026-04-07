@@ -1163,7 +1163,7 @@ function renderRiderGrid(usedInOtherStages, fullyLocked) {
                       ${r.photo_url && r.photo_url !== 'none' ? `<img src="${escapeHtml(r.photo_url)}" class="rider-photo" alt="" onerror="this.style.display='none'">` : ''}
                       <div class="flex-grow-1 min-width-0">
                         <div class="d-flex justify-content-between align-items-start">
-                          <div class="fw-bold d-flex align-items-center gap-1" style="font-size:0.88rem;">${escapeHtml(r.name)}${r.pcs_slug ? ` <a href="https://www.procyclingstats.com/rider/${escapeHtml(r.pcs_slug)}" target="_blank" rel="noopener" class="rider-pcs-icon" title="Bekijk op PCS" onclick="event.stopPropagation()">↗</a>` : ''}</div>
+                          <div class="fw-bold d-flex align-items-center gap-1" style="font-size:0.88rem;"><span class="text-truncate">${escapeHtml(r.name)}</span>${r.pcs_slug ? `<a href="https://www.procyclingstats.com/rider/${escapeHtml(r.pcs_slug)}" target="_blank" rel="noopener" class="rider-pcs-icon ms-auto" title="Bekijk op PCS" onclick="event.stopPropagation()">↗</a>` : ''}</div>
                           <span class="bib-badge">${r.bib_number}</span>
                         </div>
                         ${r.nationality || r.specialty_climber ? `<div class="rider-specs">${[

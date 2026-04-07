@@ -867,22 +867,24 @@
     @media (display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui) {
       .pwa-only { display: inline-flex; }
     }
-    /* Horizontal scroll wrapper for tables on mobile.
-       Applies to dedicated wrappers AND any card-body.p-0 with a direct table child,
-       so admin/JS-rendered cards (peloton, deelnemers per etappe) ook scrollen. */
+    /* Horizontal scroll voor tabellen die te breed zijn voor het scherm.
+       Smalle tabellen (zoals klassement met 3 kolommen) blijven netjes passen,
+       brede tabellen (deelnemers per etappe, peloton met admin acties) krijgen
+       natuurlijke overflow + horizontaal scrollen. */
     .table-responsive-wrapper,
     .card-body.p-0:has(> table) {
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
     }
-    .table-responsive-wrapper > table,
-    .card-body.p-0 > table {
-      min-width: 100%;
-    }
+    /* nowrap op cellen zorgt dat brede content niet wordt afgekapt maar
+       natuurlijk overflowt → triggert de scroll. Klassement-tabellen blijven
+       smal genoeg om netjes te passen. */
     @media (max-width: 640px) {
-      .table-responsive-wrapper > table,
-      .card-body.p-0 > table {
-        min-width: 520px;
+      .card-body.p-0 > table th,
+      .card-body.p-0 > table td,
+      .table-responsive-wrapper > table th,
+      .table-responsive-wrapper > table td {
+        white-space: nowrap;
       }
     }
     .rider-specs {
