@@ -131,9 +131,20 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Bonification cell (finish bonus, e.g. 10/6/4 for top 3 in road stages)
+      // PCS marks this with a class containing "bonis"
+      let bonus = 0;
+      for (const cell of cells) {
+        const cls = cell.className || "";
+        if (cls.includes("bonis")) {
+          const txt = (cell.textContent || "").trim().replace(/[^\d]/g, "");
+          if (txt) bonus = parseInt(txt) || 0;
+        }
+      }
+
       if (bib > 0 || pcs_slug) {
         position++;
-        results.push({ bib_number: bib, pcs_slug, time_seconds: time || lastTime, finish_position: dnf ? null : position, points: 0, mountain_points: 0, dnf });
+        results.push({ bib_number: bib, pcs_slug, time_seconds: time || lastTime, finish_position: dnf ? null : position, points: 0, mountain_points: 0, bonification_seconds: bonus, dnf });
       }
     }
 
@@ -184,6 +195,40 @@ Deno.serve(async (req) => {
 
     extractClassificationPoints(findTabTable("POINTS"), "points");
     extractClassificationPoints(findTabTable("KOM"), "mountain_points");
+
+    // Bonification tab: sometimes PCS exposes a "BONIS" tab with the full breakdown
+    // (finish + intermediate sprints). When present, it overrides the per-row "bonis"
+    // cell value so intermediate sprint bonuses are also counted.
+    function extractBonifications(bonisTable: any) {
+      if (!bonisTable) return;
+      const bonusRows = bonisTable.querySelectorAll("tbody tr");
+      for (const row of bonusRows) {
+        const cells = row.querySelectorAll("td");
+        let bBib = 0, bPts = 0, bSlug: string | null = null;
+        const riderLink = row.querySelector("a[href*='rider/']");
+        if (riderLink) {
+          const href = riderLink.getAttribute("href") || "";
+          bSlug = href.replace(/^.*rider\//, "").trim() || null;
+        }
+        for (const cell of cells) {
+          const cls = cell.className || "";
+          const text = cell.textContent?.trim() || "";
+          if (cls.includes("bibs")) bBib = parseInt(text) || 0;
+          // The bonus column in this tab uses class "bonis" or "pnt" depending on PCS version
+          if ((cls.includes("bonis") || cls.includes("pnt")) && !cls.includes("uci")) {
+            const n = parseInt(text.replace(/[^\d]/g, "")) || 0;
+            if (n > bPts) bPts = n;
+          }
+        }
+        if ((bBib > 0 || bSlug) && bPts > 0) {
+          const existing = results.find(r =>
+            (bSlug && r.pcs_slug === bSlug) || (bBib > 0 && r.bib_number === bBib)
+          );
+          if (existing) existing.bonification_seconds = bPts;
+        }
+      }
+    }
+    extractBonifications(findTabTable("BONIS") || findTabTable("BONIFICATION"));
 
     return new Response(JSON.stringify({
       success: true,

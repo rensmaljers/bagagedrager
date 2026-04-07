@@ -2186,7 +2186,7 @@ $('btn-pcs-sync-results').addEventListener('click', async () => {
       const rider = riders.find(rd => (r.pcs_slug && rd.pcs_slug === r.pcs_slug) || (r.bib_number && rd.bib_number === r.bib_number));
       if (rider) {
         matched++;
-        payload.push({ rider_id: rider.id, time_seconds: r.time_seconds, finish_position: r.finish_position || null, points: r.points, mountain_points: r.mountain_points, dnf: r.dnf });
+        payload.push({ rider_id: rider.id, time_seconds: r.time_seconds, finish_position: r.finish_position || null, points: r.points, mountain_points: r.mountain_points, bonification_seconds: r.bonification_seconds || 0, dnf: r.dnf });
       } else { unmatched++; }
     }
 
@@ -2254,7 +2254,7 @@ $('btn-pcs-resync-all').addEventListener('click', async () => {
         const rider = riders.find(rd => (r.pcs_slug && rd.pcs_slug === r.pcs_slug) || (r.bib_number && rd.bib_number === r.bib_number));
         if (rider) {
           matched++;
-          payload.push({ rider_id: rider.id, time_seconds: r.time_seconds, finish_position: r.finish_position || null, points: r.points, mountain_points: r.mountain_points, dnf: r.dnf });
+          payload.push({ rider_id: rider.id, time_seconds: r.time_seconds, finish_position: r.finish_position || null, points: r.points, mountain_points: r.mountain_points, bonification_seconds: r.bonification_seconds || 0, dnf: r.dnf });
         }
       }
 
@@ -2325,7 +2325,7 @@ $('btn-auto-sync').addEventListener('click', async () => {
         const rider = riders.find(rd => (r.pcs_slug && rd.pcs_slug === r.pcs_slug) || (r.bib_number && rd.bib_number === r.bib_number));
         if (rider) {
           matched++;
-          payload.push({ rider_id: rider.id, time_seconds: r.time_seconds, finish_position: r.finish_position || null, points: r.points, mountain_points: r.mountain_points, dnf: r.dnf });
+          payload.push({ rider_id: rider.id, time_seconds: r.time_seconds, finish_position: r.finish_position || null, points: r.points, mountain_points: r.mountain_points, bonification_seconds: r.bonification_seconds || 0, dnf: r.dnf });
         }
       }
 
@@ -2459,7 +2459,7 @@ function renderAdminResultsForm() {
   $('admin-results-form').innerHTML = `
     <div class="table-responsive" style="max-height:400px; overflow-y:auto;">
       <table class="table table-sm">
-        <thead><tr><th>Renner</th><th>Tijd (sec)</th><th>Pts</th><th>Berg Pts</th><th>DNF</th></tr></thead>
+        <thead><tr><th>Renner</th><th>Tijd (sec)</th><th>Pts</th><th>Berg Pts</th><th>Boni (s)</th><th>DNF</th></tr></thead>
         <tbody>
           ${riders.map(r => `
             <tr data-rider-id="${r.id}">
@@ -2467,6 +2467,7 @@ function renderAdminResultsForm() {
               <td><input type="number" class="form-control form-control-sm res-time" value="0" min="0" /></td>
               <td><input type="number" class="form-control form-control-sm res-pts" value="0" min="0" /></td>
               <td><input type="number" class="form-control form-control-sm res-mt" value="0" min="0" /></td>
+              <td><input type="number" class="form-control form-control-sm res-bonus" value="0" min="0" /></td>
               <td><input type="checkbox" class="form-check-input res-dnf" /></td>
             </tr>
           `).join('')}
@@ -2485,6 +2486,7 @@ async function loadExistingResults(stageId) {
       row.querySelector('.res-time').value = r.time_seconds;
       row.querySelector('.res-pts').value = r.points;
       row.querySelector('.res-mt').value = r.mountain_points;
+      row.querySelector('.res-bonus').value = r.bonification_seconds || 0;
       row.querySelector('.res-dnf').checked = r.dnf;
     }
   } catch (e) { /* no results yet */ }
@@ -2498,9 +2500,10 @@ $('btn-save-results').addEventListener('click', async () => {
     const time = parseInt(row.querySelector('.res-time').value) || 0;
     const pts = parseInt(row.querySelector('.res-pts').value) || 0;
     const mt = parseInt(row.querySelector('.res-mt').value) || 0;
+    const bonus = parseInt(row.querySelector('.res-bonus').value) || 0;
     const dnf = row.querySelector('.res-dnf').checked;
-    if (time > 0 || pts > 0 || mt > 0 || dnf) {
-      results.push({ rider_id: parseInt(row.dataset.riderId), time_seconds: time, points: pts, mountain_points: mt, dnf });
+    if (time > 0 || pts > 0 || mt > 0 || bonus > 0 || dnf) {
+      results.push({ rider_id: parseInt(row.dataset.riderId), time_seconds: time, points: pts, mountain_points: mt, bonification_seconds: bonus, dnf });
     }
   });
 
