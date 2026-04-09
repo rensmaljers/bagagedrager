@@ -765,8 +765,8 @@ async function loadStandings() {
       const absTime = winnerTimeSum > 0 ? winnerTimeSum + s.total_time : null;
       const absTimeNoBonif = winnerTimeSum > 0 ? winnerTimeSum + s.total_time_no_bonif : null;
       const timeDisplay = absTime ? formatTime(absTime) : (i === 0 ? formatTime(s.total_time) : formatGap(s.total_time - leaderTime));
-      const gapDisplay = i > 0 ? `<div style="font-size:0.65rem;color:var(--text-muted);">${formatGap(s.total_time - leaderTime)}</div>` : '';
-      const bonifDisplay = s.total_bonification ? `<div style="font-size:0.65rem;color:var(--green);">-${s.total_bonification}s bonif.</div>` : '';
+      const gapDisplay = `<div style="font-size:0.65rem;color:var(--text-muted);">${i > 0 ? formatGap(s.total_time - leaderTime) : ''}</div>`;
+      const bonifDisplay = `<div style="font-size:0.65rem;color:var(--green);">${s.total_bonification ? '-' + s.total_bonification + 's bonif.' : ''}</div>`;
       const noBonifDisplay = absTimeNoBonif ? `<div style="font-size:0.65rem;color:var(--text-muted);">Zonder: ${formatTime(absTimeNoBonif)}</div>` : '';
       return `${timeDisplay}${gapDisplay}${bonifDisplay}${noBonifDisplay}`;
     }, true);
