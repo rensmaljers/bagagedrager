@@ -1073,6 +1073,16 @@
       .auth-features { align-items: center; }
     }
 
+    /* --- STANDINGS TABLES: vaste kolombreedte zodat medaille/naam/waarde altijd gelijk uitlijnen --- */
+    #standings-row table {
+      table-layout: fixed;
+      width: 100%;
+    }
+    #standings-row table th:first-child,
+    #standings-row table td:first-child { width: 2rem; }
+    #standings-row table th:last-child,
+    #standings-row table td:last-child  { width: 5.5rem; }
+
     /* --- RANK NUMBER --- */
     .rank-1 { color: var(--accent); font-weight: 700; }
     .rank-2 { color: #a8a29e; font-weight: 600; }
