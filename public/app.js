@@ -1011,8 +1011,8 @@ function renderPickStage() {
     myPicks.filter(p => p.stage_id !== stageId && compStageIds.has(p.stage_id)).map(p => p.rider_id)
   );
 
-  renderRiderGrid(usedInOtherStages, isLocked && !currentPick);
-  $('btn-submit-pick').disabled = !selectedRiderId || (isLocked && !currentPick);
+  renderRiderGrid(usedInOtherStages, isLocked);
+  $('btn-submit-pick').disabled = !selectedRiderId || isLocked;
   updatePickBar(stage, currentPick);
   updateRiderAvailability(usedInOtherStages);
   updateOthersPicks(stageId, isLocked);
