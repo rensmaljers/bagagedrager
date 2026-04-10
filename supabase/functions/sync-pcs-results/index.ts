@@ -82,6 +82,22 @@ Deno.serve(async (req) => {
 
     for (const row of rows) {
       const cells = row.querySelectorAll("td");
+      const rowCls = row.className || "";
+
+      // Sub-rijen (tr.ar.cu600) bevatten bonificatie voor de vorige renner
+      if (rowCls.includes("cu600") && cells.length < 8) {
+        for (const cell of cells) {
+          if ((cell.className || "").includes("bonis")) {
+            const txt = (cell.textContent || "").trim().replace(/[^\d]/g, "");
+            const bonus = parseInt(txt) || 0;
+            if (bonus > 0 && results.length > 0) {
+              results[results.length - 1].bonification_seconds = bonus;
+            }
+          }
+        }
+        continue;
+      }
+
       if (cells.length < 8) continue;
 
       // Find cells by class
@@ -136,8 +152,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Bonification cell (finish bonus, e.g. 10/6/4 for top 3 in road stages)
-      // PCS marks this with a class containing "bonis"
+      // Bonification in de hoofdrij zelf (klasse "bonis")
       let bonus = 0;
       for (const cell of cells) {
         const cls = cell.className || "";
