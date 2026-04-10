@@ -767,7 +767,7 @@ async function loadStandings() {
       const timeDisplay = absTime ? formatTime(absTime) : (i === 0 ? formatTime(s.total_time) : formatGap(s.total_time - leaderTime));
       const gapDisplay = `<div style="font-size:0.65rem;color:var(--text-muted);">${i > 0 ? formatGap(s.total_time - leaderTime) : ''}</div>`;
       const bonifDisplay = `<div style="font-size:0.65rem;color:var(--green);">${s.total_bonification ? '-' + s.total_bonification + 's bonif.' : ''}</div>`;
-      const noBonifDisplay = absTimeNoBonif ? `<div style="font-size:0.65rem;color:var(--text-muted);">Zonder: ${formatTime(absTimeNoBonif)}</div>` : '';
+      const noBonifDisplay = absTimeNoBonif ? `<div style="font-size:0.65rem;color:var(--text-muted);">Rittijd: ${formatTime(absTimeNoBonif)}</div>` : '';
       return `${timeDisplay}${gapDisplay}${bonifDisplay}${noBonifDisplay}`;
     }, true);
 
