@@ -796,7 +796,7 @@ window.openH2H = async function(opponentName) {
   try {
     const allPicks = await supaRest('stage_picks_public', {
       filters: `competition_id=eq.${activeCompId}`,
-      select: 'stage_id,stage_number,user_id,display_name,rider_name,time_gap,bonification,effective_points,effective_mountain_points,effective_game_points,finish_position,dnf,is_late'
+      select: 'stage_id,stage_number,user_id,display_name,rider_name,time_gap,dnf_penalty_gap,bonification,effective_points,effective_mountain_points,effective_game_points,finish_position,dnf,is_late'
     });
 
     const myPks = allPicks.filter(p => p.display_name === profile?.display_name);
@@ -1257,11 +1257,25 @@ async function loadHistory() {
   // Calculate winner times and names per stage for gap display
   const winnerTimes = {};
   const winnerNames = {};
+  // Straftijd per etappe: slechtste tijdsverschil van een gekozen renner
+  const penaltyGaps = {};
   for (const r of allResults) {
     if (r.finish_position === 1 && !r.dnf && r.time_seconds > 0) {
       winnerTimes[r.stage_id] = r.time_seconds;
       const wr = _riderMap[r.rider_id];
       winnerNames[r.stage_id] = wr?.name || '?';
+    }
+  }
+  // Straftijd per etappe: MAX tijdsverschil van gekozen renners die wél finishten
+  const pickedRiderIds = {};
+  for (const p of allPicksForStages) {
+    if (!pickedRiderIds[p.stage_id]) pickedRiderIds[p.stage_id] = new Set();
+    pickedRiderIds[p.stage_id].add(p.rider_id);
+  }
+  for (const r of allResults) {
+    if (!r.dnf && r.time_seconds > 0 && winnerTimes[r.stage_id] && pickedRiderIds[r.stage_id]?.has(r.rider_id)) {
+      const gap = r.time_seconds - winnerTimes[r.stage_id];
+      if (gap > (penaltyGaps[r.stage_id] ?? -1)) penaltyGaps[r.stage_id] = gap;
     }
   }
 
@@ -1327,7 +1341,7 @@ async function loadHistory() {
     `<tr class="${rowClass}">
       <td><div>Etappe ${stage?.stage_number || '?'}</div>${winnerNames[pick.stage_id] ? `<div style="font-size:0.65rem;color:var(--text-muted);">🏆 ${escapeHtml(winnerNames[pick.stage_id])}</div>` : ''}</td>
       <td>${riderDisplay(rider?.name, rider?.photo_url)} <span class="team-badge-sm">${rider ? teamBadge(rider.team) : ''}</span></td>
-      <td class="time text-end">${!histIsClassic && result ? (result.finish_position === 1 ? formatTime(result.time_seconds) : formatGap(timeGap)) : result ? formatTime(result.time_seconds) : '-'}</td>
+      <td class="time text-end">${!histIsClassic && result ? (result.finish_position === 1 ? formatTime(result.time_seconds) : (result.dnf || pick.is_late) ? (penaltyGaps[pick.stage_id] != null ? formatGap(penaltyGaps[pick.stage_id]) : '-') : formatGap(timeGap)) : result ? formatTime(result.time_seconds) : '-'}</td>
       ${!histIsClassic ? `<td class="text-end">${bonif ? '-' + bonif + 's' : '-'}</td>` : ''}
       <td class="text-end">${result ? (pick.is_late ? '0' : result.points) : '-'}</td>
       <td class="text-end">${result ? (pick.is_late ? '0' : result.mountain_points) : '-'}</td>
@@ -1488,7 +1502,7 @@ async function loadParticipants() {
                 return `<tr>
                 <td>${escapeHtml(p.display_name)}</td>
                 <td>${escapeHtml(p.rider_name)} <span class="team-badge-sm">${teamBadge(p.rider_team)}</span>${pickersBadge}</td>
-                <td class="time text-end">${p.finish_position === 1 ? formatTime(p.time_seconds) : (p.time_gap != null ? formatGap(p.time_gap) : '-')}</td>
+                <td class="time text-end">${p.finish_position === 1 ? formatTime(p.time_seconds) : (p.dnf || p.is_late) ? (p.dnf_penalty_gap != null ? formatGap(p.dnf_penalty_gap) : '-') : (p.time_gap != null ? formatGap(p.time_gap) : '-')}</td>
                 <td class="text-end">${p.bonification ? '-' + p.bonification + 's' : '-'}</td>
                 <td class="text-end">${p.effective_points != null ? p.effective_points : (p.points != null ? (p.is_late ? '0' : p.points) : '-')}</td>
                 <td class="text-end">${p.effective_mountain_points != null ? p.effective_mountain_points : (p.mountain_points != null ? (p.is_late ? '0' : p.mountain_points) : '-')}</td>
