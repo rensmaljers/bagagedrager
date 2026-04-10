@@ -99,13 +99,18 @@ Deno.serve(async (req) => {
         const cls = cell.className || "";
         const text = cell.textContent?.trim() || "";
 
+        // PCS toont DNS/DNF/OTL soms in de positiekolom i.p.v. de tijdkolom
+        if (/\b(dnf|dns|otl|dsq)\b/i.test(text)) {
+          dnf = true;
+        }
+
         if (cls.includes("bibs")) {
           bib = parseInt(text) || 0;
         } else if (cls.includes("time") && cls.includes("ar")) {
           // Time cell contains <font>H:MM:SS</font>
           const fontEl = cell.querySelector("font");
           const timeText = fontEl?.textContent?.trim() || text;
-          if (timeText.toLowerCase().includes("dnf") || timeText.toLowerCase().includes("dns") || timeText.toLowerCase().includes("otl")) {
+          if (/\b(dnf|dns|otl|dsq)\b/i.test(timeText)) {
             dnf = true;
           } else {
             // PCS time formats:
