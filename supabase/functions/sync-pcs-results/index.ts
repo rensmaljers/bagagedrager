@@ -84,20 +84,6 @@ Deno.serve(async (req) => {
       const cells = row.querySelectorAll("td");
       const rowCls = row.className || "";
 
-      // Sub-rijen (tr.ar) bevatten bonificatie voor de vorige renner
-      if (rowCls.includes("ar") && cells.length < 8) {
-        for (const cell of cells) {
-          if ((cell.className || "").includes("bonis")) {
-            const txt = (cell.textContent || "").trim().replace(/[^\d]/g, "");
-            const bonus = parseInt(txt) || 0;
-            if (bonus > 0 && results.length > 0) {
-              results[results.length - 1].bonification_seconds = bonus;
-            }
-          }
-        }
-        continue;
-      }
-
       if (cells.length < 8) continue;
 
       // Find cells by class
@@ -152,13 +138,15 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Bonification in de hoofdrij zelf (klasse "bonis")
+      // Bonificatie staat in td.ar.cu600 — tekst gebruikt ″ (double prime) voor seconden
+      // Bv: "10″" = 10s, "2″-20″" = 2s + 20s, "" = 0s
       let bonus = 0;
       for (const cell of cells) {
         const cls = cell.className || "";
-        if (cls.includes("bonis")) {
-          const txt = (cell.textContent || "").trim().replace(/[^\d]/g, "");
-          if (txt) bonus = parseInt(txt) || 0;
+        if (cls.includes("ar") && cls.includes("cu600")) {
+          const txt = cell.textContent || "";
+          const matches = [...txt.matchAll(/(\d+)\u2033/g)];
+          bonus = matches.reduce((sum, m) => sum + parseInt(m[1]), 0);
         }
       }
 
