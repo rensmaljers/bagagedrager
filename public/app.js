@@ -2917,9 +2917,20 @@ function hideSplash() {
   const preview = document.getElementById('photo-preview');
   const previewImg = document.getElementById('photo-preview-img');
 
+  function getPreviewableImg(target) {
+    const riderPhoto = target.closest('.rider-photo');
+    if (riderPhoto && riderPhoto.src) return riderPhoto;
+    const avatar = target.closest('.avatar');
+    if (avatar) {
+      const img = avatar.querySelector('img');
+      if (img && img.src) return img;
+    }
+    return null;
+  }
+
   document.addEventListener('mouseover', e => {
-    const img = e.target.closest('.rider-photo');
-    if (!img || !img.src) return;
+    const img = getPreviewableImg(e.target);
+    if (!img) return;
     previewImg.src = img.src;
     preview.style.display = 'block';
   });
@@ -2934,6 +2945,6 @@ function hideSplash() {
   });
 
   document.addEventListener('mouseout', e => {
-    if (e.target.closest('.rider-photo')) preview.style.display = 'none';
+    if (getPreviewableImg(e.target)) preview.style.display = 'none';
   });
 }

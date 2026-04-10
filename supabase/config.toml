@@ -20,3 +20,9 @@ verify_jwt = false
 
 [functions.sync-pcs-photos]
 verify_jwt = false
+
+[functions.auto-rad]
+verify_jwt = false
+
+[functions.auto-sync]
+verify_jwt = false

@@ -361,6 +361,7 @@
     .avatar img {
       width: 100%; height: 100%;
       object-fit: cover;
+      cursor: pointer;
     }
     .avatar-sm { width: 32px; height: 32px; font-size: 0.65rem; }
     .avatar-lg { width: 56px; height: 56px; font-size: 1.1rem; }
@@ -1082,7 +1083,7 @@
     #standings-row table th:first-child,
     #standings-row table td:first-child { width: 2rem; }
     #standings-row table th:last-child,
-    #standings-row table td:last-child  { width: 5.5rem; }
+    #standings-row table td:last-child  { width: 6.5rem; }
 
     /* --- RANK NUMBER --- */
     .rank-1 { color: var(--accent); font-weight: 700; }
