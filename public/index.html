@@ -158,7 +158,7 @@
             <div class="card-header jersey-gc"><h5 class="mb-0" style="font-size:0.95rem;">🟡 Algemeen Klassement <span class="info-tooltip" data-tip="Totaal tijdsverschil met de etappewinnaar per etappe.\nBonificatie: 1e −10s, 2e −6s, 3e −4s.\nTe laat of DNF = slechtste tijd.">&#9432;</span></h5></div>
             <div class="card-body p-0 table-responsive-wrapper">
               <table class="table table-sm table-striped mb-0">
-                <thead><tr><th>#</th><th>Speler</th><th class="text-end">Tijd</th></tr></thead>
+                <thead><tr><th>#</th><th>Speler</th><th class="text-end" style="min-width:8rem;">Tijd</th></tr></thead>
                 <tbody id="gc-table"></tbody>
               </table>
             </div>
@@ -792,5 +792,8 @@
 })();
 </script>
 <script type="module" src="app.js"></script>
+<div id="photo-preview" style="display:none;position:fixed;z-index:9999;pointer-events:none;border-radius:10px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.5);">
+  <img id="photo-preview-img" style="display:block;width:140px;height:140px;object-fit:cover;object-position:top;">
+</div>
 </body>
 </html>

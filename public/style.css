@@ -837,6 +837,7 @@
       object-position: top;
       flex-shrink: 0;
       background: var(--badge-muted-bg);
+      cursor: pointer;
     }
     .rider-name-link {
       color: var(--text) !important;

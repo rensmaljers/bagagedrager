@@ -724,7 +724,7 @@ async function loadStandings() {
   cards.forEach(id => {
     const el = $(id);
     if (el.style.display !== 'none') {
-      el.className = isClassic ? 'col-lg-8 mx-auto' : 'col-lg-3';
+      el.className = isClassic ? 'col-lg-8 mx-auto' : 'col-lg-4';
     }
   });
 
@@ -1155,7 +1155,7 @@ function renderRiderGrid(usedInOtherStages, fullyLocked) {
             const used = usedInOtherStages.has(r.id);
             const selected = r.id === selectedRiderId;
             return `
-              <div class="col-6 col-md-4 col-lg-3">
+              <div class="col-6 col-md-4 col-lg-4">
                 <div class="card pick-card ${selected ? 'selected' : ''} ${used ? 'used' : ''}"
                      data-rider-id="${r.id}" ${fullyLocked || used ? '' : `onclick="selectRider(${r.id})"`}>
                   <div class="card-body py-2 px-3">
@@ -1287,8 +1287,7 @@ async function loadHistory() {
     const gp = result && !pick.is_late && !result.dnf ? (result.game_points || 0) : 0;
     const timeGap = result && result.time_seconds && winnerTimes[pick.stage_id]
       ? Math.max(result.time_seconds - winnerTimes[pick.stage_id], 0) : null;
-    const bonif = result && !pick.is_late && !result.dnf
-      ? (result.finish_position === 1 ? 10 : result.finish_position === 2 ? 6 : result.finish_position === 3 ? 4 : 0) : 0;
+    const bonif = result && !pick.is_late && !result.dnf ? (result.bonification_seconds || 0) : 0;
     let rowClass = '';
     if (result) {
       if (gp >= 70) rowClass = 'history-great';
@@ -2910,3 +2909,31 @@ function hideSplash() {
   $('auth-screen').style.display = 'block';
   hideSplash();
 })();
+
+// =====================
+// FOTO HOVER PREVIEW
+// =====================
+{
+  const preview = document.getElementById('photo-preview');
+  const previewImg = document.getElementById('photo-preview-img');
+
+  document.addEventListener('mouseover', e => {
+    const img = e.target.closest('.rider-photo');
+    if (!img || !img.src) return;
+    previewImg.src = img.src;
+    preview.style.display = 'block';
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (preview.style.display === 'none') return;
+    const offset = 16, w = 140, h = 140;
+    const x = e.clientX + offset + w > window.innerWidth ? e.clientX - w - offset : e.clientX + offset;
+    const y = e.clientY + offset + h > window.innerHeight ? e.clientY - h - offset : e.clientY + offset;
+    preview.style.left = x + 'px';
+    preview.style.top = y + 'px';
+  });
+
+  document.addEventListener('mouseout', e => {
+    if (e.target.closest('.rider-photo')) preview.style.display = 'none';
+  });
+}
