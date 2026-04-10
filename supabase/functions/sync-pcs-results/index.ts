@@ -84,8 +84,8 @@ Deno.serve(async (req) => {
       const cells = row.querySelectorAll("td");
       const rowCls = row.className || "";
 
-      // Sub-rijen (tr.ar.cu600) bevatten bonificatie voor de vorige renner
-      if (rowCls.includes("cu600") && cells.length < 8) {
+      // Sub-rijen (tr.ar) bevatten bonificatie voor de vorige renner
+      if (rowCls.includes("ar") && cells.length < 8) {
         for (const cell of cells) {
           if ((cell.className || "").includes("bonis")) {
             const txt = (cell.textContent || "").trim().replace(/[^\d]/g, "");
