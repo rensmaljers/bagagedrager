@@ -399,6 +399,9 @@ function loadAccountView() {
   // Avatar preview
   updateAvatarPreview();
 
+  // Notificatieknop status
+  updateNotificationButton();
+
   // Populate team dropdown from known teams
   const teamSel = $('account-team');
   if (teamSel.options.length <= 1) {
@@ -2948,3 +2951,90 @@ function hideSplash() {
     if (getPreviewableImg(e.target)) preview.style.display = 'none';
   });
 }
+
+// =====================
+// PUSH NOTIFICATIES
+// =====================
+const VAPID_PUBLIC_KEY = 'BHodiDUcQDWpi3kcE5Y6zWPslv5Gzw50tups7rev8hd98zAlMiUHnTSdmvfoa4G1zUycnhf5hVjdg_SiXGRpoPQ';
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  return Uint8Array.from(raw, c => c.charCodeAt(0));
+}
+
+async function getSwRegistration() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null;
+  return navigator.serviceWorker.register('/sw.js');
+}
+
+async function getCurrentPushSubscription() {
+  const reg = await getSwRegistration();
+  if (!reg) return null;
+  return reg.pushManager.getSubscription();
+}
+
+async function updateNotificationButton() {
+  const btn = $('btn-notifications');
+  if (!btn) return;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    btn.textContent = 'Niet beschikbaar';
+    btn.disabled = true;
+    return;
+  }
+  const sub = await getCurrentPushSubscription();
+  const perm = Notification.permission;
+  if (sub && perm === 'granted') {
+    btn.textContent = '🔔 Aan';
+    btn.className = 'btn btn-sm btn-success';
+  } else {
+    btn.textContent = '🔕 Inschakelen';
+    btn.className = 'btn btn-sm btn-outline-secondary';
+  }
+}
+
+async function subscribeNotifications() {
+  const btn = $('btn-notifications');
+  const sub = await getCurrentPushSubscription();
+  if (sub) {
+    // Uitschakelen
+    await sub.unsubscribe();
+    const { keys } = sub.toJSON();
+    await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+    await updateNotificationButton();
+    return;
+  }
+  // Inschakelen
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') { toast('Notificaties zijn geblokkeerd in je browser.', 'warning'); return; }
+
+  try {
+    const reg = await getSwRegistration();
+    const newSub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+    });
+    const json = newSub.toJSON();
+    await supabase.from('push_subscriptions').upsert({
+      user_id: session.user.id,
+      endpoint: json.endpoint,
+      p256dh: json.keys.p256dh,
+      auth_key: json.keys.auth,
+    }, { onConflict: 'user_id,endpoint' });
+    await updateNotificationButton();
+    toast('Notificaties ingeschakeld!', 'success');
+  } catch (e) {
+    toast('Kon notificaties niet inschakelen: ' + e.message, 'error');
+  }
+}
+
+// Registreer service worker bij laden
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+
+// Knop koppelen (wordt aangeroepen als account tab laadt)
+document.addEventListener('click', e => {
+  if (e.target.id === 'btn-notifications') subscribeNotifications();
+});
