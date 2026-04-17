@@ -207,6 +207,25 @@ function updateCompBanner() {
   updateSyncInfo();
 }
 
+function updateCompSelectOptions() {
+  const sel = $('comp-select');
+  const prev = sel.value;
+  const activeComps = competitions.filter(c => c.is_active);
+  sel.innerHTML = activeComps.map(c =>
+    `<option value="${c.id}">${c.country_flag || ''} ${c.name}</option>`
+  ).join('');
+  $('comp-count').textContent = activeComps.length > 1 ? `${activeComps.length} rondes` : '';
+  if (prev && activeComps.find(c => String(c.id) === prev)) {
+    sel.value = prev;
+  } else if (activeComps.length) {
+    // Huidig activeCompId is niet meer actief — val terug op eerste actieve ronde
+    sel.value = String(activeComps[0].id);
+    activeCompId = activeComps[0].id;
+    _cache.standings = null;
+    _cache.participants = null;
+  }
+}
+
 function updateSyncInfo() {
   const comp = competitions.find(c => c.id === activeCompId);
   const el = $('comp-sync-info');
@@ -515,18 +534,14 @@ async function initApp() {
 
   if (profile?.is_admin) $('admin-tab').style.display = 'block';
 
-  const sel = $('comp-select');
-  const activeComps = competitions.filter(c => c.is_active);
-  const inactiveComps = competitions.filter(c => !c.is_active);
-  sel.innerHTML = activeComps.map(c =>
-    `<option value="${c.id}">${c.country_flag || ''} ${c.name}</option>`
-  ).join('');
-  $('comp-count').textContent = activeComps.length > 1 ? `${activeComps.length} rondes` : '';
+  updateCompSelectOptions();
   updateSyncInfo();
   // Onthoud laatst gekozen ronde, val terug op actieve, dan eerste
+  const sel = $('comp-select');
+  const activeComps = competitions.filter(c => c.is_active);
   const savedCompId = parseInt(localStorage.getItem('bagagedrager_comp'));
-  const savedComp = savedCompId ? competitions.find(c => c.id === savedCompId) : null;
-  const activeComp = savedComp || competitions.find(c => c.is_active) || competitions[0];
+  const savedComp = savedCompId ? activeComps.find(c => c.id === savedCompId) : null;
+  const activeComp = savedComp || activeComps[0];
   if (activeComp) { sel.value = activeComp.id; activeCompId = activeComp.id; }
   updateCompBanner();
 
@@ -1608,13 +1623,7 @@ $('btn-admin-create-user').addEventListener('click', async () => {
 // --- ADMIN: COMPETITIES ---
 async function loadAdminCompetitions() {
   competitions = await supaRest('competitions', { filters: 'order=year.desc,name' });
-
-  const sel = $('comp-select');
-  const currentVal = sel.value;
-  sel.innerHTML = competitions.map(c =>
-    `<option value="${c.id}" ${c.is_active ? 'selected' : ''}>${c.country_flag || ''} ${c.name}</option>`
-  ).join('');
-  if (currentVal) sel.value = currentVal;
+  updateCompSelectOptions();
 
   $('admin-comp-table').innerHTML = competitions.map(c => `
     <tr>
