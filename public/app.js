@@ -639,9 +639,7 @@ async function initApp() {
   const inactiveComps = competitions.filter(c => !c.is_active);
   sel.innerHTML = activeComps.map(c =>
     `<option value="${c.id}">${c.country_flag || ''} ${c.name}</option>`
-  ).join('') + (profile?.is_admin && inactiveComps.length ? `<optgroup label="Afgelopen">` + inactiveComps.map(c =>
-    `<option value="${c.id}">${c.country_flag || ''} ${c.name}</option>`
-  ).join('') + `</optgroup>` : '');
+  ).join('');
   $('comp-count').textContent = activeComps.length > 1 ? `${activeComps.length} rondes` : '';
   updateSyncInfo();
   // Onthoud laatst gekozen ronde, val terug op actieve, dan eerste
