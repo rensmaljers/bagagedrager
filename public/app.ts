@@ -1,6 +1,7 @@
 import './style.css';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, TEAMS, VAPID_PUBLIC_KEY } from './config';
 import { $, escapeHtml, formatTime, formatGap, formatDeadline, riderDisplay, avatarHtml, compBadge, skeletonRows, toast, confettiBurst } from './utils';
+import { supabase } from './supabase-client';
 
 // --- STATE ---
 let session = null;
@@ -16,15 +17,12 @@ let _cache = { standings: null, standingsCompId: null, participants: null, parti
 // Rider lookup map (id → rider) — gebouwd bij loadRidersForComp
 let _riderMap = {};
 
+// Supabase client houdt de sessie automatisch vers — session blijft in sync
+supabase.auth.onAuthStateChange((_event, newSession) => {
+  session = newSession;
+});
 
 // --- SUPABASE REST HELPERS ---
-// Proactief token refreshen als het bijna verlopen is (< 60s)
-async function ensureFreshToken() {
-  if (!session?.expires_at || !session?.refresh_token) return;
-  if (Date.now() / 1000 < session.expires_at - 60) return; // nog vers genoeg
-  await refreshSession();
-}
-
 function authHeaders(extra = {}) {
   const h = { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, ...extra };
   if (session?.access_token) h['Authorization'] = `Bearer ${session.access_token}`;
@@ -32,95 +30,45 @@ function authHeaders(extra = {}) {
 }
 
 async function supaRest(table: string, { method = 'GET', filters = '', body = undefined as any, select = '*' } = {}) {
-  await ensureFreshToken();
   const url = `${SUPABASE_URL}/rest/v1/${table}?select=${select}${filters ? '&' + filters : ''}`;
-  const prefer = method === 'POST' ? 'return=representation' : method === 'PATCH' ? 'return=representation' : '';
+  const prefer = method === 'POST' || method === 'PATCH' ? 'return=representation' : '';
   const opts: any = { method, headers: authHeaders({ 'Prefer': prefer }) };
   if (body) opts.body = JSON.stringify(body);
-  let res = await fetch(url, opts);
-  // Auto-refresh bij verlopen token
-  if (res.status === 401 && await refreshSession()) {
-    opts.headers = authHeaders({ 'Prefer': prefer });
-    res = await fetch(url, opts);
-  }
+  const res = await fetch(url, opts);
   if (!res.ok) throw new Error(await res.text());
   const text = await res.text();
   return text ? JSON.parse(text) : null;
 }
 
 async function supaDelete(table, filters) {
-  await ensureFreshToken();
   const url = `${SUPABASE_URL}/rest/v1/${table}?${filters}`;
-  let res = await fetch(url, { method: 'DELETE', headers: authHeaders() });
-  if (res.status === 401 && await refreshSession()) {
-    res = await fetch(url, { method: 'DELETE', headers: authHeaders() });
-  }
+  const res = await fetch(url, { method: 'DELETE', headers: authHeaders() });
   if (!res.ok) throw new Error(await res.text());
 }
 
 async function supaPatch(table, filters, body) {
-  await ensureFreshToken();
   const url = `${SUPABASE_URL}/rest/v1/${table}?${filters}`;
-  let res = await fetch(url, {
+  const res = await fetch(url, {
     method: 'PATCH',
     headers: authHeaders({ 'Prefer': 'return=representation' }),
     body: JSON.stringify(body),
   });
-  if (res.status === 401 && await refreshSession()) {
-    res = await fetch(url, {
-      method: 'PATCH',
-      headers: authHeaders({ 'Prefer': 'return=representation' }),
-      body: JSON.stringify(body),
-    });
-  }
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
-// Call a Postgres RPC function
+// Call a Postgres RPC function via Supabase client
 async function supaRpc(fnName, params = {}) {
-  await ensureFreshToken();
-  const url = `${SUPABASE_URL}/rest/v1/rpc/${fnName}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify(params),
-  });
-  const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
-  if (!res.ok) {
-    const msg = data?.message || data?.error || text || 'RPC call mislukt';
-    throw new Error(msg);
-  }
+  const { data, error } = await supabase.rpc(fnName, params);
+  if (error) throw new Error(error.message);
   return data;
 }
 
 // --- AUTH ---
 async function login(email, password) {
-  const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
-    body: JSON.stringify({ email, password }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(dutchAuthError(data.error_description || data.msg));
-  return data;
-}
-
-async function refreshSession() {
-  if (!session?.refresh_token) return false;
-  try {
-    const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
-      body: JSON.stringify({ refresh_token: session.refresh_token }),
-    });
-    if (!res.ok) return false;
-    const data = await res.json();
-    session = { ...session, ...data };
-    localStorage.setItem('bagagedrager_session', JSON.stringify(session));
-    return true;
-  } catch { return false; }
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw new Error(dutchAuthError(error.message));
+  return data.session;
 }
 
 function dutchAuthError(msg) {
@@ -139,13 +87,11 @@ function dutchAuthError(msg) {
 }
 
 async function signup(email, password, displayName) {
-  const res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
-    body: JSON.stringify({ email, password, data: { display_name: displayName } }),
+  const { data, error } = await supabase.auth.signUp({
+    email, password,
+    options: { data: { display_name: displayName } },
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(dutchAuthError(data.error_description || data.msg));
+  if (error) throw new Error(dutchAuthError(error.message));
   return data;
 }
 
@@ -339,19 +285,12 @@ $('account-avatar-input').addEventListener('change', async (e) => {
   try {
     const ext = file.name.split('.').pop() || 'jpg';
     const path = `${session.user.id}/avatar.${ext}`;
-    const url = `${SUPABASE_URL}/storage/v1/object/avatars/${path}`;
 
-    // Upload to Supabase Storage
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${session.access_token}`,
-        'Content-Type': file.type,
-        'x-upsert': 'true',
-      },
-      body: file,
-    });
-    if (!res.ok) throw new Error('Upload mislukt');
+    // Upload via Supabase Storage client
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(path, file, { upsert: true, contentType: file.type });
+    if (uploadError) throw new Error('Upload mislukt');
 
     const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/avatars/${path}?t=${Date.now()}`;
     await supaPatch('profiles', `id=eq.${session.user.id}`, { avatar_url: publicUrl });
@@ -409,7 +348,6 @@ $('btn-login').addEventListener('click', async () => {
   if (!email || !password) { showError('Vul je e-mailadres en wachtwoord in.'); return; }
   try {
     session = await login(email, password);
-    localStorage.setItem('bagagedrager_session', JSON.stringify(session));
     await initApp();
   } catch (e) { showError(e.message); }
 });
@@ -420,7 +358,7 @@ $('btn-signup').addEventListener('click', async () => {
   if (!email || !password) { showError('Vul je e-mailadres en wachtwoord in.'); return; }
   try {
     const data = await signup(email, password, email.split('@')[0]);
-    if (data.access_token) { session = data; await initApp(); }
+    if (data.session) { session = data.session; await initApp(); }
     else showError('Check je email om je account te bevestigen');
   } catch (e) { showError(e.message); }
 });
@@ -430,12 +368,8 @@ $('btn-forgot-password').addEventListener('click', async (e) => {
   const email = $('auth-email').value.trim();
   if (!email) { showError('Vul eerst je e-mailadres in'); return; }
   try {
-    const res = await fetch(`${SUPABASE_URL}/auth/v1/recover`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
-      body: JSON.stringify({ email }),
-    });
-    if (!res.ok) { const d = await res.json(); throw new Error(d.error_description || d.msg || 'Fout bij verzenden'); }
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    if (error) throw new Error(error.message);
     $('auth-error').style.display = 'none';
     const el = $('auth-success');
     el.textContent = 'Herstelmail verzonden! Check je inbox.';
@@ -446,9 +380,9 @@ $('btn-forgot-password').addEventListener('click', async (e) => {
 
 $('user-name').addEventListener('click', (e) => { e.preventDefault(); navigateToTab('account'); });
 
-$('btn-logout').addEventListener('click', () => {
+$('btn-logout').addEventListener('click', async () => {
+  await supabase.auth.signOut();
   session = null; profile = null;
-  localStorage.removeItem('bagagedrager_session');
   $('app').style.display = 'none';
   $('auth-screen').style.display = 'block';
 });
@@ -510,8 +444,6 @@ $('comp-select').addEventListener('change', async () => {
 
 // --- INIT ---
 async function initApp() {
-  localStorage.setItem('bagagedrager_session', JSON.stringify(session));
-
   // Parallel fetch: all initial data at once (inclusief profielen voor avatars)
   const [profiles, comps, allStages, picks, allProfiles] = await Promise.all([
     supaRest('profiles', { filters: `id=eq.${session.user.id}` }),
@@ -739,7 +671,7 @@ window.openH2H = async function(opponentName) {
 };
 
 // --- ACHIEVEMENTS ---
-function computeAchievements(picks, results, stages) {
+function computeAchievements(picks, results, stages, allPicksForStages = []) {
   const badges = [];
   if (!picks.length || !results.length) return badges;
 
@@ -777,8 +709,15 @@ function computeAchievements(picks, results, stages) {
   }
   if (maxStreak >= 3) badges.push({ icon: '🔥', text: `${maxStreak}x Op Dreef`, cls: 'red' });
 
-  // Underdog: solo pick (nobody else picked the rider) and scored 50+
-  const allPicks = _cache.participants || [];
+  // Underdog: enige speler die deze renner koos voor die etappe, en scoorde 50+
+  const soloStages = picks.filter(pick => {
+    const result = results.find(r => r.stage_id === pick.stage_id && r.rider_id === pick.rider_id);
+    const gp = result && !pick.is_late && !result.dnf ? (result.game_points || 0) : 0;
+    if (gp < 50) return false;
+    const count = allPicksForStages.filter(p => p.stage_id === pick.stage_id && p.rider_id === pick.rider_id).length;
+    return count <= 1;
+  });
+  if (soloStages.length) badges.push({ icon: '🕵️', text: `${soloStages.length}x Underdog`, cls: 'purple' });
 
   return badges;
 }
@@ -1223,7 +1162,7 @@ async function loadHistory() {
       </div></div></div>`;
 
     // Achievements
-    const badges = computeAchievements(compPicks, allResults, stages);
+    const badges = computeAchievements(compPicks, allResults, stages, allPicksForStages);
     if (badges.length) {
       $('history-stats').innerHTML += `<div class="col-12">${renderAchievements(badges)}</div>`;
     }
@@ -1970,28 +1909,15 @@ function loadSyncStageSelect() {
 
 // --- PCS DIRECTE SYNC ---
 async function callEdgeFunction(fnName, body) {
-  await ensureFreshToken();
-  let res = await fetch(`${SUPABASE_URL}/functions/v1/${fnName}`, {
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/${fnName}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session.access_token}`,
+      'Authorization': `Bearer ${session?.access_token}`,
       'apikey': SUPABASE_ANON_KEY,
     },
     body: JSON.stringify(body),
   });
-  // Auto-refresh token bij 401
-  if (res.status === 401 && await refreshSession()) {
-    res = await fetch(`${SUPABASE_URL}/functions/v1/${fnName}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${session.access_token}`,
-        'apikey': SUPABASE_ANON_KEY,
-      },
-      body: JSON.stringify(body),
-    });
-  }
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || `Fout ${res.status}`);
   return data;
@@ -2759,47 +2685,18 @@ function hideSplash() {
   if (splash) { splash.classList.add('hide'); setTimeout(() => splash.remove(), 300); }
 }
 
+// Service worker vroeg registreren zodat push notificaties werken ook zonder account tab
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+
 (async () => {
-  const saved = localStorage.getItem('bagagedrager_session');
-  if (saved) {
-    try {
-      session = JSON.parse(saved);
-
-      // Als access token verlopen is, probeer eerst te refreshen
-      if (session.expires_at && Date.now() / 1000 > session.expires_at) {
-        if (!await refreshSession()) {
-          throw new Error('Token expired en refresh mislukt');
-        }
-      }
-
-      const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-        headers: { 'Authorization': `Bearer ${session.access_token}`, 'apikey': SUPABASE_ANON_KEY },
-      });
-
-      if (res.ok) {
-        session.user = await res.json();
-        await initApp();
-        hideSplash();
-        return;
-      } else if (res.status === 401 && await refreshSession()) {
-        const retry = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-          headers: { 'Authorization': `Bearer ${session.access_token}`, 'apikey': SUPABASE_ANON_KEY },
-        });
-        if (retry.ok) {
-          session.user = await retry.json();
-          await initApp();
-          hideSplash();
-          return;
-        } else {
-          throw new Error('Sessie verlopen');
-        }
-      } else {
-        throw new Error('Sessie ongeldig');
-      }
-    } catch (e) {
-      localStorage.removeItem('bagagedrager_session');
-      session = null;
-    }
+  const { data: { session: s } } = await supabase.auth.getSession();
+  if (s) {
+    session = s;
+    await initApp();
+    hideSplash();
+    return;
   }
   // Geen geldige sessie: toon login scherm
   $('auth-screen').style.display = 'block';
@@ -2858,7 +2755,7 @@ function urlBase64ToUint8Array(base64String) {
 
 async function getSwRegistration() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null;
-  return navigator.serviceWorker.register('/sw.js');
+  return navigator.serviceWorker.ready;
 }
 
 async function getCurrentPushSubscription() {
@@ -2916,11 +2813,6 @@ async function subscribeNotifications() {
   } catch (e) {
     toast('Kon notificaties niet inschakelen: ' + e.message, 'error');
   }
-}
-
-// Registreer service worker bij laden
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 
 // Knop koppelen (wordt aangeroepen als account tab laadt)
