@@ -1,8 +1,6 @@
 import './style.css';
-
-// --- CONFIG ---
-const SUPABASE_URL = 'https://hdkvirtytljnuawcmoui.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhka3ZpcnR5dGxqbnVhd2Ntb3VpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzMzk4MTMsImV4cCI6MjA4OTkxNTgxM30.CsuQeET1dwzgb1HbL-YVoUW-Jq4OuynR3VgH792SlNk';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, TEAMS, VAPID_PUBLIC_KEY } from './config';
+import { $, escapeHtml, formatTime, formatGap, formatDeadline, riderDisplay, avatarHtml, compBadge, skeletonRows, toast, confettiBurst } from './utils';
 
 // --- STATE ---
 let session = null;
@@ -151,56 +149,9 @@ async function signup(email, password, displayName) {
   return data;
 }
 
-// --- TEAM CONFIG ---
-const TEAMS = {
-  'UAE Team Emirates':        { abbr: 'UAE', color: '#e2001a', color2: '#000000' },
-  'Visma-Lease a Bike':       { abbr: 'VIS', color: '#ffcc00', color2: '#000000' },
-  'Soudal Quick-Step':        { abbr: 'SQS', color: '#0057b8', color2: '#ffffff' },
-  'Alpecin-Deceuninck':       { abbr: 'ADC', color: '#1d1d5e', color2: '#e31937' },
-  'INEOS Grenadiers':         { abbr: 'IGD', color: '#8b1a32', color2: '#1d428a' },
-  'Red Bull-BORA-hansgrohe':  { abbr: 'RBH', color: '#1a2b5f', color2: '#db0a40' },
-  'Lidl-Trek':                { abbr: 'LTR', color: '#e31937', color2: '#ffffff' },
-  'Intermarché-Wanty':        { abbr: 'IWG', color: '#0055a0', color2: '#ffd100' },
-  'Bahrain Victorious':       { abbr: 'TBV', color: '#cc0000', color2: '#ffffff' },
-  'Decathlon AG2R':           { abbr: 'DAT', color: '#5b3c28', color2: '#ffffff' },
-  'EF Education-EasyPost':    { abbr: 'EFE', color: '#ff69b4', color2: '#341f97' },
-  'Groupama-FDJ':             { abbr: 'GFC', color: '#0055a4', color2: '#ffffff' },
-  'Jayco-AlUla':              { abbr: 'JAY', color: '#00b140', color2: '#000000' },
-  'Movistar':                 { abbr: 'MOV', color: '#002855', color2: '#00b5e2' },
-  'Cofidis':                  { abbr: 'COF', color: '#cc0000', color2: '#ffffff' },
-  'Lotto-Dstny':              { abbr: 'LTD', color: '#e30613', color2: '#000000' },
-  'dsm-firmenich PostNL':     { abbr: 'DSM', color: '#ff6600', color2: '#000000' },
-  'Astana Qazaqstan':         { abbr: 'AST', color: '#00b5d6', color2: '#ffffff' },
-  'TotalEnergies':            { abbr: 'TEN', color: '#ffd100', color2: '#0055a4' },
-  'Uno-X Mobility':           { abbr: 'UXT', color: '#ff6600', color2: '#ffffff' },
-};
-
-// Renner weergave met optionele foto
-function riderDisplay(name, photoUrl, extra = '') {
-  const hasPhoto = photoUrl && photoUrl !== 'none';
-  const photo = hasPhoto ? `<img src="${escapeHtml(photoUrl)}" class="rider-photo" alt="" onerror="this.style.display='none'">` : '';
-  return `<span class="d-inline-flex align-items-center gap-1">${photo}${escapeHtml(name || '?')}${extra}</span>`;
-}
-
 // Zoek foto bij rider_id
 function riderPhoto(riderId) {
   return _riderMap[riderId]?.photo_url || null;
-}
-
-function escapeHtml(str) {
-  const d = document.createElement('div');
-  d.textContent = str;
-  return d.innerHTML;
-}
-
-// Avatar helper
-function avatarHtml(name, avatarUrl, size) {
-  const cls = size === 'sm' ? 'avatar avatar-sm' : size === 'lg' ? 'avatar avatar-lg' : 'avatar';
-  const initials = (name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-  if (avatarUrl) {
-    return `<span class="${cls}"><img src="${escapeHtml(avatarUrl)}" alt="" onerror="this.parentElement.innerHTML='${initials}'"></span>`;
-  }
-  return `<span class="${cls}">${initials}</span>`;
 }
 
 // Avatar cache for standings (populated when profiles load)
@@ -223,80 +174,10 @@ function teamBadge(teamName) {
   return `<span class="team-badge"><span class="team-dot" style="background:${t.color};box-shadow:inset -3px -3px 0 ${t.color2}"></span><span class="team-abbr">${escapeHtml(t.abbr)}</span></span>`;
 }
 
-// --- HELPERS ---
-function formatTime(totalSeconds) {
-  if (!totalSeconds) return '-';
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  const s = totalSeconds % 60;
-  return `${h}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
-}
-
-function formatGap(seconds, showZeroAsTime) {
-  if (seconds == null) return '-';
-  const neg = seconds < 0;
-  const abs = Math.abs(seconds);
-  if (abs === 0) return showZeroAsTime ? '0:00' : 'z.t.';
-  const h = Math.floor(abs / 3600);
-  const m = Math.floor((abs % 3600) / 60);
-  const s = abs % 60;
-  const prefix = neg ? '-' : '+';
-  if (h > 0) return `${prefix}${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  return `${prefix}${m}:${String(s).padStart(2, '0')}`;
-}
-
-function formatDeadline(dt) {
-  return new Date(dt).toLocaleString('nl-NL', {
-    weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
-  });
-}
-
-function $(id: string): any { return document.getElementById(id); }
-
-// --- TOAST NOTIFICATIONS ---
-function toast(message, type = 'info', duration = 3500) {
-  const icons = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ' };
-  const el = document.createElement('div');
-  el.className = `toast toast-${type}`;
-  el.innerHTML = `<span class="toast-icon">${icons[type] || icons.info}</span><span>${escapeHtml(message)}</span>`;
-  $('toast-container').appendChild(el);
-  setTimeout(() => { el.classList.add('removing'); setTimeout(() => el.remove(), 300); }, duration);
-}
-
-// --- CONFETTI ---
-function confettiBurst() {
-  const container = document.createElement('div');
-  container.className = 'confetti-burst';
-  const colors = ['var(--accent)', 'var(--green)', 'var(--red)', 'var(--purple)', 'var(--blue)'];
-  for (let i = 0; i < 24; i++) {
-    const p = document.createElement('div');
-    p.className = 'confetti-piece';
-    const angle = (Math.PI * 2 * i) / 24 + (Math.random() - 0.5) * 0.5;
-    const dist = 60 + Math.random() * 80;
-    p.style.cssText = `background:${colors[i % colors.length]};--cx:${Math.cos(angle) * dist}px;--cy:${Math.sin(angle) * dist - 40}px;--cr:${Math.random() * 720}deg;`;
-    container.appendChild(p);
-  }
-  document.body.appendChild(container);
-  setTimeout(() => container.remove(), 1100);
-}
-
-// --- SKELETON LOADING ---
-function skeletonRows(count = 5) {
-  return Array.from({ length: count }, () =>
-    `<tr><td colspan="3"><div class="skeleton skeleton-row"></div></td></tr>`
-  ).join('');
-}
-
 function showError(msg) {
   const el = $('auth-error');
   el.textContent = msg;
   el.style.display = 'block';
-}
-
-function compBadge(type) {
-  const cls = { tour: 'comp-tour', giro: 'comp-giro', vuelta: 'comp-vuelta', classic: 'comp-classic' };
-  const labels = { tour: 'Tour', giro: 'Giro', vuelta: 'Vuelta', classic: 'Klassieker' };
-  return `<span class="comp-badge ${cls[type] || 'comp-classic'}">${labels[type] || type}</span>`;
 }
 
 function activeStages() {
@@ -2958,7 +2839,6 @@ function hideSplash() {
 // =====================
 // PUSH NOTIFICATIES
 // =====================
-const VAPID_PUBLIC_KEY = 'BHodiDUcQDWpi3kcE5Y6zWPslv5Gzw50tups7rev8hd98zAlMiUHnTSdmvfoa4G1zUycnhf5hVjdg_SiXGRpoPQ';
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
