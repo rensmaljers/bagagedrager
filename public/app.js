@@ -1608,8 +1608,10 @@ window.openAdminPicks = async function(userId, displayName) {
               const currentRider = pick ? riders.find(r => r.id === pick.rider_id) : null;
               const options = ridersSorted.map(r => {
                 const disabled = usedRiderIds.has(r.id) && (!pick || pick.rider_id !== r.id);
-                return `<option value="${r.id}" ${disabled ? 'disabled' : ''}>${escapeHtml(r.name)} (${escapeHtml(r.team || '')})</option>`;
+                const selected = pick?.rider_id === r.id;
+                return `<option value="${r.id}" ${disabled ? 'disabled' : ''} ${selected ? 'selected' : ''}>${escapeHtml(r.name)} (${escapeHtml(r.team || '')})</option>`;
               }).join('');
+              const isLateDefault = pick ? pick.is_late : false;
               return `<tr>
                 <td style="white-space:nowrap;">E${s.stage_number}${s.locked ? ' 🔒' : ''}</td>
                 <td>${currentRider ? escapeHtml(currentRider.name) + (pick.is_late ? ' <span class="badge bg-warning">laat</span>' : '') : '<span class="text-muted">—</span>'}</td>
@@ -1619,7 +1621,7 @@ window.openAdminPicks = async function(userId, displayName) {
                     ${options}
                   </select>
                   <label style="font-size:0.7rem;" class="mt-1 d-block">
-                    <input type="checkbox" class="admin-pick-late" data-stage-id="${s.id}" ${pick?.is_late ? 'checked' : ''}> laat (geen punten)
+                    <input type="checkbox" class="admin-pick-late" data-stage-id="${s.id}" ${isLateDefault ? 'checked' : ''}> laat (geen punten)
                   </label>
                 </td>
                 <td style="white-space:nowrap;">
@@ -1650,9 +1652,10 @@ window.saveAdminPick = async function(userId, stageId) {
       p_rider_id: riderId,
       p_is_late: !!lateCb?.checked,
     });
-    toast('Keuze opgeslagen', 'success');
+    toast('Keuze opgeslagen — scores herverdeeld', 'success');
     const title = $('admin-picks-title').textContent.replace('Keuzes — ', '');
     openAdminPicks(userId, title);
+    _cache.standings = null;
     loadStandings();
   } catch (e) { toast(e.message, 'error'); }
 };
