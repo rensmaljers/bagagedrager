@@ -18,8 +18,6 @@ let _cache = { standings: null, standingsCompId: null, participants: null, parti
 // Rider lookup map (id → rider) — gebouwd bij loadRidersForComp
 let _riderMap = {};
 
-// Globale rider map (alle competities, id → rider) — voor cross-competitie naam-check
-let _globalRiderMap = {};
 
 // --- SUPABASE REST HELPERS ---
 // Proactief token refreshen als het bijna verlopen is (< 60s)
@@ -615,13 +613,12 @@ async function initApp() {
   localStorage.setItem('bagagedrager_session', JSON.stringify(session));
 
   // Parallel fetch: all initial data at once (inclusief profielen voor avatars)
-  const [profiles, comps, allStages, picks, allProfiles, allRidersList] = await Promise.all([
+  const [profiles, comps, allStages, picks, allProfiles] = await Promise.all([
     supaRest('profiles', { filters: `id=eq.${session.user.id}` }),
     supaRest('competitions', { filters: 'order=year.desc,name' }),
     supaRest('stages', { filters: 'order=stage_number' }),
     supaRest('picks', { filters: `user_id=eq.${session.user.id}&order=stage_id` }),
     supaRest('profiles'),
-    supaRest('riders', { filters: 'order=bib_number' }),
   ]);
 
   profile = profiles[0];
@@ -630,7 +627,6 @@ async function initApp() {
   myPicks = picks;
   _cache.allProfiles = allProfiles;
   allProfiles.forEach(p => { _avatarMap[p.display_name] = p.avatar_url; });
-  allRidersList.forEach(r => { _globalRiderMap[r.id] = r; });
 
   $('user-name').textContent = profile?.display_name || session.user.email;
   $('auth-screen').style.display = 'none';
@@ -676,10 +672,7 @@ async function loadRidersForComp() {
   }
   // Bouw lookup map voor O(1) rider lookups
   _riderMap = {};
-  for (const r of riders) {
-    _riderMap[r.id] = r;
-    _globalRiderMap[r.id] = r; // ook toevoegen aan globale map
-  }
+  for (const r of riders) _riderMap[r.id] = r;
   // Reset team filter dropdown (will be repopulated on render)
   const tf = $('rider-team-filter');
   if (tf) { tf.innerHTML = '<option value="">Alle teams</option>'; tf.value = ''; }
@@ -1017,16 +1010,9 @@ function renderPickStage() {
   const currentPick = myPicks.find(p => p.stage_id === stageId);
   selectedRiderId = currentPick?.rider_id || null;
 
-  // Verzamel namen van renners gebruikt in ALLE andere etappes (alle rondes)
-  const usedNamesGlobal = new Set(
-    myPicks
-      .filter(p => p.stage_id !== stageId)
-      .map(p => _globalRiderMap[p.rider_id]?.name?.toLowerCase())
-      .filter(Boolean)
-  );
-  // Markeer renners in huidige competitie als gebruikt op basis van naam
+  const compStageIds = new Set(activeStages().map(s => s.id));
   const usedInOtherStages = new Set(
-    riders.filter(r => usedNamesGlobal.has(r.name?.toLowerCase())).map(r => r.id)
+    myPicks.filter(p => p.stage_id !== stageId && compStageIds.has(p.stage_id)).map(p => p.rider_id)
   );
 
   renderRiderGrid(usedInOtherStages, isLocked);
@@ -1208,14 +1194,9 @@ function renderRiderGrid(usedInOtherStages, fullyLocked) {
 window.selectRider = function selectRider(riderId) {
   selectedRiderId = riderId;
   const stageId = parseInt($('stage-select').value);
-  const usedNamesGlobal = new Set(
-    myPicks
-      .filter(p => p.stage_id !== stageId)
-      .map(p => _globalRiderMap[p.rider_id]?.name?.toLowerCase())
-      .filter(Boolean)
-  );
+  const compStageIds = new Set(activeStages().map(s => s.id));
   const usedInOtherStages = new Set(
-    riders.filter(r => usedNamesGlobal.has(r.name?.toLowerCase())).map(r => r.id)
+    myPicks.filter(p => p.stage_id !== stageId && compStageIds.has(p.stage_id)).map(p => p.rider_id)
   );
   const stage = stages.find(s => s.id === stageId);
   const isLocked = !stage || stage.locked || new Date() > new Date(stage.deadline);

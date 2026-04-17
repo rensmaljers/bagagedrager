@@ -1,5 +1,5 @@
 -- ============================================
--- FIX 035: Renner mag maar 1x gebruikt worden per ronde (competitie)
+-- FIX 036: Zet functies terug naar per-competitie controle (revert 035)
 -- Herstelt submit_pick, admin_upsert_pick en assign_random_riders
 -- naar de correcte per-competitie controle.
 -- ============================================
