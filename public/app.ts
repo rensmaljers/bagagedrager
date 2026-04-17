@@ -17,6 +17,9 @@ let _cache = { standings: null, standingsCompId: null, participants: null, parti
 // Rider lookup map (id → rider) — gebouwd bij loadRidersForComp
 let _riderMap = {};
 
+// Actieve realtime channel
+let _realtimeChannel = null;
+
 // Supabase client houdt de sessie automatisch vers — session blijft in sync
 supabase.auth.onAuthStateChange((_event, newSession) => {
   session = newSession;
@@ -381,6 +384,7 @@ $('btn-forgot-password').addEventListener('click', async (e) => {
 $('user-name').addEventListener('click', (e) => { e.preventDefault(); navigateToTab('account'); });
 
 $('btn-logout').addEventListener('click', async () => {
+  if (_realtimeChannel) { supabase.removeChannel(_realtimeChannel); _realtimeChannel = null; }
   await supabase.auth.signOut();
   session = null; profile = null;
   $('app').style.display = 'none';
@@ -488,6 +492,32 @@ async function initApp() {
   }
 
   setupDeadlineNotifications();
+  setupRealtime();
+}
+
+function setupRealtime() {
+  // Verwijder eventuele bestaande channel (bij re-login)
+  if (_realtimeChannel) { supabase.removeChannel(_realtimeChannel); }
+
+  _realtimeChannel = supabase
+    .channel('game-updates')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'stage_results' }, () => {
+      _cache.standings = null;
+      _cache.participants = null;
+      if (document.querySelector('#section-dashboard.active')) {
+        loadStandings();
+        toast('Resultaten bijgewerkt', 'info', 2500);
+      }
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'picks' }, async () => {
+      _cache.participants = null;
+      _cache.standings = null;
+      // Herlaad eigen picks zodat "al gebruikt" direct klopt
+      myPicks = await supaRest('picks', { filters: `user_id=eq.${session.user.id}&order=stage_id` });
+      if (document.querySelector('#section-pick.active')) renderPickStage();
+      if (document.querySelector('#section-participants.active')) loadParticipants();
+    })
+    .subscribe();
 }
 
 async function loadRidersForComp() {
