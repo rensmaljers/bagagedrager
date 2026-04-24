@@ -89,12 +89,14 @@ Deno.serve(async (req) => {
       // Find cells by class
       let bib = 0, time = 0, dnf = false;
       let pcs_slug: string | null = null;
+      let pcs_name: string | null = null;
 
-      // Extract pcs_slug from rider link (href="rider/tadej-pogacar")
+      // Extract pcs_slug and rider name from rider link (href="rider/tadej-pogacar")
       const riderLink = row.querySelector("a[href*='rider/']");
       if (riderLink) {
         const href = riderLink.getAttribute("href") || "";
         pcs_slug = href.replace(/^.*rider\//, "").trim() || null;
+        pcs_name = riderLink.textContent?.trim() || null;
       }
 
       for (const cell of cells) {
@@ -152,7 +154,7 @@ Deno.serve(async (req) => {
 
       if (bib > 0 || pcs_slug) {
         position++;
-        results.push({ bib_number: bib, pcs_slug, time_seconds: time || lastTime, finish_position: dnf ? null : position, points: 0, mountain_points: 0, bonification_seconds: bonus, dnf });
+        results.push({ bib_number: bib, pcs_slug, pcs_name, time_seconds: time || lastTime, finish_position: dnf ? null : position, points: 0, mountain_points: 0, bonification_seconds: bonus, dnf });
       }
     }
 

@@ -2119,15 +2119,16 @@ $('btn-pcs-sync-results').addEventListener('click', async () => {
     await supaRpc('admin_save_results', { p_stage_id: stageId, p_results: payload });
 
     // Sla de echte PCS-winnaarstijd op bij de etappe (ook als die renner niet in riders staat)
+    // Gebruik ALLEEN pcs_slug voor de koppeling — bibnummers zijn race-specifiek en
+    // matchen niet betrouwbaar op onze interne sequentiële bibs.
     const pcsWinner = data.results[0];
     if (pcsWinner && pcsWinner.time_seconds > 0) {
-      const winnerRider = riders.find(rd =>
-        (pcsWinner.pcs_slug && rd.pcs_slug === pcsWinner.pcs_slug) ||
-        (pcsWinner.bib_number && rd.bib_number === pcsWinner.bib_number)
-      );
+      const winnerRider = pcsWinner.pcs_slug
+        ? riders.find(rd => rd.pcs_slug === pcsWinner.pcs_slug)
+        : null;
       await supaPatch('stages', `id=eq.${stageId}`, {
         winner_time_seconds: pcsWinner.time_seconds,
-        winner_name: winnerRider?.name || null,
+        winner_name: winnerRider?.name || pcsWinner.pcs_name || null,
       });
       // Herlaad stages zodat winner_name direct zichtbaar is
       stages = await supaRest('stages', { filters: 'order=stage_number' });
