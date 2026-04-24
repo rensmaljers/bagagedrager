@@ -1131,6 +1131,18 @@
       background: color-mix(in srgb, var(--accent) 7%, transparent) !important;
     }
 
+    /* --- SVG ICONS --- */
+    .icon {
+      display: inline-block;
+      vertical-align: -0.15em;
+      flex-shrink: 0;
+    }
+    /* Jersey icon colors per classification */
+    .jersey-gc    .icon-jersey { color: var(--accent); }
+    .jersey-points .icon-jersey { color: var(--green); }
+    .jersey-mountain .icon-jersey { color: var(--red); }
+    .jersey-game  .icon-jersey { color: var(--purple); }
+
     /* --- RANK NUMBER --- */
     .rank-1 { color: var(--accent); font-weight: 800; font-size: 1rem; }
     .rank-2 { color: #a8a29e; font-weight: 700; }

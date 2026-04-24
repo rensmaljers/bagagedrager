@@ -2,6 +2,7 @@ import './style.css';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, TEAMS, VAPID_PUBLIC_KEY } from './config';
 import { $, escapeHtml, formatTime, formatGap, formatDeadline, riderDisplay, avatarHtml, compBadge, skeletonRows, toast, confettiBurst } from './utils';
 import { supabase } from './supabase-client';
+import { icon } from './icons';
 
 // --- STATE ---
 let session = null;
@@ -559,7 +560,7 @@ async function loadRidersForComp() {
 // --- DASHBOARD ---
 async function loadStandings() {
   if (!activeCompId) {
-    const empty = '<tr><td colspan="3"><div class="empty-state"><div class="empty-state-icon">🏁</div><div class="empty-state-text">Selecteer een ronde om het klassement te zien</div></div></td></tr>';
+    const empty = `<tr><td colspan="3"><div class="empty-state"><div class="empty-state-icon">${icon('flag', '', 32)}</div><div class="empty-state-text">Selecteer een ronde om het klassement te zien</div></div></td></tr>`;
     $('gc-table').innerHTML = empty;
     $('points-table').innerHTML = empty;
     $('mountain-table').innerHTML = empty;
@@ -837,11 +838,11 @@ async function loadPickView() {
   const compStages = activeStages();
   const sel = $('stage-select');
   const now = new Date();
-  const typeIcons = { flat: '🟢', mountain: '⛰️', tt: '⏱️', sprint: '⚡' };
+  const typeLabels: Record<string, string> = { flat: '→', mountain: '▲', tt: '⏱', sprint: '⚡', hills: '~' };
   sel.innerHTML = compStages.map(s => {
     const locked = s.locked || now > new Date(s.deadline);
-    const icon = typeIcons[s.stage_type] || '';
-    return `<option value="${s.id}">${locked ? '🔒 ' : ''}${icon} Etappe ${s.stage_number}: ${s.name}</option>`;
+    const typeLabel = typeLabels[s.stage_type] || '';
+    return `<option value="${s.id}">${locked ? '🔒 ' : ''}${typeLabel} Etappe ${s.stage_number}: ${s.name}</option>`;
   }).join('');
 
   const nextStage = compStages.find(s => !s.locked) || compStages[0];
@@ -1094,12 +1095,12 @@ function renderRiderGrid(usedInOtherStages, fullyLocked) {
                         ${r.nationality || r.specialty_climber ? `<div class="rider-specs">${[
                           r.nationality || null,
                           r.weight_kg ? `${r.weight_kg}kg` : null,
-                          r.specialty_climber >= 70 ? '🏔️' : null,
-                          r.specialty_sprint >= 70 ? '⚡' : null,
-                          r.specialty_gc >= 70 ? '👑' : null,
-                          r.specialty_tt >= 70 ? '⏱️' : null,
-                          r.specialty_one_day >= 70 ? '🏆' : null,
-                        ].filter(Boolean).join(' · ')}</div>` : ''}
+                          r.specialty_climber >= 70 ? icon('type-mountain', '', 13) : null,
+                          r.specialty_sprint >= 70 ? icon('type-sprint', '', 13) : null,
+                          r.specialty_gc >= 70 ? icon('spec-gc', '', 13) : null,
+                          r.specialty_tt >= 70 ? icon('type-tt', '', 13) : null,
+                          r.specialty_one_day >= 70 ? icon('trophy', '', 13) : null,
+                        ].filter(Boolean).join(' ')}</div>` : ''}
                         ${used ? '<small class="text-danger mt-1 d-block">Al gebruikt</small>' : ''}
                       </div>
                     </div>
@@ -1272,7 +1273,7 @@ async function loadHistory() {
     : '<th>Etappe</th><th>Renner</th><th class="text-end"><span class="info-tooltip" data-tip="Tijdsverschil met etappewinnaar">Verschil &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Bonificatie: 1e −10s, 2e −6s, 3e −4s">Bonif. &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Sprintpunten uit het puntenklassement">Pts &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Bergpunten (KOM)">Berg &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Spelpunten op basis van finishpositie, na deelpenalty">Spel &#9432;</span></th><th>Status</th>';
   $('history-table').innerHTML = rows.map(({ pick, stage, rider, result, gp, timeGap, bonif, rowClass, numPickers, sharingPct }) =>
     `<tr class="${rowClass}">
-      <td><div>Etappe ${stage?.stage_number || '?'}</div>${winnerNames[pick.stage_id] ? `<div style="font-size:0.65rem;color:var(--text-muted);">🏆 ${escapeHtml(winnerNames[pick.stage_id])}</div>` : ''}</td>
+      <td><div>Etappe ${stage?.stage_number || '?'}</div>${winnerNames[pick.stage_id] ? `<div style="font-size:0.65rem;color:var(--text-muted);">${icon('trophy', '', 11)} ${escapeHtml(winnerNames[pick.stage_id])}</div>` : ''}</td>
       <td>${riderDisplay(rider?.name, rider?.photo_url)} <span class="team-badge-sm">${rider ? teamBadge(rider.team) : ''}</span></td>
       <td class="time text-end">${!histIsClassic && result ? (result.finish_position === 1 ? formatTime(result.time_seconds) : (result.dnf || pick.is_late) ? (penaltyGaps[pick.stage_id] != null ? formatGap(penaltyGaps[pick.stage_id]) : '-') : formatGap(timeGap)) : result ? formatTime(result.time_seconds) : '-'}</td>
       ${!histIsClassic ? `<td class="text-end">${bonif ? '-' + bonif + 's' : '-'}</td>` : ''}
@@ -1283,7 +1284,7 @@ async function loadHistory() {
     </tr>`
   ).join('') || `<tr><td colspan="${histIsClassic ? 7 : 8}">
     <div class="empty-state">
-      <div class="empty-state-icon">🎯</div>
+      <div class="empty-state-icon">${icon('target', '', 32)}</div>
       <div class="empty-state-text">Nog geen keuzes gemaakt.<br>Ga naar de Keuze tab om je eerste renner te kiezen!</div>
     </div></td></tr>`;
 }
@@ -1291,11 +1292,11 @@ async function loadHistory() {
 // --- DEELNEMERS (picks van iedereen, zichtbaar na deadline) ---
 // --- PELOTON: alle gebruikers met wielren-rollen ---
 function getPelotonRole(p, totalPicks) {
-  if (p.is_admin) return { name: 'Ploegleider', badge: 'bg-danger', icon: '🚗' };
-  if (totalPicks >= 15) return { name: 'Kopman', badge: 'bg-warning text-dark', icon: '👑' };
-  if (totalPicks >= 5) return { name: 'Luitenant', badge: 'bg-primary', icon: '⭐' };
-  if (totalPicks >= 1) return { name: 'Knecht', badge: 'bg-success', icon: '💪' };
-  return { name: 'Stagiair', badge: 'bg-secondary', icon: '🚲' };
+  if (p.is_admin) return { name: 'Ploegleider', badge: 'bg-danger', icon: icon('shield', '', 13) };
+  if (totalPicks >= 15) return { name: 'Kopman', badge: 'bg-warning text-dark', icon: icon('crown', '', 13) };
+  if (totalPicks >= 5) return { name: 'Luitenant', badge: 'bg-primary', icon: icon('star', '', 13) };
+  if (totalPicks >= 1) return { name: 'Knecht', badge: 'bg-success', icon: icon('bike', '', 13) };
+  return { name: 'Stagiair', badge: 'bg-secondary', icon: icon('cyclist', '', 13) };
 }
 
 async function loadPeloton() {
@@ -1417,7 +1418,7 @@ async function loadParticipants() {
     const stageName = `Etappe ${num}${partPcsLink}`;
     const stageId = byStage[num].stage_id;
     const winner = stageWinners[stageId];
-    const winnerInfo = winner ? `<span style="font-size:0.75rem; color:var(--text-muted); font-weight:400; margin-left:0.5rem;">🏆 ${escapeHtml(winner.name)} — ${formatTime(winner.time)}</span>` : '';
+    const winnerInfo = winner ? `<span style="font-size:0.75rem; color:var(--text-muted); font-weight:400; margin-left:0.5rem;">${icon('trophy', '', 12)} ${escapeHtml(winner.name)} — ${formatTime(winner.time)}</span>` : '';
     const header = isClassic
       ? '<tr><th>Speler</th><th>Renner</th><th class="text-end">Positie</th><th class="text-end"><span class="info-tooltip" data-tip="Spelpunten op basis van positie, na deelpenalty">Spel &#9432;</span></th><th>Status</th></tr>'
       : '<tr><th>Speler</th><th>Renner</th><th class="text-end"><span class="info-tooltip" data-tip="Tijdsverschil met etappewinnaar">Verschil &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Bonificatieseconden uit PCS (finish + tussensprints), worden van AK-tijd afgetrokken">Bonif. &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Sprintpunten uit puntenklassement">Pts &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Bergpunten (KOM)">Berg &#9432;</span></th><th>Status</th></tr>';
