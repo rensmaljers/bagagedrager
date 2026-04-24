@@ -607,7 +607,7 @@ async function loadStandings() {
   cards.forEach(id => {
     const el = $(id);
     if (el.style.display !== 'none') {
-      el.className = isClassic ? 'col-lg-8 mx-auto' : 'col-lg-4';
+      el.className = isClassic ? 'col-lg-8 mx-auto' : 'col-md-6';
     }
   });
 
@@ -1324,13 +1324,16 @@ async function loadPeloton() {
     const mottoHtml = p.motto ? `<div style="font-size:0.7rem;color:var(--text-muted);font-style:italic;">"${escapeHtml(p.motto)}"</div>` : '';
     return `<tr>
       <td>
-        <div>${escapeHtml(p.display_name)}</div>
+        <div class="d-flex align-items-center gap-2">
+          <span>${escapeHtml(p.display_name)}</span>
+          <span class="badge ${role.badge} d-md-none" style="font-size:0.65rem;">${role.icon} ${role.name}</span>
+        </div>
         ${extras.length ? `<div class="d-flex align-items-center gap-2 mt-1">${extras.join('')}</div>` : ''}
         ${mottoHtml}
       </td>
       ${isAdmin ? `<td style="font-size:0.8rem;">${escapeHtml(p.email || '-')}</td>` : ''}
-      <td><span class="badge ${role.badge}">${role.icon} ${role.name}</span></td>
-      <td>${new Date(p.created_at).toLocaleDateString('nl-NL')}</td>
+      <td class="d-none d-md-table-cell"><span class="badge ${role.badge}">${role.icon} ${role.name}</span></td>
+      <td class="d-none d-md-table-cell">${new Date(p.created_at).toLocaleDateString('nl-NL')}</td>
       ${isAdmin ? `<td>
         <button class="btn btn-sm btn-outline-${p.is_admin ? 'secondary' : 'danger'}"
                 onclick="toggleAdmin('${p.id}', ${!p.is_admin})">

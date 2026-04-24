@@ -1064,10 +1064,10 @@
       font-size: 1.1rem;
       flex-shrink: 0;
     }
-    .feat-gc { background: var(--jersey-gc-bg); }
-    .feat-pts { background: var(--jersey-pts-bg); }
-    .feat-mt { background: var(--jersey-mt-bg); }
-    .feat-game { background: var(--jersey-game-bg); }
+    .feat-gc  { background: var(--jersey-gc-bg);   color: var(--accent); }
+    .feat-pts { background: var(--jersey-pts-bg);  color: var(--green); }
+    .feat-mt  { background: var(--jersey-mt-bg);   color: var(--red); }
+    .feat-game { background: var(--jersey-game-bg); color: var(--purple); }
 
     @media (max-width: 991.98px) {
       .auth-intro { text-align: center; padding: 2rem 1rem 0.5rem; }
@@ -1096,6 +1096,15 @@
       gap: 0.75rem;
     }
     .leader-hero:not(:empty) { display: flex; }
+    /* Jersey-specifieke achtergrond- en scorekkleuren */
+    .jersey-gc      + .leader-hero { background: var(--jersey-gc-bg); }
+    .jersey-points  + .leader-hero { background: var(--jersey-pts-bg); }
+    .jersey-mountain + .leader-hero { background: var(--jersey-mt-bg); }
+    .jersey-game    + .leader-hero { background: var(--jersey-game-bg); }
+    .jersey-gc      + .leader-hero .leader-hero-score { color: var(--accent); }
+    .jersey-points  + .leader-hero .leader-hero-score { color: var(--green); }
+    .jersey-mountain + .leader-hero .leader-hero-score { color: var(--red); }
+    .jersey-game    + .leader-hero .leader-hero-score { color: var(--purple); }
     .leader-hero-inner {
       display: flex;
       align-items: center;
@@ -1118,10 +1127,9 @@
       margin-top: 0.05rem;
     }
     .leader-hero-score {
-      font-size: 1rem;
+      font-size: 1.05rem;
       font-weight: 900;
       font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
-      color: var(--text);
       white-space: nowrap;
       flex-shrink: 0;
     }
@@ -1250,20 +1258,31 @@
         white-space: nowrap;
       }
 
-      /* Wrapping tabs on mobile — horizontaal scrollen i.p.v. wrappen */
+      /* Wrapping tabs on mobile — icons only, verdeeld over volle breedte */
       #main-tabs {
         flex-wrap: nowrap;
-        gap: 0.15rem;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none;
-        padding-bottom: 0.25rem;
+        gap: 0;
+        overflow-x: visible;
+        justify-content: stretch;
       }
-      #main-tabs::-webkit-scrollbar { display: none; }
+      #main-tabs .nav-item {
+        flex: 1;
+      }
       #main-tabs .nav-link {
-        padding: 0.4rem 0.55rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.45rem 0.25rem;
         font-size: 0.75rem;
         white-space: nowrap;
+        width: 100%;
+      }
+      #main-tabs .nav-label {
+        display: none;
+      }
+      #main-tabs .icon {
+        width: 18px;
+        height: 18px;
       }
 
       /* Admin sub-tabs scroll */
@@ -1280,10 +1299,15 @@
         padding: 0.5rem 0.7rem;
       }
 
-      /* Responsive tables */
+      /* Responsive tables — Bootstrap .card heeft overflow:hidden waardoor
+         de scrollbare wrapper geclipped wordt. Override voor kaarten met tabel. */
       .table-responsive-wrapper {
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
+      }
+      .card:has(> .card-body > .table-responsive-wrapper),
+      .card:has(> .card-body.table-responsive-wrapper) {
+        overflow: visible;
       }
       .table th, .table td {
         font-size: 0.75rem;
