@@ -17,6 +17,12 @@ let _cache = { standings: null, standingsCompId: null, participants: null, parti
 // Rider lookup map (id → rider) — gebouwd bij loadRidersForComp
 let _riderMap = {};
 
+// Per-etappe startlijst: Map<stageId, Set<riderId>> — gevuld voor klassiekers
+let stageRiders: Record<number, Set<number>> = {};
+
+// Bijhouden voor welke etappe de rider-dropdowns zijn gevuld
+let _riderDropdownStageId: number | null = null;
+
 // Actieve realtime channel
 let _realtimeChannel = null;
 
@@ -522,14 +528,30 @@ function setupRealtime() {
 
 async function loadRidersForComp() {
   if (activeCompId) {
-    riders = await supaRest('riders', { filters: `competition_id=eq.${activeCompId}&order=bib_number` });
+    const compStageIds = activeStages().map(s => s.id);
+    const fetches: Promise<any>[] = [
+      supaRest('riders', { filters: `competition_id=eq.${activeCompId}&order=bib_number` }),
+    ];
+    if (compStageIds.length) {
+      fetches.push(supaRest('stage_riders', {
+        filters: `stage_id=in.(${compStageIds.join(',')})`,
+        select: 'stage_id,rider_id',
+      }));
+    }
+    const [ridersData, srData] = await Promise.all(fetches);
+    riders = ridersData;
+    stageRiders = {};
+    for (const sr of srData || []) {
+      if (!stageRiders[sr.stage_id]) stageRiders[sr.stage_id] = new Set();
+      stageRiders[sr.stage_id].add(sr.rider_id);
+    }
   } else {
     riders = await supaRest('riders', { filters: 'order=bib_number' });
+    stageRiders = {};
   }
-  // Bouw lookup map voor O(1) rider lookups
   _riderMap = {};
   for (const r of riders) _riderMap[r.id] = r;
-  // Reset team filter dropdown (will be repopulated on render)
+  _riderDropdownStageId = null;
   const tf = $('rider-team-filter');
   if (tf) { tf.innerHTML = '<option value="">Alle teams</option>'; tf.value = ''; }
 }
@@ -886,8 +908,13 @@ function renderPickStage() {
 }
 
 function updateRiderAvailability(usedInOtherStages) {
-  const total = riders.length;
-  const used = usedInOtherStages.size;
+  const stageId = parseInt($('stage-select').value);
+  const stageRiderSet = stageRiders[stageId];
+  const stageRiderList = (stageRiderSet && stageRiderSet.size > 0)
+    ? riders.filter(r => stageRiderSet.has(r.id))
+    : riders;
+  const total = stageRiderList.length;
+  const used = stageRiderList.filter(r => usedInOtherStages.has(r.id)).length;
   const available = total - used;
   $('rider-availability').innerHTML = `
     <span class="avail-stat available">🟢 ${available} beschikbaar</span>
@@ -974,29 +1001,36 @@ function updatePickBar(stage, currentPick) {
 }
 
 function renderRiderGrid(usedInOtherStages, fullyLocked) {
+  const stageId = parseInt($('stage-select').value);
+  const stageRiderSet = stageRiders[stageId];
+  // Bij klassiekers: filter op de startlijst van deze specifieke etappe
+  const stageFilteredRiders = (stageRiderSet && stageRiderSet.size > 0)
+    ? riders.filter(r => stageRiderSet.has(r.id))
+    : riders;
+
   const search = $('rider-search').value.toLowerCase();
   const teamFilter = $('rider-team-filter').value;
   const specialtyFilter = $('rider-specialty-filter').value;
   const nationalityFilter = $('rider-nationality-filter').value;
   const hideUsed = $('rider-hide-used').checked;
 
-  // Populate team dropdown if empty
-  if ($('rider-team-filter').options.length <= 1 && riders.length) {
-    const teams = [...new Set(riders.map(r => r.team))].sort();
+  // Herlaad dropdowns bij etappewissel (klassiekers hebben andere renners per etappe)
+  if ($('rider-team-filter').options.length <= 1 || _riderDropdownStageId !== stageId) {
+    _riderDropdownStageId = stageId;
+    const teams = [...new Set(stageFilteredRiders.map(r => r.team))].sort();
     $('rider-team-filter').innerHTML = '<option value="">Alle teams</option>' +
       teams.map(t => `<option value="${t}">${t}</option>`).join('');
   }
 
-  // Populate nationality dropdown if empty
-  if ($('rider-nationality-filter').options.length <= 1 && riders.length) {
-    const nats = [...new Set(riders.map(r => r.nationality).filter(Boolean))].sort();
+  if ($('rider-nationality-filter').options.length <= 1 || _riderDropdownStageId !== stageId) {
+    const nats = [...new Set(stageFilteredRiders.map(r => r.nationality).filter(Boolean))].sort();
     $('rider-nationality-filter').innerHTML = '<option value="">Alle landen</option>' +
       nats.map(n => `<option value="${n}">${n}</option>`).join('');
   }
 
   const specialtyKey = specialtyFilter ? `specialty_${specialtyFilter}` : null;
 
-  const filtered = riders.filter(r =>
+  const filtered = stageFilteredRiders.filter(r =>
     (r.name.toLowerCase().includes(search) || r.team.toLowerCase().includes(search)) &&
     (!teamFilter || r.team === teamFilter) &&
     (!specialtyKey || (r[specialtyKey] && r[specialtyKey] >= 70)) &&
@@ -1122,18 +1156,26 @@ async function loadHistory() {
     pickerCounts[key] = (pickerCounts[key] || 0) + 1;
   }
 
-  // Calculate winner times and names per stage for gap display
+  // Winnaarstijd en naam per etappe — gebruik stages.winner_time_seconds als referentie
+  // zodat tijdsverschillen correct zijn ook als de winnaar niet in riders staat
   const winnerTimes = {};
   const winnerNames = {};
-  // Straftijd per etappe: slechtste tijdsverschil van een gekozen renner
-  const penaltyGaps = {};
+  for (const stage of activeStages()) {
+    if (stage.winner_time_seconds) winnerTimes[stage.id] = stage.winner_time_seconds;
+    if (stage.winner_name) winnerNames[stage.id] = stage.winner_name;
+  }
+  // Vul aan met finish_position=1 voor etappes zonder stages.winner_time_seconds
   for (const r of allResults) {
-    if (r.finish_position === 1 && !r.dnf && r.time_seconds > 0) {
+    if (!winnerTimes[r.stage_id] && r.finish_position === 1 && !r.dnf && r.time_seconds > 0) {
       winnerTimes[r.stage_id] = r.time_seconds;
+    }
+    if (!winnerNames[r.stage_id] && r.finish_position === 1 && !r.dnf) {
       const wr = _riderMap[r.rider_id];
       winnerNames[r.stage_id] = wr?.name || '?';
     }
   }
+  // Straftijd per etappe: slechtste tijdsverschil van een gekozen renner
+  const penaltyGaps = {};
   // Straftijd per etappe: MAX tijdsverschil van gekozen renners die wél finishten
   const pickedRiderIds = {};
   for (const p of allPicksForStages) {
@@ -1304,13 +1346,25 @@ async function loadParticipants() {
     return;
   }
 
-  // Fetch stage winners (finish_position = 1) for display
+  // Winnaar per etappe: gebruik winner_name uit stage_picks_public (= stages.winner_name)
+  // of val terug op finish_position=1 uit stage_results
   const lockedStageIds = [...new Set(allPicks.map(p => p.stage_id))];
   const stageWinners = {};
-  if (lockedStageIds.length) {
+
+  // Eerst: stage.winner_name via allPicks (stage_picks_public bevat winner_name)
+  for (const p of allPicks) {
+    if (p.winner_name && !stageWinners[p.stage_id]) {
+      const stg = stages.find(s => s.id === p.stage_id);
+      stageWinners[p.stage_id] = { name: p.winner_name, time: stg?.winner_time_seconds || 0 };
+    }
+  }
+
+  // Fallback: finish_position=1 uit stage_results voor etappes zonder winner_name
+  const missingWinnerStageIds = lockedStageIds.filter(id => !stageWinners[id]);
+  if (missingWinnerStageIds.length) {
     const winnerResults = await supaRest('stage_results', {
       select: 'stage_id,rider_id,time_seconds,finish_position',
-      filters: `stage_id=in.(${lockedStageIds.join(',')})&finish_position=eq.1`
+      filters: `stage_id=in.(${missingWinnerStageIds.join(',')})&finish_position=eq.1`
     });
     for (const w of winnerResults) {
       const rider = _riderMap[w.rider_id];
@@ -2063,18 +2117,38 @@ $('btn-pcs-sync-results').addEventListener('click', async () => {
 
     status.textContent = `⏳ ${matched} resultaten opslaan...`;
     await supaRpc('admin_save_results', { p_stage_id: stageId, p_results: payload });
+
+    // Sla de echte PCS-winnaarstijd op bij de etappe (ook als die renner niet in riders staat)
+    const pcsWinner = data.results[0];
+    if (pcsWinner && pcsWinner.time_seconds > 0) {
+      const winnerRider = riders.find(rd =>
+        (pcsWinner.pcs_slug && rd.pcs_slug === pcsWinner.pcs_slug) ||
+        (pcsWinner.bib_number && rd.bib_number === pcsWinner.bib_number)
+      );
+      await supaPatch('stages', `id=eq.${stageId}`, {
+        winner_time_seconds: pcsWinner.time_seconds,
+        winner_name: winnerRider?.name || null,
+      });
+      // Herlaad stages zodat winner_name direct zichtbaar is
+      stages = await supaRest('stages', { filters: 'order=stage_number' });
+    }
+
     await supaPatch('competitions', `id=eq.${activeCompId}`, { last_synced_at: new Date().toISOString() });
 
     status.textContent = `✅ ${matched} resultaten opgeslagen!` + (unmatched ? ` (${unmatched} onbekend)` : '');
     status.className = 'text-success';
 
-    // Show top 10
-    const winnerTime = payload.length ? payload[0].time_seconds : 0;
-    const top10 = payload.slice(0, 10);
-    log.innerHTML = `<strong>Top 10:</strong><br>` + top10.map((r, i) => {
-      const rider = _riderMap[r.rider_id];
-      const timeDisplay = i === 0 ? formatTime(r.time_seconds) : formatGap(r.time_seconds - winnerTime);
-      return `${i + 1}. ${rider?.name || '?'} — ${timeDisplay}${r.dnf ? ' (DNF)' : ''}${rider?.photo_url ? ` <img src="${rider.photo_url}" class="rider-photo" style="width:20px;height:20px;" onerror="this.style.display='none'">` : ''}`;
+    // Toon Top 10 gebaseerd op PCS-uitslag (niet op payload-volgorde)
+    const pcsWinnerTime = pcsWinner?.time_seconds || 0;
+    const top10PCS = data.results.slice(0, 10);
+    log.innerHTML = `<strong>Top 10 (PCS):</strong><br>` + top10PCS.map((r, i) => {
+      const rider = riders.find(rd =>
+        (r.pcs_slug && rd.pcs_slug === r.pcs_slug) ||
+        (r.bib_number && rd.bib_number === r.bib_number)
+      );
+      const timeDisplay = i === 0 ? formatTime(r.time_seconds) : formatGap(r.time_seconds - pcsWinnerTime);
+      const matchMark = rider ? '' : ' ⚠️ niet in startlijst';
+      return `${i + 1}. ${rider?.name || r.pcs_slug || '?'} — ${timeDisplay}${r.dnf ? ' (DNF)' : ''}${matchMark}`;
     }).join('<br>');
 
     loadAdminResults();

@@ -411,6 +411,8 @@ Deno.serve(async (req) => {
         log.push(`✅ ${result.riders.length} renners + ${Object.keys(shirts).length} team shirts gevonden`);
 
         // Riders mergen op pcs_slug (bestaande updaten, nieuwe toevoegen)
+        // Track rider IDs voor stage_riders koppeling
+        const stageRiderIds: number[] = [];
         let ridersSaved = 0, ridersUpdated = 0;
         for (const r of result.riders) {
           try {
@@ -435,11 +437,15 @@ Deno.serve(async (req) => {
                 .maybeSingle();
               const nextBib = (maxBib?.bib_number || 0) + 1;
               const enriched = await enrichFromExisting(adminClient, r.pcs_slug);
-              await adminClient.from("riders").insert({ ...enriched, ...r, bib_number: nextBib, competition_id });
+              const { data: inserted } = await adminClient
+                .from("riders").insert({ ...enriched, ...r, bib_number: nextBib, competition_id })
+                .select("id").maybeSingle();
+              if (inserted?.id) stageRiderIds.push(inserted.id);
               ridersSaved++;
             } else {
               // Update naam/team (bib_number behouden — is intern)
               await adminClient.from("riders").update({ name: r.name, team: r.team, pcs_slug: r.pcs_slug }).eq("id", existing.id);
+              stageRiderIds.push(existing.id);
               ridersUpdated++;
             }
           } catch (e) {
@@ -447,6 +453,19 @@ Deno.serve(async (req) => {
           }
         }
         log.push(`🚴 Renners: ${ridersSaved} nieuw, ${ridersUpdated} bijgewerkt`);
+
+        // Koppel renners aan deze specifieke etappe (stage_riders)
+        if (stageRiderIds.length > 0) {
+          try {
+            // Verwijder oude koppeling voor deze etappe en herlaad
+            await adminClient.from("stage_riders").delete().eq("stage_id", stage_id);
+            const stageRiderRows = stageRiderIds.map(rider_id => ({ stage_id, rider_id }));
+            await adminClient.from("stage_riders").insert(stageRiderRows);
+            log.push(`✅ ${stageRiderIds.length} renners gekoppeld aan etappe ${stage.stage_number}`);
+          } catch (e) {
+            log.push(`⚠️ stage_riders: ${(e as Error).message}`);
+          }
+        }
       } catch (e) {
         log.push(`⚠️ Startlijst: ${(e as Error).message}`);
       }
