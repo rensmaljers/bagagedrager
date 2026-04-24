@@ -626,14 +626,36 @@ async function loadStandings() {
   }
 
   // Render standings with rivalry
-  function renderClassification(tableId, sorted, valueFn, formatFn, isTime) {
+  function renderClassification(tableId, sorted, valueFn, formatFn, isTime, heroLabel?: string) {
     const myIdx = sorted.findIndex(s => s.display_name === myName);
     const rows = sorted.map((s, i) => {
       const isMe = s.display_name === myName;
+      const isLeader = i === 0 && sorted.length > 0;
       const meStyle = isMe ? ' style="background:var(--accent-bg);"' : '';
-      return `<tr${meStyle}><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td><div class="d-flex align-items-center gap-2">${avatarHtml(s.display_name, _avatarMap[s.display_name], 'sm')}${escapeHtml(s.display_name)}${h2hBtn(s.display_name)}</div></td><td class="text-end">${formatFn(s, i)}</td></tr>`;
+      const trClass = isLeader ? ' class="leader-row"' : '';
+      return `<tr${meStyle}${trClass}><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td><div class="d-flex align-items-center gap-2">${avatarHtml(s.display_name, _avatarMap[s.display_name], 'sm')}${escapeHtml(s.display_name)}${h2hBtn(s.display_name)}</div></td><td class="text-end">${formatFn(s, i)}</td></tr>`;
     }).join('');
     $(tableId).innerHTML = rows || emptyRow;
+
+    // Leader hero section
+    const heroEl = document.getElementById(tableId.replace('-table', '-hero'));
+    if (heroEl) {
+      if (sorted.length > 0) {
+        const leader = sorted[0];
+        heroEl.innerHTML = `<div class="leader-hero-inner">
+          <div class="d-flex align-items-center gap-2">
+            ${avatarHtml(leader.display_name, _avatarMap[leader.display_name])}
+            <div>
+              <div class="leader-hero-name">${escapeHtml(leader.display_name)}</div>
+              <div class="leader-hero-sub">Leider</div>
+            </div>
+          </div>
+          ${heroLabel != null ? `<div class="leader-hero-score">${escapeHtml(String(heroLabel))}</div>` : ''}
+        </div>`;
+      } else {
+        heroEl.innerHTML = '';
+      }
+    }
   }
 
   if (!isClassic) {
@@ -643,6 +665,7 @@ async function loadStandings() {
     const winnerTimeSum = _cache.winnerTimeSum || 0;
     const bestBonif = 10 * completedStages;
 
+    const gcHeroLabel = gc.length > 0 && winnerTimeSum > 0 ? formatTime(winnerTimeSum + leaderTime) : null;
     renderClassification('gc-table', gc, s => s.total_time, (s, i) => {
       const absTime = winnerTimeSum > 0 ? winnerTimeSum + s.total_time : null;
       const absTimeNoBonif = winnerTimeSum > 0 ? winnerTimeSum + s.total_time_no_bonif : null;
@@ -651,19 +674,20 @@ async function loadStandings() {
       const bonifDisplay = `<div style="font-size:0.65rem;color:var(--green);">${s.total_bonification ? '-' + s.total_bonification + 's bonif.' : ''}</div>`;
       const noBonifDisplay = absTimeNoBonif ? `<div style="font-size:0.65rem;color:var(--text-muted);">Rittijd: ${formatTime(absTimeNoBonif)}</div>` : '';
       return `${timeDisplay}${gapDisplay}${bonifDisplay}${noBonifDisplay}`;
-    }, true);
-
-    // De nummer 1 toont al de absolute snelste tijd (met bonificatie) als eerste rij
+    }, true, gcHeroLabel);
 
     const pts = [...standings].sort((a, b) => b.total_points - a.total_points);
-    renderClassification('points-table', pts, s => s.total_points, (s) => s.total_points, false);
+    renderClassification('points-table', pts, s => s.total_points, (s) => s.total_points, false,
+      pts.length > 0 ? pts[0].total_points + ' pts' : null);
 
     const mt = [...standings].sort((a, b) => b.total_mountain_points - a.total_mountain_points);
-    renderClassification('mountain-table', mt, s => s.total_mountain_points, (s) => s.total_mountain_points, false);
+    renderClassification('mountain-table', mt, s => s.total_mountain_points, (s) => s.total_mountain_points, false,
+      mt.length > 0 ? mt[0].total_mountain_points + ' pts' : null);
   }
 
   const gp = [...standings].sort((a, b) => b.total_game_points - a.total_game_points);
-  renderClassification('game-table', gp, s => s.total_game_points, (s) => s.total_game_points || 0, false);
+  renderClassification('game-table', gp, s => s.total_game_points, (s) => s.total_game_points || 0, false,
+    gp.length > 0 ? (gp[0].total_game_points || 0) + ' pts' : null);
 
   renderStageTimeline();
 }
