@@ -814,7 +814,8 @@ function renderStageTimeline() {
     const deadline = new Date(s.deadline);
     const isPast = now > deadline;
     let cls = 'upcoming';
-    let title = `Etappe ${s.stage_number}: ${s.name}${s.distance_km ? ` (${s.distance_km} km)` : ''}`;
+    const stageTitle = s.stage_number === 0 ? 'Proloog' : `Etappe ${s.stage_number}`;
+    let title = `${stageTitle}: ${s.name}${s.distance_km ? ` (${s.distance_km} km)` : ''}`;
     if (hasResults) { cls = 'completed'; title += ' (afgerond)'; }
     else if (isPast) { cls = 'locked'; title += ' (vergrendeld)'; }
     else if (!hasResults && !isPast) {
@@ -822,7 +823,7 @@ function renderStageTimeline() {
       cls = nextOpen?.id === s.id ? 'open' : 'upcoming';
       if (cls === 'open') title += ' (open voor keuze)';
     }
-    return `<div class="stage-dot ${cls}" title="${title}">${s.stage_number}</div>`;
+    return `<div class="stage-dot ${cls}" title="${title}">${s.stage_number === 0 ? 'P' : s.stage_number}</div>`;
   }).join('');
   const legend = `<div class="timeline-legend">
     <span class="legend-item"><span class="stage-dot completed" style="width:12px;height:12px;font-size:0;"></span> Afgerond</span>
@@ -842,7 +843,8 @@ async function loadPickView() {
   sel.innerHTML = compStages.map(s => {
     const locked = s.locked || now > new Date(s.deadline);
     const typeLabel = typeLabels[s.stage_type] || '';
-    return `<option value="${s.id}">${locked ? '🔒 ' : ''}${typeLabel} Etappe ${s.stage_number}: ${s.name}</option>`;
+    const stageLabel = s.stage_number === 0 ? 'Proloog' : `Etappe ${s.stage_number}`;
+    return `<option value="${s.id}">${locked ? '🔒 ' : ''}${typeLabel} ${stageLabel}: ${s.name}</option>`;
   }).join('');
 
   const nextStage = compStages.find(s => !s.locked) || compStages[0];
@@ -883,7 +885,8 @@ function renderPickStage() {
   const pcsStageUrl = buildPcsStageUrl(comp, stage.stage_number, stage);
   const pcsLink = pcsStageUrl ? ` <a href="${pcsStageUrl}" target="_blank" rel="noopener" class="pcs-link" title="Bekijk op PCS">PCS ↗</a>` : '';
 
-  $('pick-stage-name').innerHTML = `Etappe ${stage.stage_number}: ${escapeHtml(stage.name)}${pcsLink}`;
+  const pickStageLabel = stage.stage_number === 0 ? 'Proloog' : `Etappe ${stage.stage_number}`;
+  $('pick-stage-name').innerHTML = `${pickStageLabel}: ${escapeHtml(stage.name)}${pcsLink}`;
   const stageDetails = [
     `Start: ${formatDeadline(stage.start_time || stage.deadline)}`,
     stage.distance_km ? `${stage.distance_km} km` : null,
@@ -1273,7 +1276,7 @@ async function loadHistory() {
     : '<th>Etappe</th><th>Renner</th><th class="text-end"><span class="info-tooltip" data-tip="Tijdsverschil met etappewinnaar">Verschil &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Bonificatie: 1e −10s, 2e −6s, 3e −4s">Bonif. &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Sprintpunten uit het puntenklassement">Pts &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Bergpunten (KOM)">Berg &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Spelpunten op basis van finishpositie, na deelpenalty">Spel &#9432;</span></th><th>Status</th>';
   $('history-table').innerHTML = rows.map(({ pick, stage, rider, result, gp, timeGap, bonif, rowClass, numPickers, sharingPct }) =>
     `<tr class="${rowClass}">
-      <td><div>Etappe ${stage?.stage_number || '?'}</div>${winnerNames[pick.stage_id] ? `<div style="font-size:0.65rem;color:var(--text-muted);">${icon('trophy', '', 11)} ${escapeHtml(winnerNames[pick.stage_id])}</div>` : ''}</td>
+      <td><div>${stage ? (stage.stage_number === 0 ? 'Proloog' : `Etappe ${stage.stage_number}`) : '?'}</div>${winnerNames[pick.stage_id] ? `<div style="font-size:0.65rem;color:var(--text-muted);">${icon('trophy', '', 11)} ${escapeHtml(winnerNames[pick.stage_id])}</div>` : ''}</td>
       <td>${riderDisplay(rider?.name, rider?.photo_url)} <span class="team-badge-sm">${rider ? teamBadge(rider.team) : ''}</span></td>
       <td class="time text-end">${!histIsClassic && result ? (result.finish_position === 1 ? formatTime(result.time_seconds) : (result.dnf || pick.is_late) ? (penaltyGaps[pick.stage_id] != null ? formatGap(penaltyGaps[pick.stage_id]) : '-') : formatGap(timeGap)) : result ? formatTime(result.time_seconds) : '-'}</td>
       ${!histIsClassic ? `<td class="text-end">${bonif ? '-' + bonif + 's' : '-'}</td>` : ''}
@@ -1909,7 +1912,7 @@ $('btn-add-stage').addEventListener('click', async () => {
   const startTime = $('new-stage-starttime').value || '12:00';
   const type = $('new-stage-type').value;
   const compId = parseInt($('new-stage-comp').value);
-  if (!num || !name || !date || !compId) return toast('Vul alle velden in', 'warning');
+  if (isNaN(num) || !name || !date || !compId) return toast('Vul alle velden in', 'warning');
 
   const startDateTime = new Date(`${date}T${startTime}:00`);
 
