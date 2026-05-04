@@ -6,19 +6,20 @@ const PCS_HEADERS = {
   "Accept-Language": "en-US,en;q=0.5",
 };
 
+// PCS gebruikt career-points-{discipline} URLs met w{0-100} breedte als score
 const SPEC_MAP: Record<string, string> = {
-  'one.*day': 'specialty_one_day',
-  'gc': 'specialty_gc',
-  'tt': 'specialty_tt',
-  'sprint': 'specialty_sprint',
-  'climber': 'specialty_climber',
-  'hill': 'specialty_hills',
+  'career-points-one-day-races': 'specialty_one_day',
+  'career-points-gc':            'specialty_gc',
+  'career-points-time-trial':    'specialty_tt',
+  'career-points-sprint':        'specialty_sprint',
+  'career-points-climbers':      'specialty_climber',
 };
 
 function parseSpecialties(html: string): Record<string, number> {
   const result: Record<string, number> = {};
   for (const [pattern, field] of Object.entries(SPEC_MAP)) {
-    const m = html.match(new RegExp(pattern + '[^>]*>\\s*(\\d+)', 'i'));
+    // Label staat in de ene <li>, breedte-score in de volgende <li>
+    const m = html.match(new RegExp(pattern + '[\\s\\S]{0,300}?<div class="w(\\d+)'));
     if (m) result[field] = parseInt(m[1]);
   }
   return result;
