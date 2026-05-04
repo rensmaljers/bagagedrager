@@ -155,6 +155,7 @@ function buildPcsStageUrl(comp, stageNumber, stage) {
   if (!comp?.pcs_url) return null;
   const base = comp.pcs_url.replace(/\/$/, '').replace(/\/(stages|startlist|gc|stage-\d+|results?|resuts)$/, '');
   if (comp.is_one_day) return `${base}/result`;
+  if (stageNumber === 0) return `${base}/prologue`;
   return `${base}/stage-${stageNumber}`;
 }
 
@@ -600,14 +601,15 @@ async function loadStandings() {
   $('gc-card').style.display = isClassic ? 'none' : '';
   $('points-card').style.display = isClassic ? 'none' : '';
   $('mountain-card').style.display = isClassic ? 'none' : '';
+  $('combativity-card').style.display = '';  // altijd zichtbaar
   $('game-card').style.display = isClassic ? '' : 'none';
 
   // Adjust column widths
-  const cards = ['gc-card', 'points-card', 'mountain-card', 'game-card'];
+  const cards = ['gc-card', 'points-card', 'mountain-card', 'combativity-card', 'game-card'];
   cards.forEach(id => {
     const el = $(id);
     if (el.style.display !== 'none') {
-      el.className = isClassic ? 'col-lg-8 mx-auto' : 'col-md-6';
+      el.className = 'col-md-6';
     }
   });
 
@@ -684,7 +686,12 @@ async function loadStandings() {
     const mt = [...standings].sort((a, b) => b.total_mountain_points - a.total_mountain_points);
     renderClassification('mountain-table', mt, s => s.total_mountain_points, (s) => s.total_mountain_points, false,
       mt.length > 0 ? mt[0].total_mountain_points + ' pts' : null);
+
   }
+
+  const cv = [...standings].sort((a, b) => (b.total_combativity_points || 0) - (a.total_combativity_points || 0));
+  renderClassification('combativity-table', cv, s => s.total_combativity_points || 0, (s) => s.total_combativity_points || 0, false,
+    cv.length > 0 ? (cv[0].total_combativity_points || 0) + ' pts' : null);
 
   const gp = [...standings].sort((a, b) => b.total_game_points - a.total_game_points);
   renderClassification('game-table', gp, s => s.total_game_points, (s) => s.total_game_points || 0, false,
@@ -1272,20 +1279,24 @@ async function loadHistory() {
 
   const histIsClassic = activeScoringMode() === 'classic';
   $('history-table-header').innerHTML = histIsClassic
-    ? '<th>Etappe</th><th>Renner</th><th class="text-end">Tijd</th><th class="text-end"><span class="info-tooltip" data-tip="Sprintpunten uit het puntenklassement">Pts &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Bergpunten (KOM)">Berg &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Spelpunten op basis van finishpositie, na deelpenalty">Spel &#9432;</span></th><th>Status</th>'
-    : '<th>Etappe</th><th>Renner</th><th class="text-end"><span class="info-tooltip" data-tip="Tijdsverschil met etappewinnaar">Verschil &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Bonificatie: 1e −10s, 2e −6s, 3e −4s">Bonif. &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Sprintpunten uit het puntenklassement">Pts &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Bergpunten (KOM)">Berg &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Spelpunten op basis van finishpositie, na deelpenalty">Spel &#9432;</span></th><th>Status</th>';
-  $('history-table').innerHTML = rows.map(({ pick, stage, rider, result, gp, timeGap, bonif, rowClass, numPickers, sharingPct }) =>
-    `<tr class="${rowClass}">
+    ? '<th>Etappe</th><th>Renner</th><th class="text-end">Tijd</th><th class="text-end mob-hide"><span class="info-tooltip" data-tip="Sprintpunten uit het puntenklassement">Pts &#9432;</span></th><th class="text-end mob-hide"><span class="info-tooltip" data-tip="Bergpunten (KOM)">Berg &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Spelpunten op basis van finishpositie, na deelpenalty">Spel &#9432;</span></th><th>Status</th>'
+    : '<th>Etappe</th><th>Renner</th><th class="text-end"><span class="info-tooltip" data-tip="Tijdsverschil met etappewinnaar">Verschil &#9432;</span></th><th class="text-end mob-hide"><span class="info-tooltip" data-tip="Bonificatie: 1e −10s, 2e −6s, 3e −4s">Bonif. &#9432;</span></th><th class="text-end mob-hide"><span class="info-tooltip" data-tip="Sprintpunten uit het puntenklassement">Pts &#9432;</span></th><th class="text-end mob-hide"><span class="info-tooltip" data-tip="Bergpunten (KOM)">Berg &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="1 punt als je de etappewinnaar correct voorspelde">&#11088; &#9432;</span></th><th>Status</th>';
+  $('history-table').innerHTML = rows.map(({ pick, stage, rider, result, gp, timeGap, bonif, rowClass, numPickers, sharingPct }) => {
+    const isWinner = result && !pick.is_late && !result.dnf && result.finish_position === 1;
+    const combativityCell = !histIsClassic
+      ? `<td class="text-end">${isWinner ? '<span style="color:var(--green);font-weight:700;">⭐ 1</span>' : (result ? '0' : '-')}</td>`
+      : `<td class="text-end">${gp}</td>`;
+    return `<tr class="${rowClass}">
       <td><div>${stage ? (stage.stage_number === 0 ? 'Proloog' : `Etappe ${stage.stage_number}`) : '?'}</div>${winnerNames[pick.stage_id] ? `<div style="font-size:0.65rem;color:var(--text-muted);">${icon('trophy', '', 11)} ${escapeHtml(winnerNames[pick.stage_id])}</div>` : ''}</td>
       <td>${riderDisplay(rider?.name, rider?.photo_url)} <span class="team-badge-sm">${rider ? teamBadge(rider.team) : ''}</span></td>
       <td class="time text-end">${!histIsClassic && result ? (result.finish_position === 1 ? formatTime(result.time_seconds) : (result.dnf || pick.is_late) ? (penaltyGaps[pick.stage_id] != null ? formatGap(penaltyGaps[pick.stage_id]) : '-') : formatGap(timeGap)) : result ? formatTime(result.time_seconds) : '-'}</td>
-      ${!histIsClassic ? `<td class="text-end">${bonif ? '-' + bonif + 's' : '-'}</td>` : ''}
-      <td class="text-end">${result ? (pick.is_late ? '0' : result.points) : '-'}</td>
-      <td class="text-end">${result ? (pick.is_late ? '0' : result.mountain_points) : '-'}</td>
-      <td class="text-end">${gp}</td>
+      ${!histIsClassic ? `<td class="text-end mob-hide">${bonif ? '-' + bonif + 's' : '-'}</td>` : ''}
+      <td class="text-end mob-hide">${result ? (pick.is_late ? '0' : result.points) : '-'}</td>
+      <td class="text-end mob-hide">${result ? (pick.is_late ? '0' : result.mountain_points) : '-'}</td>
+      ${combativityCell}
       <td>${pick.is_late ? '<span class="badge bg-warning">Te laat</span>' : ''}${pick.is_random ? '<span class="badge bg-info">🎡 Rad</span>' : ''}</td>
-    </tr>`
-  ).join('') || `<tr><td colspan="${histIsClassic ? 7 : 8}">
+    </tr>`;
+  }).join('') || `<tr><td colspan="${histIsClassic ? 7 : 8}">
     <div class="empty-state">
       <div class="empty-state-icon">${icon('target', '', 32)}</div>
       <div class="empty-state-text">Nog geen keuzes gemaakt.<br>Ga naar de Keuze tab om je eerste renner te kiezen!</div>
@@ -1427,7 +1438,7 @@ async function loadParticipants() {
     const winnerInfo = winner ? `<span style="font-size:0.75rem; color:var(--text-muted); font-weight:400; margin-left:0.5rem;">${icon('trophy', '', 12)} ${escapeHtml(winner.name)} — ${formatTime(winner.time)}</span>` : '';
     const header = isClassic
       ? '<tr><th>Speler</th><th>Renner</th><th class="text-end">Positie</th><th class="text-end"><span class="info-tooltip" data-tip="Spelpunten op basis van positie, na deelpenalty">Spel &#9432;</span></th><th>Status</th></tr>'
-      : '<tr><th>Speler</th><th>Renner</th><th class="text-end"><span class="info-tooltip" data-tip="Tijdsverschil met etappewinnaar">Verschil &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Bonificatieseconden uit PCS (finish + tussensprints), worden van AK-tijd afgetrokken">Bonif. &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Sprintpunten uit puntenklassement">Pts &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Bergpunten (KOM)">Berg &#9432;</span></th><th>Status</th></tr>';
+      : '<tr><th>Speler</th><th>Renner</th><th class="text-end"><span class="info-tooltip" data-tip="Tijdsverschil met etappewinnaar">Verschil &#9432;</span></th><th class="text-end mob-hide"><span class="info-tooltip" data-tip="Bonificatieseconden uit PCS (finish + tussensprints), worden van AK-tijd afgetrokken">Bonif. &#9432;</span></th><th class="text-end mob-hide"><span class="info-tooltip" data-tip="Sprintpunten uit puntenklassement">Pts &#9432;</span></th><th class="text-end mob-hide"><span class="info-tooltip" data-tip="Bergpunten (KOM)">Berg &#9432;</span></th><th>Status</th></tr>';
     return `
       <div class="card mb-3">
         <div class="card-header d-flex align-items-center flex-wrap">
@@ -1455,9 +1466,9 @@ async function loadParticipants() {
                 <td>${escapeHtml(p.display_name)}</td>
                 <td>${escapeHtml(p.rider_name)} <span class="team-badge-sm">${teamBadge(p.rider_team)}</span>${pickersBadge}</td>
                 <td class="time text-end">${p.finish_position === 1 ? formatTime(p.time_seconds) : (p.dnf || p.is_late) ? (p.dnf_penalty_gap != null ? formatGap(p.dnf_penalty_gap) : '-') : (p.time_gap != null ? formatGap(p.time_gap) : '-')}</td>
-                <td class="text-end">${p.bonification ? '-' + p.bonification + 's' : '-'}</td>
-                <td class="text-end">${p.effective_points != null ? p.effective_points : (p.points != null ? (p.is_late ? '0' : p.points) : '-')}</td>
-                <td class="text-end">${p.effective_mountain_points != null ? p.effective_mountain_points : (p.mountain_points != null ? (p.is_late ? '0' : p.mountain_points) : '-')}</td>
+                <td class="text-end mob-hide">${p.bonification ? '-' + p.bonification + 's' : '-'}</td>
+                <td class="text-end mob-hide">${p.effective_points != null ? p.effective_points : (p.points != null ? (p.is_late ? '0' : p.points) : '-')}</td>
+                <td class="text-end mob-hide">${p.effective_mountain_points != null ? p.effective_mountain_points : (p.mountain_points != null ? (p.is_late ? '0' : p.mountain_points) : '-')}</td>
                 <td>${p.is_late ? '<span class="badge bg-warning">Te laat</span>' : ''}${p.is_random ? '<span class="badge bg-info">🎡 Rad</span>' : ''}${p.dnf ? '<span class="badge bg-danger">DNF</span>' : ''}</td>
               </tr>`}).join('')}
             </tbody>
@@ -1876,6 +1887,9 @@ async function loadAdminStages() {
 
   $('admin-stages-table').innerHTML = stages.map(s => {
     const comp = competitions.find(c => c.id === s.competition_id);
+    const winnerTimeVal = s.winner_time_seconds
+      ? `${Math.floor(s.winner_time_seconds / 60)}:${String(s.winner_time_seconds % 60).padStart(2, '0')}`
+      : '';
     return `<tr>
       <td>${s.stage_number}</td>
       <td>${s.name}</td>
@@ -1895,6 +1909,9 @@ async function loadAdminStages() {
         ? '<span class="badge bg-secondary">Vergrendeld</span>'
         : '<span class="badge bg-success">Open</span>'}</td>
       <td>
+        <input type="text" class="form-control form-control-sm" value="${winnerTimeVal}"
+               placeholder="M:SS" style="width:70px;font-size:0.7rem;" title="Winnaarstijd (M:SS)"
+               onchange="updateStageWinnerTime(${s.id}, this.value)">
         <button class="btn btn-sm btn-outline-${s.locked ? 'success' : 'warning'}"
                 onclick="toggleStageLock(${s.id}, ${!s.locked})">
           ${s.locked ? 'Ontgrendel' : 'Vergrendel'}
@@ -1949,6 +1966,22 @@ window.updateStagePcsUrl = async function(stageId, pcsUrl) {
     const stage = stages.find(s => s.id === stageId);
     if (stage) stage.pcs_url = pcsUrl.trim() || null;
     loadAdminStages();
+  } catch (e) { toast(e.message, 'error'); }
+};
+
+window.updateStageWinnerTime = async function(stageId, timeStr) {
+  const clean = timeStr.trim();
+  let secs: number | null = null;
+  if (clean) {
+    const parts = clean.split(':').map(Number);
+    secs = parts.length === 2 ? parts[0] * 60 + parts[1] : parts.length === 3 ? parts[0] * 3600 + parts[1] * 60 + parts[2] : Number(parts[0]);
+    if (isNaN(secs) || secs <= 0) { toast('Ongeldige tijd (gebruik M:SS of H:MM:SS)', 'error'); return; }
+  }
+  try {
+    await supaPatch('stages', `id=eq.${stageId}`, { winner_time_seconds: secs });
+    const stage = stages.find(s => s.id === stageId);
+    if (stage) stage.winner_time_seconds = secs;
+    toast('Winnaarstijd opgeslagen', 'success');
   } catch (e) { toast(e.message, 'error'); }
 };
 

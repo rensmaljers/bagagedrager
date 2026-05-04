@@ -30,10 +30,12 @@ function cetOffsetForDate(dateISO: string): string {
 }
 
 function mapStageType(iconClass: string, name: string): string {
-  if (name.toLowerCase().includes("itt") || name.toLowerCase().includes("(tt)")) return "tt";
+  const n = name.toLowerCase();
+  if (n.includes("itt") || n.includes("(tt)") || n.includes("time trial") || n.includes("tijdrit")) return "tt";
   if (iconClass.includes("p5") || iconClass.includes("p4")) return "mountain";
-  if (iconClass.includes("p3")) return "mountain";
+  if (iconClass.includes("p3")) return "hills";
   if (iconClass.includes("p2")) return "sprint";
+  if (iconClass.includes("p1")) return "flat";
   return "flat";
 }
 
@@ -187,9 +189,10 @@ async function fetchRiderPhotos(adminClient: any, competition_id: number, log: s
 function parseStartlist(doc: any) {
   const riders: any[] = [];
   const shirts: Record<string, string> = {};
-  let autoBib = 1; // Tijdelijk bibnummer als PCS er nog geen heeft
+  let autoBib = 1;
 
-  const teams = doc.querySelectorAll("ul.startlist_v4 > li");
+  let teams = doc.querySelectorAll("ul.startlist_v4 > li");
+  if (!teams.length) teams = doc.querySelectorAll("ul.startlist_v4_numbered > li, ul.startlist > li");
   for (const li of teams) {
     const teamEl = li.querySelector("a.team");
     const teamName = teamEl?.textContent?.trim()?.replace(/\s*\(.*\)/, "") || "";
@@ -482,7 +485,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Ongeldige PCS URL" }), { status: 400, headers: corsHeaders });
     }
 
-    const baseUrl = pcs_url.replace(/\/$/, "").replace(/\/(stages|startlist|gc|stage-\d+|results?|resuts)$/, "");
+    const baseUrl = pcs_url.replace(/\/$/, "").replace(/\/(stages|startlist|gc|general-classification|stage-\d+|results?|resuts?|overview)$/, "");
     const raceYear = parseInt(baseUrl.match(/\/(\d{4})/)?.[1] || String(new Date().getFullYear()));
 
     const log: string[] = [];
@@ -620,11 +623,12 @@ Deno.serve(async (req) => {
     }
 
     // 2. Fetch & parse startlist + shirts
-    log.push("🚴 Startlijst ophalen...");
+    const startlistUrl = baseUrl + "/startlist";
+    log.push(`🚴 Startlijst ophalen van ${startlistUrl}...`);
     let riders: any[] = [];
     let shirts: Record<string, string> = {};
     try {
-      const startDoc = await fetchPCS(baseUrl + "/startlist");
+      const startDoc = await fetchPCS(startlistUrl);
       const result = parseStartlist(startDoc);
       riders = result.riders;
       shirts = result.shirts;

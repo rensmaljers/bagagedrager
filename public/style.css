@@ -1375,6 +1375,38 @@
         padding: 0.3rem 0.35rem;
       }
 
+      /* Mobile: verberg minder belangrijke kolommen in history + uitslagen */
+      .mob-hide { display: none !important; }
+
+      /* Mobile: sta tekstwrap toe in history + uitslagen (anders blijft overflow) */
+      #section-history .table th,
+      #section-history .table td,
+      #participants-content .table th,
+      #participants-content .table td {
+        white-space: normal;
+      }
+
+      /* Renner/speler kolom: afkappen bij te lange namen */
+      #history-table td:nth-child(2),
+      #participants-content td:nth-child(2) {
+        max-width: 110px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      /* Rider foto verbergen in tabelcellen — naam alleen genoeg op mobiel */
+      #history-table .rider-photo,
+      #participants-content .rider-photo {
+        display: none !important;
+      }
+
+      /* Team badge kleiner in tabelcellen */
+      #history-table .team-badge-sm,
+      #participants-content .team-badge-sm {
+        display: none;
+      }
+
       /* History stats kleiner */
       #history-stats .col-4 .card-body {
         padding: 0.4rem 0.25rem !important;
