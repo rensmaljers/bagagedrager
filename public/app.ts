@@ -1144,9 +1144,35 @@ $('rider-search').addEventListener('input', () => {
   _searchDebounce = setTimeout(() => renderPickStage(), 150);
 });
 $('rider-team-filter').addEventListener('change', () => renderPickStage());
-$('rider-specialty-filter').addEventListener('change', () => renderPickStage());
+$('rider-specialty-filter').addEventListener('change', () => {
+  const val = ($('rider-specialty-filter') as HTMLSelectElement).value;
+  document.querySelectorAll('.specialty-pill').forEach(p =>
+    p.classList.toggle('active', (p as HTMLElement).dataset.specialty === val)
+  );
+  renderPickStage();
+});
 $('rider-nationality-filter').addEventListener('change', () => renderPickStage());
 $('rider-hide-used').addEventListener('change', () => renderPickStage());
+
+// Specialty pills (mobiel)
+document.querySelectorAll('.specialty-pill').forEach(pill => {
+  pill.addEventListener('click', () => {
+    const spec = (pill as HTMLElement).dataset.specialty ?? '';
+    ($('rider-specialty-filter') as HTMLSelectElement).value = spec;
+    document.querySelectorAll('.specialty-pill').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+    renderPickStage();
+  });
+});
+
+// Filter toggle (mobiel)
+$('filter-toggle').addEventListener('click', () => {
+  const panel = document.getElementById('filter-panel')!;
+  const btn = $('filter-toggle') as HTMLElement;
+  const isOpen = panel.classList.toggle('open');
+  btn.classList.toggle('active', isOpen);
+  btn.setAttribute('aria-expanded', String(isOpen));
+});
 
 // Submit pick via Postgres RPC
 $('btn-submit-pick').addEventListener('click', async () => {

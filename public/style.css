@@ -462,6 +462,40 @@
       font-weight: 500;
     }
 
+    /* --- SPECIALTY PILLS (mobiel filter) --- */
+    .specialty-pills {
+      display: flex;
+      gap: 0.4rem;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .specialty-pills::-webkit-scrollbar { display: none; }
+
+    .specialty-pill {
+      flex-shrink: 0;
+      padding: 0.3rem 0.75rem;
+      border-radius: 999px;
+      border: 1.5px solid var(--border-color, #dee2e6);
+      background: transparent;
+      color: var(--text-color, #212529);
+      font-size: 0.8rem;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .specialty-pill.active {
+      background: var(--comp-color, #0d6efd);
+      border-color: var(--comp-color, #0d6efd);
+      color: #fff;
+      font-weight: 600;
+    }
+    .specialty-pill:not(.active):hover {
+      border-color: var(--comp-color, #0d6efd);
+      color: var(--comp-color, #0d6efd);
+    }
+
     /* --- RIDER AVAILABILITY --- */
     .rider-availability {
       display: flex;
@@ -1320,6 +1354,22 @@
       }
       .pick-card .fw-bold { font-size: 0.82rem; }
       .pick-card small { font-size: 0.7rem; }
+
+      /* Foto verbergen in pick-cards op mobiel */
+      .pick-card .rider-photo { display: none !important; }
+
+      /* Filter panel standaard ingeklapt op mobiel */
+      #filter-panel {
+        display: none !important;
+      }
+      #filter-panel.open {
+        display: flex !important;
+      }
+      #filter-toggle.active {
+        background: var(--comp-color, #0d6efd);
+        border-color: var(--comp-color, #0d6efd);
+        color: #fff;
+      }
 
       /* Dashboard cards stack full width */
       .jersey-gc h5, .jersey-points h5, .jersey-mountain h5, .jersey-game h5 {
