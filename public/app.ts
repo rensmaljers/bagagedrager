@@ -1045,7 +1045,6 @@ function renderRiderGrid(usedInOtherStages, fullyLocked) {
 
   const search = $('rider-search').value.toLowerCase();
   const teamFilter = $('rider-team-filter').value;
-  const specialtyFilter = $('rider-specialty-filter').value;
   const nationalityFilter = $('rider-nationality-filter').value;
   const hideUsed = $('rider-hide-used').checked;
 
@@ -1063,12 +1062,9 @@ function renderRiderGrid(usedInOtherStages, fullyLocked) {
       nats.map(n => `<option value="${n}">${n}</option>`).join('');
   }
 
-  const specialtyKey = specialtyFilter ? `specialty_${specialtyFilter}` : null;
-
   const filtered = stageFilteredRiders.filter(r =>
     (r.name.toLowerCase().includes(search) || r.team.toLowerCase().includes(search)) &&
     (!teamFilter || r.team === teamFilter) &&
-    (!specialtyKey || (r[specialtyKey] && r[specialtyKey] >= 70)) &&
     (!nationalityFilter || r.nationality === nationalityFilter) &&
     (!hideUsed || !usedInOtherStages.has(r.id))
   );
@@ -1102,14 +1098,9 @@ function renderRiderGrid(usedInOtherStages, fullyLocked) {
                           <div class="fw-bold d-flex align-items-center gap-1" style="font-size:0.88rem;"><span class="text-truncate">${escapeHtml(r.name)}</span>${r.pcs_slug ? `<a href="https://www.procyclingstats.com/rider/${escapeHtml(r.pcs_slug)}" target="_blank" rel="noopener" class="rider-pcs-icon ms-auto" title="Bekijk op PCS" onclick="event.stopPropagation()">↗</a>` : ''}</div>
                           <span class="bib-badge">${r.bib_number}</span>
                         </div>
-                        ${r.nationality || r.specialty_climber ? `<div class="rider-specs">${[
+                        ${r.nationality ? `<div class="rider-specs">${[
                           r.nationality || null,
                           r.weight_kg ? `${r.weight_kg}kg` : null,
-                          r.specialty_climber >= 70 ? icon('type-mountain', '', 13) : null,
-                          r.specialty_sprint >= 70 ? icon('type-sprint', '', 13) : null,
-                          r.specialty_gc >= 70 ? icon('spec-gc', '', 13) : null,
-                          r.specialty_tt >= 70 ? icon('type-tt', '', 13) : null,
-                          r.specialty_one_day >= 70 ? icon('trophy', '', 13) : null,
                         ].filter(Boolean).join(' ')}</div>` : ''}
                         ${used ? '<small class="text-danger mt-1 d-block">Al gebruikt</small>' : ''}
                       </div>
@@ -1144,26 +1135,8 @@ $('rider-search').addEventListener('input', () => {
   _searchDebounce = setTimeout(() => renderPickStage(), 150);
 });
 $('rider-team-filter').addEventListener('change', () => renderPickStage());
-$('rider-specialty-filter').addEventListener('change', () => {
-  const val = ($('rider-specialty-filter') as HTMLSelectElement).value;
-  document.querySelectorAll('.specialty-pill').forEach(p =>
-    p.classList.toggle('active', (p as HTMLElement).dataset.specialty === val)
-  );
-  renderPickStage();
-});
 $('rider-nationality-filter').addEventListener('change', () => renderPickStage());
 $('rider-hide-used').addEventListener('change', () => renderPickStage());
-
-// Specialty pills (mobiel)
-document.querySelectorAll('.specialty-pill').forEach(pill => {
-  pill.addEventListener('click', () => {
-    const spec = (pill as HTMLElement).dataset.specialty ?? '';
-    ($('rider-specialty-filter') as HTMLSelectElement).value = spec;
-    document.querySelectorAll('.specialty-pill').forEach(p => p.classList.remove('active'));
-    pill.classList.add('active');
-    renderPickStage();
-  });
-});
 
 // Filter toggle (mobiel)
 $('filter-toggle').addEventListener('click', () => {
