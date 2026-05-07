@@ -1494,15 +1494,17 @@ async function loadAdminView() {
 
 // --- ADMIN: GEBRUIKERS ---
 async function loadAdminUsers() {
-  const allProfiles = await supaRest('profiles', { filters: 'order=created_at' });
+  const allProfiles = await supaRpc('admin_users_with_status');
   $('user-count').textContent = `${allProfiles.length} spelers`;
   $('admin-users-table').innerHTML = allProfiles.map(p => {
     const isSelf = p.id === profile?.id;
+    const emailConfirmed = !!p.email_confirmed_at;
     return `<tr style="${p.is_active === false ? 'opacity:0.5;' : ''}">
       <td>${escapeHtml(p.display_name)}</td>
       <td>
         ${p.is_admin ? '<span class="badge bg-danger">Admin</span>' : ''}
         ${p.is_active === false ? '<span class="badge bg-secondary">Inactief</span>' : '<span class="badge bg-success">Actief</span>'}
+        ${!emailConfirmed ? '<span class="badge bg-warning text-dark">E-mail onbevestigd</span>' : ''}
       </td>
       <td>${new Date(p.created_at).toLocaleDateString('nl-NL')}</td>
       <td>
@@ -1515,6 +1517,10 @@ async function loadAdminUsers() {
                   onclick="togglePlayerActive('${p.id}', ${p.is_active === false})" ${isSelf ? 'disabled' : ''}>
             ${p.is_active === false ? 'Activeer' : 'Deactiveer'}
           </button>
+          ${!emailConfirmed ? `<button class="btn btn-sm btn-outline-warning"
+                  onclick="confirmUserEmail('${p.id}')">
+            Bevestig e-mail
+          </button>` : ''}
           <button class="btn btn-sm btn-outline-info"
                   onclick="resetPassword('${escapeHtml(p.email || '')}')">
             Reset ww
@@ -1532,6 +1538,11 @@ async function loadAdminUsers() {
     </tr>`;
   }).join('') || '<tr><td colspan="4" class="text-muted">Geen gebruikers</td></tr>';
 }
+
+window.confirmUserEmail = async function(userId) {
+  await supaRpc('admin_confirm_email', { target_user_id: userId });
+  loadAdminUsers();
+};
 
 // --- ADMIN: Keuzes van andere spelers bewerken ---
 window.openAdminPicks = async function(userId, displayName) {
