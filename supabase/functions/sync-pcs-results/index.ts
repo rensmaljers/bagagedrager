@@ -177,6 +177,13 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Als winnerTime=0 zijn er geen tijden gevonden → waarschijnlijk startlijst i.p.v. uitslagen
+    if (winnerTime === 0 && results.length > 0) {
+      return new Response(JSON.stringify({
+        error: "Geen tijden gevonden — PCS toont waarschijnlijk nog de startlijst. Wacht tot de etappe klaar is en probeer opnieuw.",
+      }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     function extractClassificationPoints(classTable: any, field: "points" | "mountain_points") {
       if (!classTable) return;
       const classRows = classTable.querySelectorAll("tbody tr");
