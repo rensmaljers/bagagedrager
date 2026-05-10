@@ -1340,7 +1340,8 @@
         -webkit-overflow-scrolling: touch;
       }
       .card:has(> .card-body > .table-responsive-wrapper),
-      .card:has(> .card-body.table-responsive-wrapper) {
+      .card:has(> .card-body.table-responsive-wrapper),
+      .card:has(> .card-body.p-0 > table) {
         overflow: visible;
       }
       .table th, .table td {
