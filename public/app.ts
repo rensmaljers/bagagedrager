@@ -2259,6 +2259,83 @@ $('btn-pcs-sync-results').addEventListener('click', async () => {
   }
 });
 
+// Force sync: overschrijft ook manually_edited=true rows (p_manual=true)
+// Gebruik dit als de normale sync verkeerde data heeft opgeslagen (bijv. verkeerde tab gepakt).
+$('btn-pcs-force-sync-results').addEventListener('click', async () => {
+  const stageId = parseInt($('sync-stage-select').value);
+  const stage = stages.find(s => s.id === stageId);
+  const status = $('pcs-results-sync-status');
+  const log = $('pcs-results-sync-log');
+
+  if (!stage) { status.textContent = 'Kies een etappe'; status.className = 'text-danger'; return; }
+
+  const comp = competitions.find(c => c.id === stage.competition_id);
+  if (!comp?.pcs_url && !stage.pcs_url) { status.textContent = 'Geen PCS URL ingesteld'; status.className = 'text-danger'; return; }
+
+  if (!confirm(`⚠️ FORCE SYNC: etappe ${stage.stage_number || 'P'} (${stage.name})\n\nDit overschrijft ALLE opgeslagen uitslagen voor deze etappe, ook handmatig bewerkte. Gebruik dit alleen als de normale sync verkeerde data heeft opgeslagen.\n\nDoorgaan?`)) return;
+
+  const pcsUrl = buildPcsStageUrl(comp, stage.stage_number, stage);
+  status.textContent = '⏳ Resultaten ophalen van PCS...';
+  status.className = 'text-muted';
+  log.innerHTML = '';
+
+  try {
+    const data = await callEdgeFunction('sync-pcs-results', { pcs_url: pcsUrl });
+
+    if (!data.results?.length) {
+      status.textContent = 'Geen resultaten gevonden op PCS';
+      status.className = 'text-warning';
+      return;
+    }
+
+    const { payload, matched, unmatched } = await buildPcsPayload(data.results, stageId);
+
+    if (!matched) {
+      status.textContent = `Geen renners gekoppeld (${unmatched} onbekend)`;
+      status.className = 'text-danger';
+      return;
+    }
+
+    status.textContent = `⏳ ${matched} resultaten opslaan (force)...`;
+    // p_manual: true → overschrijft ook manually_edited=true rows
+    await supaRpc('admin_save_results', { p_stage_id: stageId, p_results: payload, p_manual: true });
+
+    const pcsWinner = data.results[0];
+    if (pcsWinner && pcsWinner.time_seconds > 0) {
+      const winnerRider = pcsWinner.pcs_slug
+        ? riders.find(rd => rd.pcs_slug === pcsWinner.pcs_slug)
+        : null;
+      await supaPatch('stages', `id=eq.${stageId}`, {
+        winner_time_seconds: pcsWinner.time_seconds,
+        winner_name: winnerRider?.name || pcsWinner.pcs_name || null,
+      });
+      stages = await supaRest('stages', { filters: 'order=stage_number' });
+    }
+
+    await supaPatch('competitions', `id=eq.${activeCompId}`, { last_synced_at: new Date().toISOString() });
+
+    status.textContent = `✅ Force sync: ${matched} resultaten overschreven!` + (unmatched ? ` (${unmatched} onbekend)` : '');
+    status.className = 'text-success';
+
+    const pcsWinnerTime = pcsWinner?.time_seconds || 0;
+    const top10PCS = data.results.slice(0, 10);
+    log.innerHTML = `<strong>Top 10 (PCS, na force sync):</strong><br>` + top10PCS.map((r, i) => {
+      const rider = riders.find(rd =>
+        (r.pcs_slug && rd.pcs_slug === r.pcs_slug) ||
+        (r.bib_number && rd.bib_number === r.bib_number)
+      );
+      const timeDisplay = i === 0 ? formatTime(r.time_seconds) : formatGap(r.time_seconds - pcsWinnerTime);
+      const matchMark = rider ? '' : ' ⚠️ niet in startlijst';
+      return `${i + 1}. ${rider?.name || r.pcs_slug || '?'} — ${timeDisplay}${r.dnf ? ' (DNF)' : ''}${matchMark}`;
+    }).join('<br>');
+
+    loadAdminResults();
+  } catch (e) {
+    status.textContent = e.message;
+    status.className = 'text-danger';
+  }
+});
+
 // Resync all locked stages with results from PCS
 $('btn-pcs-resync-all').addEventListener('click', async () => {
   const comp = competitions.find(c => c.id === activeCompId);
