@@ -9,7 +9,9 @@ const corsHeaders = {
 
 function parseTime(timeStr: string): number {
   // PCS time formats: "3:53:11", "53:11", "11"
-  const clean = timeStr.replace(/[^0-9:]/g, "").trim();
+  // Proloog/TT: "3:35,12" of "0:06.12" — honderdsten strippen voor parsing
+  const noHundredths = timeStr.replace(/[,\.]\d{1,2}$/, "");
+  const clean = noHundredths.replace(/[^0-9:]/g, "").trim();
   if (!clean) return 0;
   const parts = clean.split(":").map(Number);
   if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
@@ -68,8 +70,25 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Kon pagina niet parsen" }), { status: 500, headers: corsHeaders });
     }
 
-    // Parse stage results from first table.results
-    const table = doc.querySelector("table.results");
+    // PCS gebruikt tabs (STAGE, GC, POINTS, KOM, BONIS) — zoek via tab-nav
+    function findTabTable(tabKeyword: string) {
+      const tabLinks = doc.querySelectorAll("ul.restabs li a, ul.resultTabs li a");
+      for (const link of tabLinks) {
+        const text = (link.textContent || "").toUpperCase();
+        if (text.includes(tabKeyword)) {
+          const dataId = link.getAttribute("data-id");
+          if (dataId) {
+            const tabDiv = doc.querySelector(`div.resTab[data-id="${dataId}"]`);
+            return tabDiv?.querySelector("table.results") || null;
+          }
+        }
+      }
+      return null;
+    }
+
+    // Gebruik de STAGE-tab als die bestaat, anders de eerste table.results
+    // (zonder tab-selectie pakt de scraper de GC-tabel bij etappes met meerdere tabs)
+    const table = findTabTable("STAGE") || findTabTable("ÉTAPE") || findTabTable("ETAPA") || findTabTable("ETAPPE") || doc.querySelector("table.results");
     if (!table) {
       return new Response(JSON.stringify({ error: "Geen resultaten-tabel gevonden op deze pagina" }), { status: 400, headers: corsHeaders });
     }
@@ -84,7 +103,7 @@ Deno.serve(async (req) => {
       const cells = row.querySelectorAll("td");
       const rowCls = row.className || "";
 
-      if (cells.length < 8) continue;
+      if (cells.length < 4) continue;
 
       // Find cells by class
       let bib = 0, time = 0, dnf = false;
@@ -156,24 +175,6 @@ Deno.serve(async (req) => {
         position++;
         results.push({ bib_number: bib, pcs_slug, pcs_name, time_seconds: time || lastTime, finish_position: dnf ? null : position, points: 0, mountain_points: 0, bonification_seconds: bonus, dnf });
       }
-    }
-
-    // Find Points and KOM classification tables via PCS tab navigation
-    // PCS uses a tabbed interface: <ul class="restabs"> with <a data-id="X"> links
-    // Each tab corresponds to a <div class="resTab" data-id="X"> containing the table
-    function findTabTable(tabKeyword: string) {
-      const tabLinks = doc.querySelectorAll("ul.restabs li a, ul.resultTabs li a");
-      for (const link of tabLinks) {
-        const text = (link.textContent || "").toUpperCase();
-        if (text.includes(tabKeyword)) {
-          const dataId = link.getAttribute("data-id");
-          if (dataId) {
-            const tabDiv = doc.querySelector(`div.resTab[data-id="${dataId}"]`);
-            return tabDiv?.querySelector("table.results") || null;
-          }
-        }
-      }
-      return null;
     }
 
     function extractClassificationPoints(classTable: any, field: "points" | "mountain_points") {

@@ -4,18 +4,15 @@ Deno.serve(async (req) => {
   const { data: expectedSecret } = await adminClient.rpc("get_cron_secret");
   if (!expectedSecret || req.headers.get("x-cron-secret") !== expectedSecret)
     return new Response("Unauthorized", { status: 401 });
-  const res = await fetch("https://www.procyclingstats.com/rider/tadej-pogacar", {
+  const { url, keywords } = await req.json();
+  const res = await fetch(url, {
     headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", "Accept": "text/html" },
   });
   const html = await res.text();
-  // Zoek alle career-points URLs
-  const careers = [...html.matchAll(/career-points[^"']*/gi)].map(m => m[0]);
-  const unique = [...new Set(careers)];
-  // Toon ook de sectie rondom elk career-points patroon
-  const sections: Record<string, string> = {};
-  for (const u of unique) {
-    const idx = html.indexOf(u);
-    if (idx !== -1) sections[u] = html.slice(idx, idx + 250);
+  const found: Record<string, string> = {};
+  for (const kw of (keywords as string[])) {
+    const idx = html.toLowerCase().indexOf(kw.toLowerCase());
+    if (idx !== -1) found[kw] = html.slice(Math.max(0, idx - 50), idx + 300);
   }
-  return new Response(JSON.stringify({ unique, sections }), { headers: { "Content-Type": "application/json" } });
+  return new Response(JSON.stringify({ status: res.status, size: html.length, found }), { headers: { "Content-Type": "application/json" } });
 });
