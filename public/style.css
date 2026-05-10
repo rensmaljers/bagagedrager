@@ -1419,27 +1419,29 @@
         text-align: center;
       }
 
-      /* Participants table compact */
+      /* Participants table compact + horizontaal scrollbaar */
       #participants-content .table th,
       #participants-content .table td {
         font-size: 0.72rem;
         padding: 0.3rem 0.35rem;
+        white-space: nowrap;
+      }
+      #participants-content .card-body {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
       }
 
       /* Mobile: verberg minder belangrijke kolommen in history + uitslagen */
       .mob-hide { display: none !important; }
 
-      /* Mobile: sta tekstwrap toe in history + uitslagen (anders blijft overflow) */
+/* Mobile: sta tekstwrap toe in history (anders blijft overflow) */
       #section-history .table th,
-      #section-history .table td,
-      #participants-content .table th,
-      #participants-content .table td {
+      #section-history .table td {
         white-space: normal;
       }
 
-      /* Renner/speler kolom: afkappen bij te lange namen */
-      #history-table td:nth-child(2),
-      #participants-content td:nth-child(2) {
+      /* Renner/speler kolom: afkappen bij te lange namen in history */
+      #history-table td:nth-child(2) {
         max-width: 110px;
         overflow: hidden;
         text-overflow: ellipsis;

@@ -1437,7 +1437,7 @@ async function loadParticipants() {
     const winnerInfo = winner ? `<span style="font-size:0.75rem; color:var(--text-muted); font-weight:400; margin-left:0.5rem;">${icon('trophy', '', 12)} ${escapeHtml(winner.name)} — ${formatTime(winner.time)}</span>` : '';
     const header = isClassic
       ? '<tr><th>Speler</th><th>Renner</th><th class="text-end">Positie</th><th class="text-end"><span class="info-tooltip" data-tip="Spelpunten op basis van positie, na deelpenalty">Spel &#9432;</span></th><th>Status</th></tr>'
-      : '<tr><th>Speler</th><th>Renner</th><th class="text-end"><span class="info-tooltip" data-tip="Tijdsverschil met etappewinnaar">Verschil &#9432;</span></th><th class="text-end mob-hide"><span class="info-tooltip" data-tip="Bonificatieseconden uit PCS (finish + tussensprints), worden van AK-tijd afgetrokken">Bonif. &#9432;</span></th><th class="text-end mob-hide"><span class="info-tooltip" data-tip="Sprintpunten uit puntenklassement">Pts &#9432;</span></th><th class="text-end mob-hide"><span class="info-tooltip" data-tip="Bergpunten (KOM)">Berg &#9432;</span></th><th>Status</th></tr>';
+      : '<tr><th>Speler</th><th>Renner</th><th class="text-end"><span class="info-tooltip" data-tip="Tijdsverschil met etappewinnaar">Verschil &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Bonificatieseconden uit PCS (finish + tussensprints), worden van AK-tijd afgetrokken">Bonif. &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Sprintpunten uit puntenklassement">Pts &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Bergpunten (KOM)">Berg &#9432;</span></th><th>Status</th></tr>';
     return `
       <div class="card mb-3">
         <div class="card-header d-flex align-items-center flex-wrap">
@@ -1451,7 +1451,7 @@ async function loadParticipants() {
                 const stg = stages.find(s => s.id === p.stage_id);
                 const isLocked = stg?.locked;
                 const sharingPct = p.num_pickers <= 1 ? 100 : p.num_pickers === 2 ? 80 : p.num_pickers === 3 ? 60 : p.num_pickers === 4 ? 40 : 20;
-                const pickersBadge = isLocked && p.num_pickers > 1 ? ` <span class="badge bg-secondary" style="font-size:0.6rem;">${p.num_pickers}x → ${sharingPct}%</span>` : '';
+                const pickersBadge = isClassic && isLocked && p.num_pickers > 1 ? ` <span class="badge bg-secondary" style="font-size:0.6rem;">${p.num_pickers}x → ${sharingPct}%</span>` : '';
                 if (isClassic) {
                   return `<tr>
                   <td>${escapeHtml(p.display_name)}</td>
@@ -1465,9 +1465,9 @@ async function loadParticipants() {
                 <td>${escapeHtml(p.display_name)}</td>
                 <td>${escapeHtml(p.rider_name)} <span class="team-badge-sm">${teamBadge(p.rider_team)}</span>${pickersBadge}</td>
                 <td class="time text-end">${p.finish_position === 1 ? formatTime(p.time_seconds) : (p.dnf || p.is_late) ? (p.dnf_penalty_gap != null ? formatGap(p.dnf_penalty_gap) : '-') : (p.time_gap != null ? formatGap(p.time_gap) : '-')}</td>
-                <td class="text-end mob-hide">${p.bonification ? '-' + p.bonification + 's' : '-'}</td>
-                <td class="text-end mob-hide">${p.effective_points != null ? p.effective_points : (p.points != null ? (p.is_late ? '0' : p.points) : '-')}</td>
-                <td class="text-end mob-hide">${p.effective_mountain_points != null ? p.effective_mountain_points : (p.mountain_points != null ? (p.is_late ? '0' : p.mountain_points) : '-')}</td>
+                <td class="text-end">${p.bonification ? '-' + p.bonification + 's' : '-'}</td>
+                <td class="text-end">${p.effective_points != null ? p.effective_points : (p.points != null ? (p.is_late ? '0' : p.points) : '-')}</td>
+                <td class="text-end">${p.effective_mountain_points != null ? p.effective_mountain_points : (p.mountain_points != null ? (p.is_late ? '0' : p.mountain_points) : '-')}</td>
                 <td>${p.is_late ? '<span class="badge bg-warning">Te laat</span>' : ''}${p.is_random ? '<span class="badge bg-info">🎡 Rad</span>' : ''}${p.dnf ? '<span class="badge bg-danger">DNF</span>' : ''}</td>
               </tr>`}).join('')}
             </tbody>
