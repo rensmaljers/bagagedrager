@@ -2428,7 +2428,7 @@ $('btn-import-results').addEventListener('click', async () => {
   status.className = 'text-muted';
 
   try {
-    await supaRpc('admin_save_results', { p_stage_id: stageId, p_results: payload });
+    await supaRpc('admin_save_results', { p_stage_id: stageId, p_results: payload, p_manual: true });
     status.textContent = `✅ ${matched} resultaten opgeslagen!` + (unmatched ? ` (${unmatched} onbekend)` : '');
     status.className = 'text-success';
 
@@ -2525,7 +2525,7 @@ $('btn-save-results').addEventListener('click', async () => {
   try {
     status.textContent = 'Opslaan...';
     status.className = 'ms-3 text-muted';
-    const res = await supaRpc('admin_save_results', { p_stage_id: stageId, p_results: results });
+    const res = await supaRpc('admin_save_results', { p_stage_id: stageId, p_results: results, p_manual: true });
     status.textContent = `${res.count} resultaten opgeslagen!`;
     status.className = 'ms-3 text-success';
   } catch (e) {
