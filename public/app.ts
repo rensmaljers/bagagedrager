@@ -2146,6 +2146,40 @@ $('btn-pcs-sync-photos').addEventListener('click', async () => {
   }
 });
 
+// Koppel PCS-resultaat aan rider_id. Bij duplicates (zelfde pcs_slug, meerdere
+// rider entries) gaat pcs_slug-match voor bib-match, en gepickte riders voor
+// niet-gepickte — zodat de juiste rider_id wordt gebruikt.
+async function buildPcsPayload(results: any[], stageId: number) {
+  const stagePicks = await supaRest('picks', { select: 'rider_id', filters: `stage_id=eq.${stageId}` });
+  const pickedIds = new Set<number>(stagePicks.map((p: any) => p.rider_id as number));
+
+  function matchRider(r: any) {
+    if (r.pcs_slug) {
+      const hit = riders.find(rd => rd.pcs_slug === r.pcs_slug && pickedIds.has(rd.id));
+      if (hit) return hit;
+      const fallback = riders.find(rd => rd.pcs_slug === r.pcs_slug);
+      if (fallback) return fallback;
+    }
+    if (r.bib_number) {
+      const hit = riders.find(rd => rd.bib_number === r.bib_number && pickedIds.has(rd.id));
+      if (hit) return hit;
+      return riders.find(rd => rd.bib_number === r.bib_number);
+    }
+    return undefined;
+  }
+
+  let matched = 0, unmatched = 0;
+  const payload: any[] = [];
+  for (const r of results) {
+    const rider = matchRider(r);
+    if (rider) {
+      matched++;
+      payload.push({ rider_id: rider.id, time_seconds: r.time_seconds, finish_position: r.finish_position || null, points: r.points, mountain_points: r.mountain_points, bonification_seconds: r.bonification_seconds || 0, dnf: r.dnf });
+    } else { unmatched++; }
+  }
+  return { payload, matched, unmatched };
+}
+
 $('btn-pcs-sync-results').addEventListener('click', async () => {
   const stageId = parseInt($('sync-stage-select').value);
   const stage = stages.find(s => s.id === stageId);
@@ -2172,16 +2206,8 @@ $('btn-pcs-sync-results').addEventListener('click', async () => {
       return;
     }
 
-    // Match riders by pcs_slug (klassiekers) or bib_number (grote rondes)
-    let matched = 0, unmatched = 0;
-    const payload = [];
-    for (const r of data.results) {
-      const rider = riders.find(rd => (r.pcs_slug && rd.pcs_slug === r.pcs_slug) || (r.bib_number && rd.bib_number === r.bib_number));
-      if (rider) {
-        matched++;
-        payload.push({ rider_id: rider.id, time_seconds: r.time_seconds, finish_position: r.finish_position || null, points: r.points, mountain_points: r.mountain_points, bonification_seconds: r.bonification_seconds || 0, dnf: r.dnf });
-      } else { unmatched++; }
-    }
+    // Match riders: pcs_slug vóór bib, gepickte riders vóór andere
+    const { payload, matched, unmatched } = await buildPcsPayload(data.results, stageId);
 
     if (!matched) {
       status.textContent = `Geen renners gekoppeld (${unmatched} onbekend)`;
@@ -2262,15 +2288,7 @@ $('btn-pcs-resync-all').addEventListener('click', async () => {
         continue;
       }
 
-      let matched = 0;
-      const payload = [];
-      for (const r of data.results) {
-        const rider = riders.find(rd => (r.pcs_slug && rd.pcs_slug === r.pcs_slug) || (r.bib_number && rd.bib_number === r.bib_number));
-        if (rider) {
-          matched++;
-          payload.push({ rider_id: rider.id, time_seconds: r.time_seconds, finish_position: r.finish_position || null, points: r.points, mountain_points: r.mountain_points, bonification_seconds: r.bonification_seconds || 0, dnf: r.dnf });
-        }
-      }
+      const { payload, matched } = await buildPcsPayload(data.results, stage.id);
 
       if (matched) {
         await supaRpc('admin_save_results', { p_stage_id: stage.id, p_results: payload });
@@ -2333,15 +2351,7 @@ $('btn-auto-sync').addEventListener('click', async () => {
         continue;
       }
 
-      let matched = 0;
-      const payload = [];
-      for (const r of data.results) {
-        const rider = riders.find(rd => (r.pcs_slug && rd.pcs_slug === r.pcs_slug) || (r.bib_number && rd.bib_number === r.bib_number));
-        if (rider) {
-          matched++;
-          payload.push({ rider_id: rider.id, time_seconds: r.time_seconds, finish_position: r.finish_position || null, points: r.points, mountain_points: r.mountain_points, bonification_seconds: r.bonification_seconds || 0, dnf: r.dnf });
-        }
-      }
+      const { payload, matched } = await buildPcsPayload(data.results, stage.id);
 
       if (matched) {
         await supaRpc('admin_save_results', { p_stage_id: stage.id, p_results: payload });
