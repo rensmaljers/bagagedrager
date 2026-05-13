@@ -715,7 +715,7 @@ async function loadStandings() {
     const pts = [...standings].sort((a, b) => b.total_points - a.total_points);
     const ptsDeltas = computeRankDeltas(pts, s => s.total_points, p => p.effective_points ?? 0, false);
     renderClassification('points-table', pts, s => s.total_points, (s) => s.total_points, false,
-      pts.length > 0 ? pts[0].total_points + ' pts' : null, ptsDeltas);
+      pts.length > 0 ? pts[0].total_points + ' pts' : null, ptsDeltas, 'points');
 
     const mt = [...standings].sort((a, b) => b.total_mountain_points - a.total_mountain_points);
     const mtDeltas = computeRankDeltas(mt, s => s.total_mountain_points, p => p.effective_mountain_points ?? 0, false);
@@ -799,6 +799,33 @@ window.openH2H = async function(opponentName, mode = 'game') {
         <div class="h2h-score-summary">
           <div class="h2h-stat"><div class="h2h-stat-label">Etappes gewonnen (tijd)</div><div class="h2h-stat-value" style="color:var(--green);">${myWins} – ${oppWins}</div></div>
           <div class="h2h-stat"><div class="h2h-stat-label">Tijdsverschil AK</div><div class="h2h-stat-value">${diffLabel}</div></div>
+        </div>`;
+    } else if (mode === 'points') {
+      let myWins = 0, oppWins = 0;
+      const stageRows = stageNums.map(num => {
+        const my = myPks.find(p => p.stage_number === num);
+        const opp = oppPks.find(p => p.stage_number === num);
+        if (!my || !opp) return '';
+        const myPts = my.effective_points || 0;
+        const oppPts = opp.effective_points || 0;
+        const myWin = myPts > oppPts;
+        const oppWin = oppPts > myPts;
+        if (myWin) myWins++;
+        if (oppWin) oppWins++;
+        return `<div class="h2h-stage-row">
+          <div class="${myWin ? 'h2h-winner' : oppWin ? 'h2h-loser' : ''}" style="text-align:right;">${myPts} pts <span style="font-size:0.7rem;color:var(--text-muted);">${riderDisplay(my.rider_name, riderPhoto(my.rider_id))}</span></div>
+          <div class="h2h-stage-label">E${num}</div>
+          <div class="${oppWin ? 'h2h-winner' : myWin ? 'h2h-loser' : ''}">${oppPts} pts <span style="font-size:0.7rem;color:var(--text-muted);">${riderDisplay(opp.rider_name, riderPhoto(opp.rider_id))}</span></div>
+        </div>`;
+      }).join('');
+
+      const myTotal = myPks.reduce((s, p) => s + (p.effective_points || 0), 0);
+      const oppTotal = oppPks.reduce((s, p) => s + (p.effective_points || 0), 0);
+
+      content.innerHTML = `${header}${stageRows}
+        <div class="h2h-score-summary">
+          <div class="h2h-stat"><div class="h2h-stat-label">Etappes gewonnen (punten)</div><div class="h2h-stat-value" style="color:var(--green);">${myWins} – ${oppWins}</div></div>
+          <div class="h2h-stat"><div class="h2h-stat-label">Totaal sprintpunten</div><div class="h2h-stat-value">${myTotal} – ${oppTotal}</div></div>
         </div>`;
     } else {
       let myWins = 0, oppWins = 0;
