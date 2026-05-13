@@ -720,7 +720,7 @@ async function loadStandings() {
     const mt = [...standings].sort((a, b) => b.total_mountain_points - a.total_mountain_points);
     const mtDeltas = computeRankDeltas(mt, s => s.total_mountain_points, p => p.effective_mountain_points ?? 0, false);
     renderClassification('mountain-table', mt, s => s.total_mountain_points, (s) => s.total_mountain_points, false,
-      mt.length > 0 ? mt[0].total_mountain_points + ' pts' : null, mtDeltas);
+      mt.length > 0 ? mt[0].total_mountain_points + ' pts' : null, mtDeltas, 'mountain');
 
   }
 
@@ -728,7 +728,7 @@ async function loadStandings() {
   const cvDeltas = computeRankDeltas(cv, s => s.total_combativity_points || 0,
     p => (p.finish_position === 1 && !p.dnf) ? 1 : 0, false);
   renderClassification('combativity-table', cv, s => s.total_combativity_points || 0, (s) => s.total_combativity_points || 0, false,
-    cv.length > 0 ? (cv[0].total_combativity_points || 0) + ' pts' : null, cvDeltas);
+    cv.length > 0 ? (cv[0].total_combativity_points || 0) + ' pts' : null, cvDeltas, 'combativity');
 
   const gp = [...standings].sort((a, b) => b.total_game_points - a.total_game_points);
   const gpDeltas = computeRankDeltas(gp, s => s.total_game_points, p => p.effective_game_points ?? 0, false);
@@ -826,6 +826,61 @@ window.openH2H = async function(opponentName, mode = 'game') {
         <div class="h2h-score-summary">
           <div class="h2h-stat"><div class="h2h-stat-label">Etappes gewonnen (punten)</div><div class="h2h-stat-value" style="color:var(--green);">${myWins} – ${oppWins}</div></div>
           <div class="h2h-stat"><div class="h2h-stat-label">Totaal sprintpunten</div><div class="h2h-stat-value">${myTotal} – ${oppTotal}</div></div>
+        </div>`;
+    } else if (mode === 'mountain') {
+      let myWins = 0, oppWins = 0;
+      const stageRows = stageNums.map(num => {
+        const my = myPks.find(p => p.stage_number === num);
+        const opp = oppPks.find(p => p.stage_number === num);
+        if (!my || !opp) return '';
+        const myPts = my.effective_mountain_points || 0;
+        const oppPts = opp.effective_mountain_points || 0;
+        const myWin = myPts > oppPts;
+        const oppWin = oppPts > myPts;
+        if (myWin) myWins++;
+        if (oppWin) oppWins++;
+        return `<div class="h2h-stage-row">
+          <div class="${myWin ? 'h2h-winner' : oppWin ? 'h2h-loser' : ''}" style="text-align:right;">${myPts} pts <span style="font-size:0.7rem;color:var(--text-muted);">${riderDisplay(my.rider_name, riderPhoto(my.rider_id))}</span></div>
+          <div class="h2h-stage-label">E${num}</div>
+          <div class="${oppWin ? 'h2h-winner' : myWin ? 'h2h-loser' : ''}">${oppPts} pts <span style="font-size:0.7rem;color:var(--text-muted);">${riderDisplay(opp.rider_name, riderPhoto(opp.rider_id))}</span></div>
+        </div>`;
+      }).join('');
+
+      const myTotal = myPks.reduce((s, p) => s + (p.effective_mountain_points || 0), 0);
+      const oppTotal = oppPks.reduce((s, p) => s + (p.effective_mountain_points || 0), 0);
+
+      content.innerHTML = `${header}${stageRows}
+        <div class="h2h-score-summary">
+          <div class="h2h-stat"><div class="h2h-stat-label">Etappes gewonnen (berg)</div><div class="h2h-stat-value" style="color:var(--green);">${myWins} – ${oppWins}</div></div>
+          <div class="h2h-stat"><div class="h2h-stat-label">Totaal bergpunten</div><div class="h2h-stat-value">${myTotal} – ${oppTotal}</div></div>
+        </div>`;
+    } else if (mode === 'combativity') {
+      let myWins = 0, oppWins = 0;
+      const stageRows = stageNums.map(num => {
+        const my = myPks.find(p => p.stage_number === num);
+        const opp = oppPks.find(p => p.stage_number === num);
+        if (!my || !opp) return '';
+        const myPts = (my.finish_position === 1 && !my.dnf) ? 1 : 0;
+        const oppPts = (opp.finish_position === 1 && !opp.dnf) ? 1 : 0;
+        const myWin = myPts > oppPts;
+        const oppWin = oppPts > myPts;
+        if (myWin) myWins++;
+        if (oppWin) oppWins++;
+        const badge = (p, pts) => pts ? '🏆 ' : '';
+        return `<div class="h2h-stage-row">
+          <div class="${myWin ? 'h2h-winner' : oppWin ? 'h2h-loser' : ''}" style="text-align:right;">${badge(my, myPts)}${myPts} pt <span style="font-size:0.7rem;color:var(--text-muted);">${riderDisplay(my.rider_name, riderPhoto(my.rider_id))}</span></div>
+          <div class="h2h-stage-label">E${num}</div>
+          <div class="${oppWin ? 'h2h-winner' : myWin ? 'h2h-loser' : ''}">${badge(opp, oppPts)}${oppPts} pt <span style="font-size:0.7rem;color:var(--text-muted);">${riderDisplay(opp.rider_name, riderPhoto(opp.rider_id))}</span></div>
+        </div>`;
+      }).join('');
+
+      const myTotal = myPks.reduce((s, p) => s + ((p.finish_position === 1 && !p.dnf) ? 1 : 0), 0);
+      const oppTotal = oppPks.reduce((s, p) => s + ((p.finish_position === 1 && !p.dnf) ? 1 : 0), 0);
+
+      content.innerHTML = `${header}${stageRows}
+        <div class="h2h-score-summary">
+          <div class="h2h-stat"><div class="h2h-stat-label">Etappewinnaar geraden</div><div class="h2h-stat-value" style="color:var(--green);">${myWins} – ${oppWins}</div></div>
+          <div class="h2h-stat"><div class="h2h-stat-label">Totaal strijdlustpunten</div><div class="h2h-stat-value">${myTotal} – ${oppTotal}</div></div>
         </div>`;
     } else {
       let myWins = 0, oppWins = 0;
