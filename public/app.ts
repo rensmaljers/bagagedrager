@@ -13,7 +13,7 @@ let stages = [];
 let myPicks = [];
 let selectedRiderId = null;
 let activeCompId = null;
-let _cache = { standings: null, standingsCompId: null, participants: null, participantsCompId: null, allProfiles: null };
+let _cache = { standings: null, standingsCompId: null, latestStagePicks: null, participants: null, participantsCompId: null, allProfiles: null };
 
 // Rider lookup map (id → rider) — gebouwd bij loadRidersForComp
 let _riderMap = {};
@@ -574,21 +574,35 @@ async function loadStandings() {
   $('gc-table').innerHTML = skel; $('points-table').innerHTML = skel;
   $('mountain-table').innerHTML = skel; $('game-table').innerHTML = skel;
 
+  const lockedStages = activeStages().filter(s => s.locked).sort((a, b) => a.stage_number - b.stage_number);
+  const completedStages = lockedStages.length;
+  const latestStage = completedStages >= 2 ? lockedStages.at(-1) : null;
+
   let standings;
+  let latestStagePicks: any[];
   if (_cache.standingsCompId === activeCompId && _cache.standings) {
     standings = _cache.standings;
+    latestStagePicks = _cache.latestStagePicks || [];
   } else {
-    const compStageIds = activeStages().filter(s => s.locked).map(s => s.id);
-    const [standingsData, winnerResults] = await Promise.all([
+    const compStageIds = lockedStages.map(s => s.id);
+    const [standingsData, winnerResults, latestPicksData] = await Promise.all([
       supaRest('general_classification', { filters: `competition_id=eq.${activeCompId}` }),
       compStageIds.length
         ? supaRest('stage_results', { filters: `stage_id=in.(${compStageIds.join(',')})&finish_position=eq.1&dnf=eq.false&time_seconds=gt.0`, select: 'stage_id,time_seconds' })
+        : Promise.resolve([]),
+      latestStage
+        ? supaRest('stage_picks_public', {
+            filters: `stage_id=eq.${latestStage.id}`,
+            select: 'user_id,time_gap,dnf_penalty_gap,bonification,effective_points,effective_mountain_points,effective_game_points,finish_position,dnf'
+          })
         : Promise.resolve([]),
     ]);
     standings = standingsData;
     _cache.winnerTimeSum = (winnerResults || []).reduce((sum, r) => sum + r.time_seconds, 0);
     _cache.standings = standings;
     _cache.standingsCompId = activeCompId;
+    _cache.latestStagePicks = latestPicksData || [];
+    latestStagePicks = _cache.latestStagePicks;
   }
 
   const emptyRow = '<tr><td colspan="3" class="text-muted text-center py-3">Nog geen resultaten — wordt zichtbaar na de eerste etappe</td></tr>';
@@ -623,20 +637,24 @@ async function loadStandings() {
   }
 
   // H2H button helper
-  function h2hBtn(name) {
+  function h2hBtn(name, classMode = 'game') {
     if (name === myName) return '';
-    return ` <button class="btn btn-ghost" style="padding:0.1rem 0.4rem;font-size:0.6rem;border-radius:4px;" onclick="openH2H('${escapeHtml(name).replace(/'/g, "\\'")}')">vs</button>`;
+    return ` <button class="btn btn-ghost" style="padding:0.1rem 0.4rem;font-size:0.6rem;border-radius:4px;" onclick="openH2H('${escapeHtml(name).replace(/'/g, "\\'")}','${classMode}')">vs</button>`;
   }
 
   // Render standings with rivalry
-  function renderClassification(tableId, sorted, valueFn, formatFn, isTime, heroLabel?: string) {
+  function renderClassification(tableId, sorted, valueFn, formatFn, isTime, heroLabel?: string, rankDelta?: Map<string, number>, classMode?: string) {
     const myIdx = sorted.findIndex(s => s.display_name === myName);
     const rows = sorted.map((s, i) => {
       const isMe = s.display_name === myName;
       const isLeader = i === 0 && sorted.length > 0;
       const meStyle = isMe ? ' style="background:var(--accent-bg);"' : '';
       const trClass = isLeader ? ' class="leader-row"' : '';
-      return `<tr${meStyle}${trClass}><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}</td><td><div class="d-flex align-items-center gap-2">${avatarHtml(s.display_name, _avatarMap[s.display_name], 'sm')}${escapeHtml(s.display_name)}${h2hBtn(s.display_name)}</div></td><td class="text-end">${formatFn(s, i)}</td></tr>`;
+      const delta = rankDelta?.get(s.user_id);
+      const deltaHtml = delta != null && delta !== 0
+        ? `<span class="rank-change ${delta > 0 ? 'rank-up' : 'rank-down'}">${delta > 0 ? '↑' : '↓'}${Math.abs(delta) > 1 ? Math.abs(delta) : ''}</span>`
+        : '';
+      return `<tr${meStyle}${trClass}><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}${deltaHtml}</td><td><div class="d-flex align-items-center gap-2">${avatarHtml(s.display_name, _avatarMap[s.display_name], 'sm')}${escapeHtml(s.display_name)}${h2hBtn(s.display_name, classMode || 'game')}</div></td><td class="text-end">${formatFn(s, i)}</td></tr>`;
     }).join('');
     $(tableId).innerHTML = rows || emptyRow;
 
@@ -661,12 +679,27 @@ async function loadStandings() {
     }
   }
 
+  // Delta helpers: compute rank change vs. standings before the latest stage
+  const latestMap = new Map(latestStagePicks.map((p: any) => [p.user_id, p]));
+
+  function computeRankDeltas(sorted: any[], getTotal: (r: any) => number, getContrib: (p: any) => number, ascending: boolean): Map<string, number> | null {
+    if (completedStages < 2 || latestMap.size === 0) return null;
+    const prevArr = sorted.map(row => {
+      const pick = latestMap.get(row.user_id);
+      return { user_id: row.user_id, prev: getTotal(row) - (pick ? getContrib(pick) : 0) };
+    });
+    const prevSorted = [...prevArr].sort((a, b) => ascending ? a.prev - b.prev : b.prev - a.prev);
+    const prevRank = new Map(prevSorted.map((r, i) => [r.user_id, i]));
+    return new Map(sorted.map((row, i) => [row.user_id, (prevRank.get(row.user_id) ?? i) - i]));
+  }
+
   if (!isClassic) {
     const gc = [...standings].sort((a, b) => a.total_time - b.total_time);
     const leaderTime = gc.length ? gc[0].total_time : 0;
-    const completedStages = activeStages().filter(s => s.locked).length;
     const winnerTimeSum = _cache.winnerTimeSum || 0;
-    const bestBonif = 10 * completedStages;
+
+    const gcDeltas = computeRankDeltas(gc, s => s.total_time,
+      p => (p.dnf_penalty_gap ?? p.time_gap ?? 0) - (p.bonification ?? 0), true);
 
     const gcHeroLabel = gc.length > 0 && winnerTimeSum > 0 ? formatTime(winnerTimeSum + leaderTime) : null;
     renderClassification('gc-table', gc, s => s.total_time, (s, i) => {
@@ -677,31 +710,36 @@ async function loadStandings() {
       const bonifDisplay = `<div style="font-size:0.65rem;color:var(--green);">${s.total_bonification ? '-' + s.total_bonification + 's bonif.' : ''}</div>`;
       const noBonifDisplay = absTimeNoBonif ? `<div style="font-size:0.65rem;color:var(--text-muted);">Rittijd: ${formatTime(absTimeNoBonif)}</div>` : '';
       return `${timeDisplay}${gapDisplay}${bonifDisplay}${noBonifDisplay}`;
-    }, true, gcHeroLabel);
+    }, true, gcHeroLabel, gcDeltas, 'gc');
 
     const pts = [...standings].sort((a, b) => b.total_points - a.total_points);
+    const ptsDeltas = computeRankDeltas(pts, s => s.total_points, p => p.effective_points ?? 0, false);
     renderClassification('points-table', pts, s => s.total_points, (s) => s.total_points, false,
-      pts.length > 0 ? pts[0].total_points + ' pts' : null);
+      pts.length > 0 ? pts[0].total_points + ' pts' : null, ptsDeltas);
 
     const mt = [...standings].sort((a, b) => b.total_mountain_points - a.total_mountain_points);
+    const mtDeltas = computeRankDeltas(mt, s => s.total_mountain_points, p => p.effective_mountain_points ?? 0, false);
     renderClassification('mountain-table', mt, s => s.total_mountain_points, (s) => s.total_mountain_points, false,
-      mt.length > 0 ? mt[0].total_mountain_points + ' pts' : null);
+      mt.length > 0 ? mt[0].total_mountain_points + ' pts' : null, mtDeltas);
 
   }
 
   const cv = [...standings].sort((a, b) => (b.total_combativity_points || 0) - (a.total_combativity_points || 0));
+  const cvDeltas = computeRankDeltas(cv, s => s.total_combativity_points || 0,
+    p => (p.finish_position === 1 && !p.dnf) ? 1 : 0, false);
   renderClassification('combativity-table', cv, s => s.total_combativity_points || 0, (s) => s.total_combativity_points || 0, false,
-    cv.length > 0 ? (cv[0].total_combativity_points || 0) + ' pts' : null);
+    cv.length > 0 ? (cv[0].total_combativity_points || 0) + ' pts' : null, cvDeltas);
 
   const gp = [...standings].sort((a, b) => b.total_game_points - a.total_game_points);
+  const gpDeltas = computeRankDeltas(gp, s => s.total_game_points, p => p.effective_game_points ?? 0, false);
   renderClassification('game-table', gp, s => s.total_game_points, (s) => s.total_game_points || 0, false,
-    gp.length > 0 ? (gp[0].total_game_points || 0) + ' pts' : null);
+    gp.length > 0 ? (gp[0].total_game_points || 0) + ' pts' : null, gpDeltas);
 
   renderStageTimeline();
 }
 
 // --- HEAD-TO-HEAD ---
-window.openH2H = async function(opponentName) {
+window.openH2H = async function(opponentName, mode = 'game') {
   const overlay = $('h2h-overlay');
   const content = $('h2h-content');
   content.innerHTML = '<div class="text-center text-muted py-3">Laden...</div>';
@@ -717,38 +755,79 @@ window.openH2H = async function(opponentName) {
     const oppPks = allPicks.filter(p => p.display_name === opponentName);
     const stageNums = [...new Set(allPicks.map(p => p.stage_number))].sort((a, b) => a - b);
 
-    let myWins = 0, oppWins = 0;
-    const stageRows = stageNums.map(num => {
-      const my = myPks.find(p => p.stage_number === num);
-      const opp = oppPks.find(p => p.stage_number === num);
-      if (!my || !opp) return '';
-      const myGp = my.is_late || my.dnf ? 0 : (my.effective_game_points || 0);
-      const oppGp = opp.is_late || opp.dnf ? 0 : (opp.effective_game_points || 0);
-      const myWin = myGp > oppGp;
-      const oppWin = oppGp > myGp;
-      if (myWin) myWins++;
-      if (oppWin) oppWins++;
-      return `<div class="h2h-stage-row">
-        <div class="${myWin ? 'h2h-winner' : oppWin ? 'h2h-loser' : ''}" style="text-align:right;">${myGp} <span style="font-size:0.7rem;color:var(--text-muted);">${riderDisplay(my.rider_name, riderPhoto(my.rider_id))}</span></div>
-        <div class="h2h-stage-label">E${num}</div>
-        <div class="${oppWin ? 'h2h-winner' : myWin ? 'h2h-loser' : ''}">${oppGp} <span style="font-size:0.7rem;color:var(--text-muted);">${riderDisplay(opp.rider_name, riderPhoto(opp.rider_id))}</span></div>
-      </div>`;
-    }).join('');
-
-    const myTotal = myPks.reduce((s, p) => s + (p.is_late || p.dnf ? 0 : (p.effective_game_points || 0)), 0);
-    const oppTotal = oppPks.reduce((s, p) => s + (p.is_late || p.dnf ? 0 : (p.effective_game_points || 0)), 0);
-
-    content.innerHTML = `
+    const header = `
       <div class="h2h-vs">
         <div class="h2h-player" style="color:var(--accent);">${escapeHtml(profile?.display_name || '?')}</div>
         <div class="h2h-vs-label">TEGEN</div>
         <div class="h2h-player">${escapeHtml(opponentName)}</div>
-      </div>
-      ${stageRows}
-      <div class="h2h-score-summary">
-        <div class="h2h-stat"><div class="h2h-stat-label">Etappes gewonnen</div><div class="h2h-stat-value" style="color:var(--green);">${myWins} - ${oppWins}</div></div>
-        <div class="h2h-stat"><div class="h2h-stat-label">Totaal spelpunten</div><div class="h2h-stat-value">${myTotal} - ${oppTotal}</div></div>
       </div>`;
+
+    if (mode === 'gc') {
+      const effGap = (p) => (p.dnf_penalty_gap ?? p.time_gap ?? 0) - (p.bonification ?? 0);
+      let myWins = 0, oppWins = 0;
+
+      const stageRows = stageNums.map(num => {
+        const my = myPks.find(p => p.stage_number === num);
+        const opp = oppPks.find(p => p.stage_number === num);
+        if (!my || !opp) return '';
+        const myGap = effGap(my);
+        const oppGap = effGap(opp);
+        const myWin = myGap < oppGap;
+        const oppWin = oppGap < myGap;
+        if (myWin) myWins++;
+        if (oppWin) oppWins++;
+        const penIcon = (p) => p.dnf_penalty_gap != null ? '<span style="color:var(--text-muted);font-size:0.65em;" title="Straftijd">⚠</span>' : '';
+        const myLabel = `${formatGap(myGap)}${penIcon(my)}`;
+        const oppLabel = `${formatGap(oppGap)}${penIcon(opp)}`;
+        return `<div class="h2h-stage-row">
+          <div class="${myWin ? 'h2h-winner' : oppWin ? 'h2h-loser' : ''}" style="text-align:right;">${myLabel} <span style="font-size:0.7rem;color:var(--text-muted);">${riderDisplay(my.rider_name, riderPhoto(my.rider_id))}</span></div>
+          <div class="h2h-stage-label">E${num}</div>
+          <div class="${oppWin ? 'h2h-winner' : myWin ? 'h2h-loser' : ''}">${oppLabel} <span style="font-size:0.7rem;color:var(--text-muted);">${riderDisplay(opp.rider_name, riderPhoto(opp.rider_id))}</span></div>
+        </div>`;
+      }).join('');
+
+      const myTotalGap = myPks.reduce((s, p) => s + effGap(p), 0);
+      const oppTotalGap = oppPks.reduce((s, p) => s + effGap(p), 0);
+      const diff = Math.abs(myTotalGap - oppTotalGap);
+      const diffLabel = myTotalGap < oppTotalGap
+        ? `<span style="color:var(--green);">Jij wint met ${formatGap(diff)}</span>`
+        : myTotalGap > oppTotalGap
+          ? `<span style="color:var(--red, #ef4444);">${escapeHtml(opponentName)} wint met ${formatGap(diff)}</span>`
+          : 'Gelijk';
+
+      content.innerHTML = `${header}${stageRows}
+        <div class="h2h-score-summary">
+          <div class="h2h-stat"><div class="h2h-stat-label">Etappes gewonnen (tijd)</div><div class="h2h-stat-value" style="color:var(--green);">${myWins} – ${oppWins}</div></div>
+          <div class="h2h-stat"><div class="h2h-stat-label">Tijdsverschil AK</div><div class="h2h-stat-value">${diffLabel}</div></div>
+        </div>`;
+    } else {
+      let myWins = 0, oppWins = 0;
+      const stageRows = stageNums.map(num => {
+        const my = myPks.find(p => p.stage_number === num);
+        const opp = oppPks.find(p => p.stage_number === num);
+        if (!my || !opp) return '';
+        const myGp = my.is_late || my.dnf ? 0 : (my.effective_game_points || 0);
+        const oppGp = opp.is_late || opp.dnf ? 0 : (opp.effective_game_points || 0);
+        const myWin = myGp > oppGp;
+        const oppWin = oppGp > myGp;
+        if (myWin) myWins++;
+        if (oppWin) oppWins++;
+        return `<div class="h2h-stage-row">
+          <div class="${myWin ? 'h2h-winner' : oppWin ? 'h2h-loser' : ''}" style="text-align:right;">${myGp} <span style="font-size:0.7rem;color:var(--text-muted);">${riderDisplay(my.rider_name, riderPhoto(my.rider_id))}</span></div>
+          <div class="h2h-stage-label">E${num}</div>
+          <div class="${oppWin ? 'h2h-winner' : myWin ? 'h2h-loser' : ''}">${oppGp} <span style="font-size:0.7rem;color:var(--text-muted);">${riderDisplay(opp.rider_name, riderPhoto(opp.rider_id))}</span></div>
+        </div>`;
+      }).join('');
+
+      const myTotal = myPks.reduce((s, p) => s + (p.is_late || p.dnf ? 0 : (p.effective_game_points || 0)), 0);
+      const oppTotal = oppPks.reduce((s, p) => s + (p.is_late || p.dnf ? 0 : (p.effective_game_points || 0)), 0);
+
+      content.innerHTML = `${header}${stageRows}
+        <div class="h2h-score-summary">
+          <div class="h2h-stat"><div class="h2h-stat-label">Etappes gewonnen</div><div class="h2h-stat-value" style="color:var(--green);">${myWins} – ${oppWins}</div></div>
+          <div class="h2h-stat"><div class="h2h-stat-label">Totaal spelpunten</div><div class="h2h-stat-value">${myTotal} – ${oppTotal}</div></div>
+        </div>`;
+    }
   } catch (e) {
     content.innerHTML = `<div class="text-danger">${e.message}</div>`;
   }

@@ -1189,6 +1189,9 @@
     .rank-1 { color: var(--accent); font-weight: 800; font-size: 1rem; }
     .rank-2 { color: #a8a29e; font-weight: 700; }
     .rank-3 { color: #b45309; font-weight: 700; }
+    .rank-change { font-size: 0.6em; font-weight: 700; vertical-align: super; margin-left: 2px; white-space: nowrap; }
+    .rank-up   { color: #22c55e; }
+    .rank-down { color: #ef4444; }
 
     /* --- TEAM BADGE --- */
     .team-badge {
