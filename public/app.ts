@@ -705,11 +705,14 @@ async function loadStandings() {
     renderClassification('gc-table', gc, s => s.total_time, (s, i) => {
       const absTime = winnerTimeSum > 0 ? winnerTimeSum + s.total_time : null;
       const absTimeNoBonif = winnerTimeSum > 0 ? winnerTimeSum + s.total_time_no_bonif : null;
-      const timeDisplay = absTime ? formatTime(absTime) : (i === 0 ? formatTime(s.total_time) : formatGap(s.total_time - leaderTime));
-      const gapDisplay = `<div style="font-size:0.65rem;color:var(--text-muted);">${i > 0 ? formatGap(s.total_time - leaderTime) : ''}</div>`;
+      const gap = i > 0 ? formatGap(s.total_time - leaderTime) : '';
+      const timeDisplay = i === 0
+        ? (absTime ? formatTime(absTime) : formatTime(s.total_time))
+        : (absTime ? `<div style="font-size:0.65rem;color:var(--text-muted);">${formatTime(absTime)}</div>` : '');
+      const gapDisplay = gap ? `<div>${gap}</div>` : '';
       const bonifDisplay = `<div style="font-size:0.65rem;color:var(--green);">${s.total_bonification ? '-' + s.total_bonification + 's bonif.' : ''}</div>`;
       const noBonifDisplay = absTimeNoBonif ? `<div style="font-size:0.65rem;color:var(--text-muted);">Rittijd: ${formatTime(absTimeNoBonif)}</div>` : '';
-      return `${timeDisplay}${gapDisplay}${bonifDisplay}${noBonifDisplay}`;
+      return `${gapDisplay}${timeDisplay}${bonifDisplay}${noBonifDisplay}`;
     }, true, gcHeroLabel, gcDeltas, 'gc');
 
     const pts = [...standings].sort((a, b) => b.total_points - a.total_points);
