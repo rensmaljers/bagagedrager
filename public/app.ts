@@ -3146,12 +3146,6 @@ function loadImportCompSelect() {
 
 // Edge Function race sync removed — using console script approach instead
 
-// --- BOOT ---
-function hideSplash() {
-  const splash = $('splash');
-  if (splash) { splash.classList.add('hide'); setTimeout(() => splash.remove(), 300); }
-}
-
 // Service worker vroeg registreren zodat push notificaties werken ook zonder account tab
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
@@ -3162,12 +3156,10 @@ if ('serviceWorker' in navigator) {
   if (s) {
     session = s;
     await initApp();
-    hideSplash();
     return;
   }
   // Geen geldige sessie: toon login scherm
   $('auth-screen').style.display = 'block';
-  hideSplash();
 })();
 
 // =====================
