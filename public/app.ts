@@ -456,13 +456,16 @@ $('comp-select').addEventListener('change', async () => {
 
 // --- INIT ---
 async function initApp() {
-  // Parallel fetch: all initial data at once (inclusief profielen voor avatars)
-  const [profiles, comps, allStages, picks, allProfiles] = await Promise.all([
+  // Gebruik opgeslagen compId om riders mee te batchen in de eerste round-trip
+  const savedCompId = parseInt(localStorage.getItem('bagagedrager_comp')) || null;
+
+  const [profiles, comps, allStages, picks, allProfiles, preloadedRiders] = await Promise.all([
     supaRest('profiles', { filters: `id=eq.${session.user.id}` }),
     supaRest('competitions', { filters: 'order=year.desc,name' }),
     supaRest('stages', { filters: 'order=stage_number' }),
     supaRest('picks', { filters: `user_id=eq.${session.user.id}&order=stage_id` }),
     supaRest('profiles'),
+    savedCompId ? supaRest('riders', { filters: `competition_id=eq.${savedCompId}&order=bib_number` }) : Promise.resolve(null),
   ]);
 
   profile = profiles[0];
@@ -483,13 +486,36 @@ async function initApp() {
   // Onthoud laatst gekozen ronde, val terug op actieve, dan eerste
   const sel = $('comp-select');
   const activeComps = competitions.filter(c => c.is_active);
-  const savedCompId = parseInt(localStorage.getItem('bagagedrager_comp'));
   const savedComp = savedCompId ? activeComps.find(c => c.id === savedCompId) : null;
   const activeComp = savedComp || activeComps[0];
   if (activeComp) { sel.value = activeComp.id; activeCompId = activeComp.id; }
   updateCompBanner();
 
-  await loadRidersForComp();
+  if (preloadedRiders && activeCompId === savedCompId) {
+    riders = preloadedRiders;
+    stageRiders = {};
+    _riderMap = {};
+    for (const r of riders) _riderMap[r.id] = r;
+    _riderDropdownStageId = null;
+    const tf = $('rider-team-filter');
+    if (tf) { tf.innerHTML = '<option value="">Alle teams</option>'; tf.value = ''; }
+    // Klassiekers hebben per-etappe startlijsten — laad die alsnog
+    if (activeScoringMode() === 'classic') {
+      const compStageIds = activeStages().map(s => s.id);
+      if (compStageIds.length) {
+        const srData = await supaRest('stage_riders', {
+          filters: `stage_id=in.(${compStageIds.join(',')})`,
+          select: 'stage_id,rider_id',
+        });
+        for (const sr of srData) {
+          if (!stageRiders[sr.stage_id]) stageRiders[sr.stage_id] = new Set();
+          stageRiders[sr.stage_id].add(sr.rider_id);
+        }
+      }
+    }
+  } else {
+    await loadRidersForComp();
+  }
 
   // Navigate to hash tab or default to dashboard
   const hashTab = window.location.hash.replace('#', '');
@@ -530,11 +556,13 @@ function setupRealtime() {
 
 async function loadRidersForComp() {
   if (activeCompId) {
-    const compStageIds = activeStages().map(s => s.id);
+    // stage_riders alleen nodig voor klassiekers (per-etappe startlijst)
+    const isClassic = activeScoringMode() === 'classic';
+    const compStageIds = isClassic ? activeStages().map(s => s.id) : [];
     const fetches: Promise<any>[] = [
       supaRest('riders', { filters: `competition_id=eq.${activeCompId}&order=bib_number` }),
     ];
-    if (compStageIds.length) {
+    if (isClassic && compStageIds.length) {
       fetches.push(supaRest('stage_riders', {
         filters: `stage_id=in.(${compStageIds.join(',')})`,
         select: 'stage_id,rider_id',
@@ -709,7 +737,7 @@ async function loadStandings() {
       const timeDisplay = i === 0
         ? (absTime ? formatTime(absTime) : formatTime(s.total_time))
         : (absTime ? `<div style="font-size:0.65rem;color:var(--text-muted);">${formatTime(absTime)}</div>` : '');
-      const gapDisplay = gap ? `<div>${gap}</div>` : '';
+      const gapDisplay = gap ? `<div style="font-size:1.15rem;font-weight:700;">${gap}</div>` : '';
       const bonifDisplay = `<div style="font-size:0.65rem;color:var(--green);">${s.total_bonification ? '-' + s.total_bonification + 's bonif.' : ''}</div>`;
       const noBonifDisplay = absTimeNoBonif ? `<div style="font-size:0.65rem;color:var(--text-muted);">Rittijd: ${formatTime(absTimeNoBonif)}</div>` : '';
       return `${gapDisplay}${timeDisplay}${bonifDisplay}${noBonifDisplay}`;
@@ -1342,8 +1370,8 @@ async function loadHistory() {
   let allPicksForStages = [];
   if (stageIds.length) {
     [allResults, allPicksForStages] = await Promise.all([
-      supaRest('stage_results', { filters: `stage_id=in.(${stageIds.join(',')})` }),
-      supaRest('picks', { select: 'stage_id,rider_id', filters: `stage_id=in.(${stageIds.join(',')})` }),
+      supaRest('stage_results', { filters: `stage_id=in.(${stageIds.join(',')})&limit=10000` }),
+      supaRest('picks', { select: 'stage_id,rider_id', filters: `stage_id=in.(${stageIds.join(',')})&limit=10000` }),
     ]);
   }
 
