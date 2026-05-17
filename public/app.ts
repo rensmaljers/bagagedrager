@@ -459,13 +459,14 @@ async function initApp() {
   // Gebruik opgeslagen compId om riders mee te batchen in de eerste round-trip
   const savedCompId = parseInt(localStorage.getItem('bagagedrager_comp')) || null;
 
-  const [profiles, comps, allStages, picks, allProfiles, preloadedRiders] = await Promise.all([
+  const [profiles, comps, allStages, picks, allProfiles, preloadedRiders, preloadedStandings] = await Promise.all([
     supaRest('profiles', { filters: `id=eq.${session.user.id}` }),
     supaRest('competitions', { filters: 'order=year.desc,name' }),
     supaRest('stages', { filters: 'order=stage_number' }),
     supaRest('picks', { filters: `user_id=eq.${session.user.id}&order=stage_id` }),
     supaRest('profiles'),
     savedCompId ? supaRest('riders', { filters: `competition_id=eq.${savedCompId}&order=bib_number` }) : Promise.resolve(null),
+    savedCompId ? supaRest('general_classification', { filters: `competition_id=eq.${savedCompId}` }) : Promise.resolve(null),
   ]);
 
   profile = profiles[0];
@@ -515,6 +516,13 @@ async function initApp() {
     }
   } else {
     await loadRidersForComp();
+  }
+
+  // Vul standings cache alvast zodat loadStandings direct kan renderen (geen skeleton flash)
+  if (preloadedStandings && activeCompId === savedCompId) {
+    _cache.standings = preloadedStandings;
+    _cache.standingsCompId = activeCompId;
+    // winnerTimeSum blijft undefined → achtergrondverzoek in loadStandings
   }
 
   // Navigate to hash tab or default to dashboard
@@ -597,22 +605,40 @@ async function loadStandings() {
     return;
   }
 
-  // Skeleton loading
-  const skel = skeletonRows(5);
-  $('gc-table').innerHTML = skel; $('points-table').innerHTML = skel;
-  $('mountain-table').innerHTML = skel; $('game-table').innerHTML = skel;
-
   const lockedStages = activeStages().filter(s => s.locked).sort((a, b) => a.stage_number - b.stage_number);
   const completedStages = lockedStages.length;
   const latestStage = completedStages >= 2 ? lockedStages.at(-1) : null;
+  const compStageIds = lockedStages.map(s => s.id);
 
   let standings;
   let latestStagePicks: any[];
   if (_cache.standingsCompId === activeCompId && _cache.standings) {
     standings = _cache.standings;
     latestStagePicks = _cache.latestStagePicks || [];
+
+    // Winnertime + latestPicks nog niet beschikbaar — haal op in achtergrond en her-render
+    if ((_cache as any).winnerTimeSum === undefined && (compStageIds.length || latestStage)) {
+      (_cache as any).winnerTimeSum = null; // voorkomt dubbel verzoek
+      (async () => {
+        const [winnerRes, latestPicks] = await Promise.all([
+          compStageIds.length
+            ? supaRest('stage_results', { filters: `stage_id=in.(${compStageIds.join(',')})&finish_position=eq.1&dnf=eq.false&time_seconds=gt.0`, select: 'stage_id,time_seconds' })
+            : Promise.resolve([]),
+          latestStage
+            ? supaRest('stage_picks_public', { filters: `stage_id=eq.${latestStage.id}`, select: 'user_id,time_gap,dnf_penalty_gap,bonification,effective_points,effective_mountain_points,effective_game_points,finish_position,dnf' })
+            : Promise.resolve([]),
+        ]);
+        (_cache as any).winnerTimeSum = (winnerRes || []).reduce((sum: number, r: any) => sum + r.time_seconds, 0);
+        _cache.latestStagePicks = latestPicks || [];
+        if (document.querySelector('#section-dashboard.active')) loadStandings();
+      })();
+    }
   } else {
-    const compStageIds = lockedStages.map(s => s.id);
+    // Skeleton alleen tonen bij echte network fetch
+    const skel = skeletonRows(5);
+    $('gc-table').innerHTML = skel; $('points-table').innerHTML = skel;
+    $('mountain-table').innerHTML = skel; $('game-table').innerHTML = skel;
+
     const [standingsData, winnerResults, latestPicksData] = await Promise.all([
       supaRest('general_classification', { filters: `competition_id=eq.${activeCompId}` }),
       compStageIds.length
@@ -626,7 +652,7 @@ async function loadStandings() {
         : Promise.resolve([]),
     ]);
     standings = standingsData;
-    _cache.winnerTimeSum = (winnerResults || []).reduce((sum, r) => sum + r.time_seconds, 0);
+    (_cache as any).winnerTimeSum = (winnerResults || []).reduce((sum: number, r: any) => sum + r.time_seconds, 0);
     _cache.standings = standings;
     _cache.standingsCompId = activeCompId;
     _cache.latestStagePicks = latestPicksData || [];
