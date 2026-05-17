@@ -1369,10 +1369,19 @@ async function loadHistory() {
   let allResults = [];
   let allPicksForStages = [];
   if (stageIds.length) {
-    [allResults, allPicksForStages] = await Promise.all([
-      supaRest('stage_results', { filters: `stage_id=in.(${stageIds.join(',')})&limit=10000` }),
-      supaRest('picks', { select: 'stage_id,rider_id', filters: `stage_id=in.(${stageIds.join(',')})&limit=10000` }),
-    ]);
+    // Eerst picks ophalen, dan stage_results filteren op gekozen renners.
+    // PostgREST max-rows=1000 is server-side; bij ~150 renners × 7+ etappes raak je die limiet.
+    // Door te filteren op picked rider IDs blijf je altijd ver onder 1000 rijen.
+    allPicksForStages = await supaRest('picks', {
+      select: 'stage_id,rider_id',
+      filters: `stage_id=in.(${stageIds.join(',')})`,
+    });
+    const pickedRiderIds = [...new Set(allPicksForStages.map((p: any) => p.rider_id))];
+    if (pickedRiderIds.length) {
+      allResults = await supaRest('stage_results', {
+        filters: `stage_id=in.(${stageIds.join(',')})&rider_id=in.(${pickedRiderIds.join(',')})`,
+      });
+    }
   }
 
   // Count how many players picked each rider per stage
