@@ -3514,6 +3514,8 @@ async function subscribeNotifications() {
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
     });
     const json = newSub.toJSON();
+    // Verwijder eerst alle oude subscriptions voor deze user (bijv. vanuit Safari-tab)
+    await supaDelete('push_subscriptions', `user_id=eq.${session.user.id}`);
     await supaRest('push_subscriptions', {
       method: 'POST',
       body: { user_id: session.user.id, endpoint: json.endpoint, p256dh: json.keys.p256dh, auth_key: json.keys.auth },
