@@ -271,6 +271,10 @@ function loadAccountView() {
   // Notificatieknop status
   updateNotificationButton();
 
+  // Email-herinnering toggle
+  const emailToggle = $('toggle-email-remind') as HTMLInputElement;
+  if (emailToggle) emailToggle.checked = !!profile?.email_reminders;
+
   // Populate team dropdown from known teams
   const teamSel = $('account-team');
   if (teamSel.options.length <= 1) {
@@ -363,6 +367,18 @@ $('btn-delete-account').addEventListener('click', async () => {
     toast('Account verwijderd.', 'success');
   } catch (e: any) {
     toast('Verwijderen mislukt: ' + e.message, 'danger');
+  }
+});
+
+$('toggle-email-remind').addEventListener('change', async (e) => {
+  const checked = (e.target as HTMLInputElement).checked;
+  try {
+    await supaPatch('profiles', `id=eq.${session.user.id}`, { email_reminders: checked });
+    if (profile) profile.email_reminders = checked;
+    toast(checked ? 'E-mailherinneringen ingeschakeld.' : 'E-mailherinneringen uitgeschakeld.', 'info');
+  } catch (err: any) {
+    toast('Opslaan mislukt: ' + err.message, 'danger');
+    (e.target as HTMLInputElement).checked = !checked;
   }
 });
 

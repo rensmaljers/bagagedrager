@@ -357,12 +357,26 @@
                 <span id="account-status" style="font-size:0.8rem;"></span>
               </div>
               <hr class="my-3">
-              <div class="d-flex align-items-center justify-content-between">
+              <div style="font-size:0.85rem; font-weight:600; margin-bottom:0.6rem;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Deadline herinneringen</div>
+              <!-- App-meldingen -->
+              <div class="d-flex align-items-start justify-content-between gap-3 mb-3">
                 <div>
-                  <div style="font-size:0.85rem; font-weight:600;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Deadline herinneringen</div>
-                  <div style="font-size:0.78rem; color:var(--text-muted);">Ontvang een melding als je keuze deadline nadert.</div>
+                  <div style="font-size:0.82rem; font-weight:600;">App-melding</div>
+                  <div style="font-size:0.75rem; color:var(--text-muted); line-height:1.5;">30 en 5 minuten voor de deadline via je browser.<br>
+                  Vereist toestemming en een moderne browser (Chrome, Firefox, Safari 16.4+).<br>
+                  <strong>iOS:</strong> werkt alleen als je de app hebt toegevoegd aan je beginscherm via Deel → Zet op beginscherm.</div>
                 </div>
-                <button id="btn-notifications" class="btn btn-sm btn-outline-secondary" style="white-space:nowrap; min-width:110px;">Laden…</button>
+                <button id="btn-notifications" class="btn btn-sm btn-outline-secondary flex-shrink-0" style="min-width:110px;">Laden…</button>
+              </div>
+              <!-- Email-herinnering -->
+              <div class="d-flex align-items-start justify-content-between gap-3">
+                <div>
+                  <div style="font-size:0.82rem; font-weight:600;">E-mail</div>
+                  <div style="font-size:0.75rem; color:var(--text-muted); line-height:1.5;">4 uur voor de deadline een mail als je nog geen keuze hebt gemaakt.</div>
+                </div>
+                <div class="form-check form-switch flex-shrink-0 mt-1">
+                  <input class="form-check-input" type="checkbox" id="toggle-email-remind" style="cursor:pointer;">
+                </div>
               </div>
               <hr class="my-3">
               <div class="d-flex align-items-center justify-content-between">

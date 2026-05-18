@@ -48,11 +48,12 @@ Deno.serve(async (req: Request) => {
   );
 
   for (const stage of stages) {
-    // Spelers in deze competitie
+    // Spelers in deze competitie die e-mailherinneringen willen
     const { data: profiles } = await supabase
       .from("profiles")
       .select("id, display_name")
-      .eq("competition_id", stage.competition_id);
+      .eq("competition_id", stage.competition_id)
+      .eq("email_reminders", true);
 
     // Keuzes al gemaakt voor deze etappe
     const { data: picks } = await supabase
