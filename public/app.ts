@@ -352,6 +352,20 @@ $('btn-save-account').addEventListener('click', async () => {
   }
 });
 
+$('btn-delete-account').addEventListener('click', async () => {
+  if (!confirm('Weet je zeker dat je je account permanent wilt verwijderen? Dit kan niet ongedaan worden gemaakt.')) return;
+  try {
+    await supaRpc('delete_own_account');
+    await supabase.auth.signOut();
+    session = null; profile = null;
+    $('app').style.display = 'none';
+    $('auth-screen').style.display = 'block';
+    toast('Account verwijderd.', 'success');
+  } catch (e: any) {
+    toast('Verwijderen mislukt: ' + e.message, 'danger');
+  }
+});
+
 // Admin sub-tab navigation
 document.querySelectorAll('[data-admin]').forEach(a => {
   a.addEventListener('click', (e) => {
