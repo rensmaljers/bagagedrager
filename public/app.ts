@@ -821,13 +821,16 @@ async function renderPotCard(standings: any[]) {
     filters: `competition_id=eq.${activeCompId}`,
   });
 
-  const paidCount = (participants || []).filter((p: any) => p.has_paid).length;
+  const paidIds = new Set((participants || []).filter((p: any) => p.has_paid).map((p: any) => p.user_id));
+  const paidCount = paidIds.size;
   const totalPot = paidCount * activeComp.entry_fee;
 
-  const gc  = [...standings].sort((a, b) => a.total_time - b.total_time);
-  const pts = [...standings].sort((a, b) => b.total_points - a.total_points);
-  const mtn = [...standings].sort((a, b) => b.total_mountain_points - a.total_mountain_points);
-  const cmb = [...standings].sort((a, b) => b.total_combativity_points - a.total_combativity_points);
+  // Alleen betalende spelers komen in aanmerking voor prijzen
+  const paid = standings.filter(s => paidIds.has(s.user_id));
+  const gc  = [...paid].sort((a, b) => a.total_time - b.total_time);
+  const pts = [...paid].sort((a, b) => b.total_points - a.total_points);
+  const mtn = [...paid].sort((a, b) => b.total_mountain_points - a.total_mountain_points);
+  const cmb = [...paid].sort((a, b) => b.total_combativity_points - a.total_combativity_points);
 
   const PRIZE_SPLIT = [
     { label: '1e AK',              pct: 35, winner: gc[0] },
