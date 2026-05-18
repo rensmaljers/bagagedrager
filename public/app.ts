@@ -271,6 +271,10 @@ function loadAccountView() {
   // Notificatieknop status
   updateNotificationButton();
 
+  // Test-push knop alleen voor admins
+  const testPushBtn = $('btn-test-push');
+  if (testPushBtn) testPushBtn.style.display = profile?.is_admin ? 'block' : 'none';
+
   // Email-herinnering toggle
   const emailToggle = $('toggle-email-remind') as HTMLInputElement;
   if (emailToggle) emailToggle.checked = !!profile?.email_reminders;
@@ -379,6 +383,27 @@ $('toggle-email-remind').addEventListener('change', async (e) => {
   } catch (err: any) {
     toast('Opslaan mislukt: ' + err.message, 'danger');
     (e.target as HTMLInputElement).checked = !checked;
+  }
+});
+
+$('btn-test-push').addEventListener('click', async () => {
+  const btn = $('btn-test-push') as HTMLButtonElement;
+  btn.disabled = true;
+  btn.textContent = 'Versturen…';
+  try {
+    const { data, error } = await supabase.functions.invoke('test-push');
+    if (error) throw error;
+    if (data?.sent > 0) {
+      toast(`Testmelding verstuurd naar ${data.sent} apparaat(en)!`, 'success');
+    } else {
+      const msg = data?.error || (data?.errors?.[0]) || 'Geen subscription gevonden of versturen mislukt.';
+      toast(msg, 'warning');
+    }
+  } catch (e: any) {
+    toast('Fout: ' + (e.message || JSON.stringify(e)), 'danger');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Test sturen';
   }
 });
 
