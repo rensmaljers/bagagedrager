@@ -3491,7 +3491,7 @@ async function updateNotificationButton() {
     btn.textContent = '🔔 Aan';
     btn.className = 'btn btn-sm btn-success';
   } else {
-    btn.textContent = '🔕 Inschakelen';
+    btn.textContent = '🔕 Uit';
     btn.className = 'btn btn-sm btn-outline-secondary';
   }
 }
