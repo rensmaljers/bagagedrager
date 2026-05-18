@@ -185,22 +185,22 @@ Deno.serve(async (req: Request) => {
   };
 
   let sent = 0;
-  const errors: string[] = [];
+  const details: object[] = [];
   for (const sub of subscriptions) {
+    const endpointDomain = (() => { try { return new URL(sub.endpoint).hostname; } catch { return sub.endpoint.slice(0, 40); } })();
     try {
       const res = await sendPush(sub.endpoint, sub, payload, privateKey);
-      if (res.ok || res.status === 201) {
-        sent++;
-      } else {
-        errors.push(`HTTP ${res.status}`);
-      }
+      const body = await res.text().catch(() => "");
+      const ok = res.ok || res.status === 201;
+      if (ok) sent++;
+      details.push({ endpoint: endpointDomain, status: res.status, ok, body: body.slice(0, 200) });
     } catch (e: any) {
-      errors.push(e.message);
+      details.push({ endpoint: endpointDomain, error: e.message });
     }
   }
 
   return new Response(
-    JSON.stringify({ sent, subscriptions: subscriptions.length, errors }),
+    JSON.stringify({ sent, subscriptions: subscriptions.length, details }),
     { headers: { "Content-Type": "application/json" } }
   );
 });

@@ -394,10 +394,14 @@ $('btn-test-push').addEventListener('click', async () => {
     const { data, error } = await supabase.functions.invoke('test-push');
     if (error) throw error;
     if (data?.sent > 0) {
-      toast(`Testmelding verstuurd naar ${data.sent} apparaat(en)!`, 'success');
+      toast(`Testmelding verstuurd (${data.sent}/${data.subscriptions})!`, 'success');
+    } else if (data?.error) {
+      toast(data.error, 'warning');
+    } else if (data?.details?.length) {
+      const d = data.details[0];
+      toast(`Versturen mislukt — ${d.endpoint}: HTTP ${d.status ?? 'err'} ${d.body || d.error || ''}`.trim(), 'danger');
     } else {
-      const msg = data?.error || (data?.errors?.[0]) || 'Geen subscription gevonden of versturen mislukt.';
-      toast(msg, 'warning');
+      toast('Geen subscription. Schakel eerst app-meldingen in.', 'warning');
     }
   } catch (e: any) {
     toast('Fout: ' + (e.message || JSON.stringify(e)), 'danger');

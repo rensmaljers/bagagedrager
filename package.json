@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "vite",
-    "build": "vite build && cp public/sw.js dist/sw.js",
+    "build": "vite build && cp public/sw.js dist/sw.js && cp public/manifest.json dist/manifest.json",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview"
   },
