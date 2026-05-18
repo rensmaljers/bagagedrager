@@ -370,7 +370,7 @@ $('btn-delete-account').addEventListener('click', async () => {
     $('auth-screen').style.display = 'block';
     toast('Account verwijderd.', 'success');
   } catch (e: any) {
-    toast('Verwijderen mislukt: ' + e.message, 'danger');
+    toast('Verwijderen mislukt: ' + e.message, 'error');
   }
 });
 
@@ -381,7 +381,7 @@ $('toggle-email-remind').addEventListener('change', async (e) => {
     if (profile) profile.email_reminders = checked;
     toast(checked ? 'E-mailherinneringen ingeschakeld.' : 'E-mailherinneringen uitgeschakeld.', 'info');
   } catch (err: any) {
-    toast('Opslaan mislukt: ' + err.message, 'danger');
+    toast('Opslaan mislukt: ' + err.message, 'error');
     (e.target as HTMLInputElement).checked = !checked;
   }
 });
@@ -399,12 +399,12 @@ $('btn-test-push').addEventListener('click', async () => {
       toast(data.error, 'warning');
     } else if (data?.details?.length) {
       const d = data.details[0];
-      toast(`Versturen mislukt — ${d.endpoint}: HTTP ${d.status ?? 'err'} ${d.body || d.error || ''}`.trim(), 'danger');
+      toast(`Versturen mislukt — ${d.endpoint}: HTTP ${d.status ?? 'err'} ${d.body || d.error || ''}`.trim(), 'error');
     } else {
       toast('Geen subscription. Schakel eerst app-meldingen in.', 'warning');
     }
   } catch (e: any) {
-    toast('Fout: ' + (e.message || JSON.stringify(e)), 'danger');
+    toast('Fout: ' + (e.message || JSON.stringify(e)), 'error');
   } finally {
     btn.disabled = false;
     btn.textContent = 'Test sturen';
