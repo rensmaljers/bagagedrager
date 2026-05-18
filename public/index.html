@@ -207,6 +207,7 @@
           </div>
         </div>
       </div>
+      <div id="pot-card-wrap" class="mt-4" style="display:none;"></div>
     </div>
 
     <!-- Submit Pick -->
@@ -445,6 +446,7 @@
         <li class="nav-item"><a class="nav-link" href="#" data-admin="admin-stages">Etappes</a></li>
         <li class="nav-item"><a class="nav-link" href="#" data-admin="admin-results">Resultaten</a></li>
         <li class="nav-item"><a class="nav-link" href="#" data-admin="admin-import">Import</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" data-admin="admin-pot">Pot</a></li>
       </ul>
 
       <!-- Admin: Gebruikers -->
@@ -525,7 +527,7 @@
         <div class="card">
           <div class="card-body p-0">
             <table class="table table-sm table-striped mb-0">
-              <thead><tr><th>Naam</th><th>Jaar</th><th>Modus</th><th>Kleur</th><th>Vlag</th><th>PCS URL</th><th>Sync</th><th>Actief</th><th>Acties</th></tr></thead>
+              <thead><tr><th>Naam</th><th>Jaar</th><th>Modus</th><th>Kleur</th><th>Vlag</th><th>PCS URL</th><th>Inleg</th><th>Sync</th><th>Actief</th><th>Acties</th></tr></thead>
               <tbody id="admin-comp-table"></tbody>
             </table>
           </div>
@@ -769,6 +771,25 @@
             </p>
             <pre class="p-2" style="background:var(--bg); border:1px solid var(--border); border-radius:8px; font-size:0.72rem; overflow-x:auto; white-space:pre-wrap;"><code id="pcs-script"></code></pre>
             <button class="btn btn-ghost btn-sm mt-1" onclick="navigator.clipboard.writeText($('pcs-script').textContent)">Kopieer script</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin: Pot -->
+      <div class="admin-sub" id="admin-pot">
+        <div class="card mb-3">
+          <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">💰 Inlegpot beheren</h5></div>
+          <div class="card-body">
+            <div class="row g-2 align-items-end mb-3">
+              <div class="col-auto">
+                <label class="form-label mb-1" style="font-size:0.8rem;">Ronde</label>
+                <select id="pot-comp-select" class="form-select form-select-sm" style="min-width:180px;" onchange="loadAdminPot()"></select>
+              </div>
+              <div class="col-auto">
+                <div id="pot-total-badge" style="font-size:0.9rem; font-weight:700;"></div>
+              </div>
+            </div>
+            <div id="pot-players-table"></div>
           </div>
         </div>
       </div>

@@ -67,6 +67,17 @@ async function supaPatch(table, filters, body) {
   return res.json();
 }
 
+async function supaUpsert(table: string, body: any) {
+  const url = `${SUPABASE_URL}/rest/v1/${table}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: authHeaders({ 'Prefer': 'resolution=merge-duplicates,return=representation' }),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
 // Call a Postgres RPC function via Supabase client
 async function supaRpc(fnName, params = {}) {
   const { data, error } = await supabase.rpc(fnName, params);
@@ -793,6 +804,69 @@ async function loadStandings() {
     gp.length > 0 ? (gp[0].total_game_points || 0) + ' pts' : null, gpDeltas);
 
   renderStageTimeline();
+
+  // Pot kaart — asynchroon renderen (blokkeert standings niet)
+  renderPotCard(standings).catch(() => {});
+}
+
+async function renderPotCard(standings: any[]) {
+  const potWrap = $('pot-card-wrap');
+  if (!potWrap) return;
+
+  const activeComp = competitions.find(c => c.id === activeCompId);
+  if (!activeComp?.entry_fee) { potWrap.style.display = 'none'; return; }
+
+  const participants = await supaRest('competition_participants', {
+    select: 'user_id,has_paid',
+    filters: `competition_id=eq.${activeCompId}`,
+  });
+
+  const paidCount = (participants || []).filter((p: any) => p.has_paid).length;
+  const totalPot = paidCount * activeComp.entry_fee;
+
+  const gc  = [...standings].sort((a, b) => a.total_time - b.total_time);
+  const pts = [...standings].sort((a, b) => b.total_points - a.total_points);
+  const mtn = [...standings].sort((a, b) => b.total_mountain_points - a.total_mountain_points);
+  const cmb = [...standings].sort((a, b) => b.total_combativity_points - a.total_combativity_points);
+
+  const PRIZE_SPLIT = [
+    { label: '1e AK',              pct: 35, winner: gc[0] },
+    { label: '2e AK',              pct: 25, winner: gc[1] },
+    { label: '3e AK',              pct: 15, winner: gc[2] },
+    { label: 'Winnaar punten',     pct: 10, winner: pts[0] },
+    { label: 'Winnaar berg',       pct: 10, winner: mtn[0] },
+    { label: 'Winnaar strijdlust', pct: 5,  winner: cmb[0] },
+  ];
+
+  const isProvisional = activeStages().some(s => !s.locked) && gc.length > 0;
+  const myId = session?.user?.id;
+
+  potWrap.style.display = '';
+  potWrap.innerHTML = `
+    <div class="card">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <h5 class="mb-0" style="font-size:0.95rem;">💰 Prijzenpot${isProvisional ? ' <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem;">Voorlopig</span>' : ''}</h5>
+        <span style="font-size:0.85rem;color:var(--text-muted);">€${totalPot} &nbsp;<span style="font-size:0.75rem;">(${paidCount} × €${activeComp.entry_fee})</span></span>
+      </div>
+      <div class="card-body p-0 table-responsive-wrapper">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Prijs</th><th>Speler</th><th class="text-end">Bedrag</th><th class="text-end" style="color:var(--text-muted);font-size:0.75rem;">%</th></tr></thead>
+          <tbody>
+            ${PRIZE_SPLIT.map(row => {
+              const amount = Math.floor(totalPot * row.pct / 100);
+              const name = row.winner?.display_name || '—';
+              const isMe = row.winner?.user_id === myId;
+              return `<tr${isMe ? ' style="background:var(--accent-bg);"' : ''}>
+                <td style="font-size:0.85rem;">${row.label}</td>
+                <td>${escapeHtml(name)}</td>
+                <td class="text-end" style="font-weight:${amount > 0 ? '700' : '400'};">€${amount}</td>
+                <td class="text-end" style="color:var(--text-muted);font-size:0.75rem;">${row.pct}%</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
 }
 
 // --- HEAD-TO-HEAD ---
@@ -1717,6 +1791,7 @@ async function loadAdminView() {
   ]);
   loadImportCompSelect();
   loadAdminResults();
+  loadAdminPot();
 }
 
 // --- ADMIN: GEBRUIKERS ---
@@ -1959,6 +2034,13 @@ async function loadAdminCompetitions() {
                placeholder="PCS URL" style="min-width:140px; font-size:0.75rem;"
                onchange="updateCompPcsUrl(${c.id}, this.value)">
       </td>
+      <td>
+        <div class="input-group input-group-sm" style="width:90px;">
+          <span class="input-group-text" style="font-size:0.75rem;">€</span>
+          <input type="number" class="form-control form-control-sm" value="${c.entry_fee ?? ''}" min="1" max="999" placeholder="—"
+                 style="width:55px;" onchange="updateCompField(${c.id}, 'entry_fee', this.value ? parseInt(this.value) : null)">
+        </div>
+      </td>
       <td style="font-size:0.7rem;color:var(--text-muted);white-space:nowrap;">
         ${c.last_synced_at ? new Date(c.last_synced_at).toLocaleString('nl-NL', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }) : '—'}
       </td>
@@ -2042,6 +2124,87 @@ window.deleteComp = async function(compId) {
     await supaDelete('competitions', `id=eq.${compId}`);
     loadAdminCompetitions();
   } catch (e) { toast(e.message, 'error'); }
+};
+
+// --- ADMIN: POT ---
+async function loadAdminPot() {
+  // Vul dropdown met alle rondes
+  const sel = $('pot-comp-select') as HTMLSelectElement;
+  if (!sel) return;
+  if (sel.options.length === 0) {
+    competitions.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = String(c.id);
+      opt.textContent = `${c.name} (${c.year})`;
+      sel.appendChild(opt);
+    });
+    // Selecteer actieve ronde standaard
+    if (activeCompId) sel.value = String(activeCompId);
+  }
+
+  const compId = parseInt(sel.value);
+  if (!compId) return;
+  const comp = competitions.find(c => c.id === compId);
+  const entryFee = comp?.entry_fee;
+
+  // Haal betaalstatus op
+  const participants = await supaRest('competition_participants', {
+    select: 'user_id,has_paid',
+    filters: `competition_id=eq.${compId}`,
+  });
+  const paidMap: Record<string, boolean> = {};
+  (participants || []).forEach((p: any) => { paidMap[p.user_id] = p.has_paid; });
+
+  const paidCount = Object.values(paidMap).filter(Boolean).length;
+  const totalPot = entryFee ? paidCount * entryFee : 0;
+
+  const badge = $('pot-total-badge');
+  if (badge) {
+    badge.innerHTML = entryFee
+      ? `💰 <strong>€${totalPot}</strong> in de pot &nbsp;<span class="text-muted" style="font-size:0.8rem;">(${paidCount} × €${entryFee})</span>`
+      : `<span class="text-muted" style="font-size:0.8rem;">Stel inleg in via Rondes-tab</span>`;
+  }
+
+  const wrap = $('pot-players-table');
+  if (!wrap) return;
+
+  // Haal actieve spelers op
+  const profiles = _cache.allProfiles || await supaRest('profiles', { filters: 'is_active=eq.true&order=display_name' });
+
+  wrap.innerHTML = `
+    <table class="table table-sm table-striped">
+      <thead><tr><th>Speler</th><th>Betaald</th></tr></thead>
+      <tbody>
+        ${profiles.map((p: any) => {
+          const paid = !!paidMap[p.id];
+          return `<tr>
+            <td>${escapeHtml(p.display_name || p.email || '?')}</td>
+            <td>
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" ${paid ? 'checked' : ''}
+                  onchange="togglePotPayment(${compId}, '${p.id}', this.checked)">
+              </div>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+window.togglePotPayment = async function(compId: number, userId: string, paid: boolean) {
+  try {
+    await supaUpsert('competition_participants', {
+      competition_id: compId,
+      user_id: userId,
+      has_paid: paid,
+      paid_at: paid ? new Date().toISOString() : null,
+    });
+    const comp = competitions.find(c => c.id === compId);
+    if (comp?.entry_fee) {
+      // Badge bijwerken zonder volledige herlaad
+      loadAdminPot();
+    }
+  } catch (e: any) { toast(e.message, 'error'); }
 };
 
 // --- ADMIN: RENNERS ---
