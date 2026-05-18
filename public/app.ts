@@ -388,27 +388,30 @@ $('toggle-email-remind').addEventListener('change', async (e) => {
 
 $('btn-test-push').addEventListener('click', async () => {
   const btn = $('btn-test-push') as HTMLButtonElement;
+  const safeMsg = (e: any): string => { try { return e?.message || e?.name || String(e) || 'onbekende fout'; } catch { return 'onbekende fout'; } };
   btn.disabled = true;
   btn.textContent = 'Versturen…';
+  let resultMsg = '';
+  let resultType: 'success' | 'error' | 'warning' | 'info' = 'info';
   try {
     const { data, error } = await supabase.functions.invoke('test-push');
-    if (error) throw error;
-    if (data?.sent > 0) {
-      toast(`Testmelding verstuurd (${data.sent}/${data.subscriptions})!`, 'success');
-    } else if (data?.error) {
-      toast(data.error, 'warning');
-    } else if (data?.details?.length) {
-      const d = data.details[0];
-      toast(`Versturen mislukt — ${d.endpoint}: HTTP ${d.status ?? 'err'} ${d.body || d.error || ''}`.trim(), 'error');
-    } else {
-      toast('Geen subscription. Schakel eerst app-meldingen in.', 'warning');
-    }
+    if (error) { resultMsg = safeMsg(error); resultType = 'error'; }
+    else if (data?.sent > 0) { resultMsg = `Testmelding verstuurd (${data.sent}/${data.subscriptions})!`; resultType = 'success'; }
+    else if (data?.error) { resultMsg = String(data.error); resultType = 'warning'; }
+    else if (data?.details?.length) { const d = data.details[0]; resultMsg = `HTTP ${d.status ?? '?'} van ${d.endpoint} — ${d.body || d.error || 'geen body'}`; resultType = 'error'; }
+    else { resultMsg = 'Geen subscription gevonden. Schakel app-meldingen opnieuw in.'; resultType = 'warning'; }
   } catch (e: any) {
-    toast('Fout: ' + (e.message || JSON.stringify(e)), 'error');
+    resultMsg = 'Aanroep mislukt: ' + safeMsg(e);
+    resultType = 'error';
   } finally {
     btn.disabled = false;
     btn.textContent = 'Test sturen';
   }
+  btn.insertAdjacentHTML('afterend', `<div id="push-test-result" style="font-size:0.75rem;color:${resultType==='success'?'var(--green)':'var(--red)'}; margin-top:4px;">${resultMsg}</div>`);
+  document.getElementById('push-test-result-prev')?.remove();
+  const el = document.getElementById('push-test-result');
+  if (el) { el.id = 'push-test-result-prev'; setTimeout(() => el.remove(), 8000); }
+  toast(resultMsg, resultType);
 });
 
 // Admin sub-tab navigation
