@@ -271,9 +271,11 @@ function loadAccountView() {
   // Notificatieknop status
   updateNotificationButton();
 
-  // Test-push knop alleen voor admins
+  // Test knoppen alleen voor admins
   const testPushBtn = $('btn-test-push');
   if (testPushBtn) testPushBtn.style.display = profile?.is_admin ? 'block' : 'none';
+  const testEmailBtn = $('btn-test-email');
+  if (testEmailBtn) testEmailBtn.style.display = profile?.is_admin ? 'block' : 'none';
 
   // Email-herinnering toggle
   const emailToggle = $('toggle-email-remind') as HTMLInputElement;
@@ -412,6 +414,23 @@ $('btn-test-push').addEventListener('click', async () => {
   const el = document.getElementById('push-test-result');
   if (el) { el.id = 'push-test-result-prev'; setTimeout(() => el.remove(), 8000); }
   toast(resultMsg, resultType);
+});
+
+$('btn-test-email').addEventListener('click', async () => {
+  const btn = $('btn-test-email') as HTMLButtonElement;
+  btn.disabled = true;
+  btn.textContent = 'Versturen…';
+  try {
+    const { data, error } = await supabase.functions.invoke('test-email');
+    if (error) throw error;
+    if (data?.sent) toast(`Test-mail verstuurd naar ${data.to}`, 'success');
+    else toast(data?.error || 'Onbekende fout', 'error');
+  } catch (e: any) {
+    toast('Fout: ' + (e?.message || String(e)), 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Test sturen';
+  }
 });
 
 // Admin sub-tab navigation
