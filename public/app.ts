@@ -636,13 +636,22 @@ function setupRealtime() {
 
   _realtimeChannel = supabase
     .channel('game-updates')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'stage_results' }, () => {
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'stage_results' }, async () => {
       _cache.standings = null;
       _cache.participants = null;
+      // Herlaad DNF-renners zodat grid direct klopt
+      if (activeCompId) {
+        const compStageIdsForDnf = activeStages().map(s => s.id);
+        if (compStageIdsForDnf.length) {
+          const dnfData = await supaRest('stage_results', { select: 'rider_id', filters: `stage_id=in.(${compStageIdsForDnf.join(',')})&dnf=eq.true` });
+          dnfRiderIds = new Set((dnfData || []).map((r: any) => r.rider_id));
+        }
+      }
       if (document.querySelector('#section-dashboard.active')) {
         loadStandings();
         toast('Resultaten bijgewerkt', 'info', 2500);
       }
+      if (document.querySelector('#section-pick.active')) renderPickStage();
     })
     .on('postgres_changes', { event: '*', schema: 'public', table: 'picks' }, async () => {
       _cache.participants = null;
@@ -660,23 +669,18 @@ async function loadRidersForComp() {
     // stage_riders alleen nodig voor klassiekers (per-etappe startlijst)
     const isClassic = activeScoringMode() === 'classic';
     const compStageIds = isClassic ? activeStages().map(s => s.id) : [];
-    const fetches: Promise<any>[] = [
-      supaRest('riders', { filters: `competition_id=eq.${activeCompId}&order=bib_number` }),
-    ];
-    if (isClassic && compStageIds.length) {
-      fetches.push(supaRest('stage_riders', {
-        filters: `stage_id=in.(${compStageIds.join(',')})`,
-        select: 'stage_id,rider_id',
-      }));
-    }
     const compStageIdsForDnf = activeStages().map(s => s.id);
-    if (compStageIdsForDnf.length) {
-      fetches.push(supaRest('stage_results', {
-        select: 'rider_id',
-        filters: `stage_id=in.(${compStageIdsForDnf.join(',')})&dnf=eq.true`,
-      }));
-    }
-    const [ridersData, srData, dnfData] = await Promise.all(fetches);
+    const srFetch = (isClassic && compStageIds.length)
+      ? supaRest('stage_riders', { filters: `stage_id=in.(${compStageIds.join(',')})`, select: 'stage_id,rider_id' })
+      : Promise.resolve(null);
+    const dnfFetch = compStageIdsForDnf.length
+      ? supaRest('stage_results', { select: 'rider_id', filters: `stage_id=in.(${compStageIdsForDnf.join(',')})&dnf=eq.true` })
+      : Promise.resolve([]);
+    const [ridersData, srData, dnfData] = await Promise.all([
+      supaRest('riders', { filters: `competition_id=eq.${activeCompId}&order=bib_number` }),
+      srFetch,
+      dnfFetch,
+    ]);
     riders = ridersData;
     stageRiders = {};
     for (const sr of srData || []) {
