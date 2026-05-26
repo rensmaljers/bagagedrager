@@ -630,6 +630,21 @@ async function initApp() {
   setupRealtime();
 }
 
+async function loadDnfRiderIds() {
+  if (!activeCompId) return;
+  const compStageIds = activeStages().map(s => s.id);
+  const [fromResults, fromRiders] = await Promise.all([
+    compStageIds.length
+      ? supaRest('stage_results', { select: 'rider_id', filters: `stage_id=in.(${compStageIds.join(',')})&dnf=eq.true` })
+      : Promise.resolve([]),
+    supaRest('riders', { select: 'id', filters: `competition_id=eq.${activeCompId}&dnf=eq.true` }),
+  ]);
+  dnfRiderIds = new Set([
+    ...(fromResults || []).map((r: any) => r.rider_id),
+    ...(fromRiders || []).map((r: any) => r.id),
+  ]);
+}
+
 function setupRealtime() {
   // Verwijder eventuele bestaande channel (bij re-login)
   if (_realtimeChannel) { supabase.removeChannel(_realtimeChannel); }
@@ -640,13 +655,7 @@ function setupRealtime() {
       _cache.standings = null;
       _cache.participants = null;
       // Herlaad DNF-renners zodat grid direct klopt
-      if (activeCompId) {
-        const compStageIdsForDnf = activeStages().map(s => s.id);
-        if (compStageIdsForDnf.length) {
-          const dnfData = await supaRest('stage_results', { select: 'rider_id', filters: `stage_id=in.(${compStageIdsForDnf.join(',')})&dnf=eq.true` });
-          dnfRiderIds = new Set((dnfData || []).map((r: any) => r.rider_id));
-        }
-      }
+      await loadDnfRiderIds();
       if (document.querySelector('#section-dashboard.active')) {
         loadStandings();
         toast('Resultaten bijgewerkt', 'info', 2500);
@@ -669,17 +678,12 @@ async function loadRidersForComp() {
     // stage_riders alleen nodig voor klassiekers (per-etappe startlijst)
     const isClassic = activeScoringMode() === 'classic';
     const compStageIds = isClassic ? activeStages().map(s => s.id) : [];
-    const compStageIdsForDnf = activeStages().map(s => s.id);
     const srFetch = (isClassic && compStageIds.length)
       ? supaRest('stage_riders', { filters: `stage_id=in.(${compStageIds.join(',')})`, select: 'stage_id,rider_id' })
       : Promise.resolve(null);
-    const dnfFetch = compStageIdsForDnf.length
-      ? supaRest('stage_results', { select: 'rider_id', filters: `stage_id=in.(${compStageIdsForDnf.join(',')})&dnf=eq.true` })
-      : Promise.resolve([]);
-    const [ridersData, srData, dnfData] = await Promise.all([
+    const [ridersData, srData] = await Promise.all([
       supaRest('riders', { filters: `competition_id=eq.${activeCompId}&order=bib_number` }),
       srFetch,
-      dnfFetch,
     ]);
     riders = ridersData;
     stageRiders = {};
@@ -687,16 +691,11 @@ async function loadRidersForComp() {
       if (!stageRiders[sr.stage_id]) stageRiders[sr.stage_id] = new Set();
       stageRiders[sr.stage_id].add(sr.rider_id);
     }
-    dnfRiderIds = new Set((dnfData || []).map((r: any) => r.rider_id));
   } else {
-    const [ridersData, dnfData] = await Promise.all([
-      supaRest('riders', { filters: 'order=bib_number' }),
-      supaRest('stage_results', { select: 'rider_id', filters: 'dnf=eq.true' }),
-    ]);
-    riders = ridersData;
+    riders = await supaRest('riders', { filters: 'order=bib_number' });
     stageRiders = {};
-    dnfRiderIds = new Set((dnfData || []).map((r: any) => r.rider_id));
   }
+  await loadDnfRiderIds();
   _riderMap = {};
   for (const r of riders) _riderMap[r.id] = r;
   _riderDropdownStageId = null;
@@ -2347,10 +2346,12 @@ function renderAdminRiders(filter = '') {
   $('admin-riders-table').innerHTML = filtered.map(r => `
     <tr>
       <td>${r.bib_number}</td>
-      <td>${r.name}</td>
+      <td>${r.name}${r.photo_url && r.photo_url !== 'none' ? ` <img src="${escapeHtml(r.photo_url)}" style="height:20px;border-radius:2px;vertical-align:middle;" onerror="this.remove()">` : ''}</td>
       <td>${teamBadge(r.team)}</td>
-      <td>
-        <button class="btn btn-sm btn-outline-danger" onclick="deleteRider(${r.id})">Verwijder</button>
+      <td class="d-flex gap-1 flex-wrap">
+        <button class="btn btn-sm ${r.dnf ? 'btn-danger' : 'btn-outline-secondary'}" onclick="toggleRiderDnf(${r.id}, ${!!r.dnf})" title="DNF aan/uit">${r.dnf ? '⬛ Uit koers' : '✅ In koers'}</button>
+        <button class="btn btn-sm btn-outline-secondary" onclick="resetRiderPhoto(${r.id})" title="Foto resetten zodat scraper opnieuw haalt">📷</button>
+        <button class="btn btn-sm btn-outline-danger" onclick="deleteRider(${r.id})">🗑</button>
       </td>
     </tr>
   `).join('') || '<tr><td colspan="4" class="text-muted">Geen renners gevonden</td></tr>';
@@ -2386,6 +2387,22 @@ window.deleteRider = async function(riderId) {
   if (!confirm('Renner verwijderen?')) return;
   try {
     await supaDelete('riders', `id=eq.${riderId}`);
+    loadAdminRiders();
+  } catch (e) { toast(e.message, 'error'); }
+};
+
+window.resetRiderPhoto = async function(riderId) {
+  try {
+    await supaPatch('riders', `id=eq.${riderId}`, { photo_url: null });
+    toast('Foto gereset — sync opnieuw om nieuwe foto op te halen', 'success');
+    loadAdminRiders();
+  } catch (e) { toast(e.message, 'error'); }
+};
+
+window.toggleRiderDnf = async function(riderId, currentDnf) {
+  try {
+    await supaPatch('riders', `id=eq.${riderId}`, { dnf: !currentDnf });
+    await loadDnfRiderIds();
     loadAdminRiders();
   } catch (e) { toast(e.message, 'error'); }
 };
