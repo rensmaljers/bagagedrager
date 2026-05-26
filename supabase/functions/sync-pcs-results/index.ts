@@ -138,9 +138,11 @@ Deno.serve(async (req) => {
           } else {
             // PCS time formats:
             // - Winner (row 1): absolute time "3:43:33" (hours:min:sec)
-            // - Same time group: ",," or empty → parsed as 0
+            // - Same time group: ",," or empty → truly empty, keep lastTime
+            // - Explicit "0:00" gap: valpartij laatste 3km → zelfde tijd als winnaar
             // - Time gap (all subsequent rows): "0:19" meaning +19s behind winner
             const parsed = parseTime(timeText);
+            const isEmpty = timeText === "" || timeText === ",," || /^,+$/.test(timeText);
             if (parsed > 0) {
               if (winnerTime === 0) {
                 // First valid time = winner's absolute time
@@ -151,8 +153,12 @@ Deno.serve(async (req) => {
                 time = winnerTime + parsed;
               }
               lastTime = time;
+            } else if (!isEmpty && winnerTime > 0) {
+              // Expliciete "0:00" of "0" = 0 seconden achterstand = zelfde tijd als winnaar
+              time = winnerTime;
+              lastTime = time;
             } else {
-              // Same time as previous (PCS shows ,, or empty for same time group)
+              // Lege cel / ",," = zelfde tijd als vorige renner
               time = lastTime;
             }
           }
