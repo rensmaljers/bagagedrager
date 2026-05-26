@@ -11,6 +11,7 @@ let competitions = [];
 let riders = [];
 let stages = [];
 let myPicks = [];
+let myPickDnfKeys: Set<string> = new Set(); // "${stageId}_${riderId}" voor DNF picks
 let selectedRiderId = null;
 let activeCompId = null;
 let _cache = { standings: null, standingsCompId: null, latestStagePicks: null, participants: null, participantsCompId: null, allProfiles: null };
@@ -546,16 +547,26 @@ $('comp-select').addEventListener('change', async () => {
   if (activeTab) activeTab.click();
 });
 
+async function refreshMyPicks() {
+  const [picks, dnfPicks] = await Promise.all([
+    supaRest('picks', { filters: `user_id=eq.${session.user.id}&order=stage_id` }),
+    supaRest('stage_picks_public', { select: 'stage_id,rider_id', filters: `user_id=eq.${session.user.id}&dnf=eq.true` }),
+  ]);
+  myPicks = picks;
+  myPickDnfKeys = new Set((dnfPicks || []).map((p: any) => `${p.stage_id}_${p.rider_id}`));
+}
+
 // --- INIT ---
 async function initApp() {
   // Gebruik opgeslagen compId om riders mee te batchen in de eerste round-trip
   const savedCompId = parseInt(localStorage.getItem('bagagedrager_comp')) || null;
 
-  const [profiles, comps, allStages, picks, allProfiles, preloadedRiders, preloadedStandings] = await Promise.all([
+  const [profiles, comps, allStages, picks, dnfPicks, allProfiles, preloadedRiders, preloadedStandings] = await Promise.all([
     supaRest('profiles', { filters: `id=eq.${session.user.id}` }),
     supaRest('competitions', { filters: 'order=year.desc,name' }),
     supaRest('stages', { filters: 'order=stage_number' }),
     supaRest('picks', { filters: `user_id=eq.${session.user.id}&order=stage_id` }),
+    supaRest('stage_picks_public', { select: 'stage_id,rider_id', filters: `user_id=eq.${session.user.id}&dnf=eq.true` }),
     supaRest('profiles'),
     savedCompId ? supaRest('riders', { filters: `competition_id=eq.${savedCompId}&order=bib_number` }) : Promise.resolve(null),
     savedCompId ? supaRest('general_classification', { filters: `competition_id=eq.${savedCompId}` }) : Promise.resolve(null),
@@ -565,6 +576,7 @@ async function initApp() {
   competitions = comps;
   stages = allStages;
   myPicks = picks;
+  myPickDnfKeys = new Set((dnfPicks || []).map((p: any) => `${p.stage_id}_${p.rider_id}`));
   _cache.allProfiles = allProfiles;
   allProfiles.forEach(p => { _avatarMap[p.display_name] = p.avatar_url; });
 
@@ -647,7 +659,7 @@ function setupRealtime() {
       _cache.participants = null;
       _cache.standings = null;
       // Herlaad eigen picks zodat "al gebruikt" direct klopt
-      myPicks = await supaRest('picks', { filters: `user_id=eq.${session.user.id}&order=stage_id` });
+      await refreshMyPicks();
       if (document.querySelector('#section-pick.active')) renderPickStage();
       if (document.querySelector('#section-participants.active')) loadParticipants();
     })
@@ -1308,7 +1320,10 @@ function renderPickStage() {
 
   const compStageIds = new Set(activeStages().map(s => s.id));
   const usedInOtherStages = new Set(
-    myPicks.filter(p => p.stage_id !== stageId && compStageIds.has(p.stage_id)).map(p => p.rider_id)
+    myPicks
+      .filter(p => p.stage_id !== stageId && compStageIds.has(p.stage_id))
+      .filter(p => !myPickDnfKeys.has(`${p.stage_id}_${p.rider_id}`))
+      .map(p => p.rider_id)
   );
 
   renderRiderGrid(usedInOtherStages, isLocked);
@@ -1495,7 +1510,10 @@ window.selectRider = function selectRider(riderId) {
   const stageId = parseInt($('stage-select').value);
   const compStageIds = new Set(activeStages().map(s => s.id));
   const usedInOtherStages = new Set(
-    myPicks.filter(p => p.stage_id !== stageId && compStageIds.has(p.stage_id)).map(p => p.rider_id)
+    myPicks
+      .filter(p => p.stage_id !== stageId && compStageIds.has(p.stage_id))
+      .filter(p => !myPickDnfKeys.has(`${p.stage_id}_${p.rider_id}`))
+      .map(p => p.rider_id)
   );
   const stage = stages.find(s => s.id === stageId);
   const isLocked = !stage || stage.locked || new Date() > new Date(stage.deadline);
@@ -1535,7 +1553,7 @@ $('btn-submit-pick').addEventListener('click', async () => {
     status.textContent = result.warning || 'Keuze opgeslagen!';
     status.className = result.warning ? 'ms-3 text-warning' : 'ms-3 text-success';
     if (!result.warning) { confettiBurst(); toast('Keuze bevestigd!', 'success'); }
-    myPicks = await supaRest('picks', { filters: `user_id=eq.${session.user.id}&order=stage_id` });
+    await refreshMyPicks();
     _cache.standings = null; _cache.participants = null;
     renderPickStage();
   } catch (e) {
