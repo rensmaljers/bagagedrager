@@ -137,24 +137,22 @@ Deno.serve(async (req) => {
             dnf = true;
           } else {
             // PCS time formats:
-            // - Winner (row 1): absolute time "3:43:33" (hours:min:sec)
-            // - Same time group: ",," or empty → truly empty, keep lastTime
-            // - Explicit "0:00" gap: valpartij laatste 3km → zelfde tijd als winnaar
-            // - Time gap (all subsequent rows): "0:19" meaning +19s behind winner
+            // - Winner (row 1): absolute time "3:43:33"
+            // - Same time group: ",," or empty → zelfde tijd als vorige renner
+            // - "*0:00" / "*,," → valpartij laatste 3km, altijd winnaarstijd
+            // - Time gap: "0:19" = +19s achter winnaar
+            const hasAsterisk = timeText.includes("*");
             const parsed = parseTime(timeText);
-            const isEmpty = timeText === "" || timeText === ",," || /^,+$/.test(timeText);
             if (parsed > 0) {
               if (winnerTime === 0) {
-                // First valid time = winner's absolute time
                 winnerTime = parsed;
                 time = parsed;
               } else {
-                // All subsequent times are gaps relative to the winner
                 time = winnerTime + parsed;
               }
               lastTime = time;
-            } else if (!isEmpty && winnerTime > 0) {
-              // Expliciete "0:00" of "0" = 0 seconden achterstand = zelfde tijd als winnaar
+            } else if (hasAsterisk && winnerTime > 0) {
+              // Laatste 3km regel: renner krijgt altijd winnaarstijd
               time = winnerTime;
               lastTime = time;
             } else {
