@@ -92,14 +92,16 @@ Deno.serve(async (req) => {
         const allImgs = [...html.matchAll(/src="([^"]*\.(?:jpeg|jpg|png|webp))"/gi)].map(m => m[1]).slice(0, 8);
         log.push(`🔍 ${r.name} (${html.length} bytes): ${allImgs.length} imgs: ${allImgs.join(' | ')}`);
 
-        // Foto — PCS gebruikt paden als "images/riders/bp/xx/name.jpeg"
-        const imgMatch = html.match(/images\/riders\/[^"]+\.(?:jpeg|jpg|png|webp)/i);
-        if (imgMatch) {
-          update.photo_url = imgMatch[0].startsWith("http") ? imgMatch[0] : `https://www.procyclingstats.com/${imgMatch[0]}`;
+        // Foto — PCS zet hoofdfoto in og:image, betrouwbaarder dan eerste img-match
+        const ogMatch = html.match(/<meta[^>]+property="og:image"[^>]+content="([^"]+)"/i)
+                     || html.match(/<meta[^>]+content="([^"]+)"[^>]+property="og:image"/i);
+        const ogUrl = ogMatch?.[1];
+        if (ogUrl && ogUrl.match(/images\/riders/i)) {
+          update.photo_url = ogUrl.startsWith("http") ? ogUrl : `https://www.procyclingstats.com/${ogUrl}`;
         } else {
-          const altMatch = html.match(/src="([^"]*\.(?:jpeg|jpg|png|webp))"/i);
-          if (altMatch && !altMatch[1].includes("logo") && !altMatch[1].includes("shirt") && !altMatch[1].includes("flag") && !altMatch[1].includes("icon")) {
-            update.photo_url = altMatch[1].startsWith("http") ? altMatch[1] : `https://www.procyclingstats.com/${altMatch[1]}`;
+          const imgMatch = html.match(/images\/riders\/[^"]+\.(?:jpeg|jpg|png|webp)/i);
+          if (imgMatch) {
+            update.photo_url = imgMatch[0].startsWith("http") ? imgMatch[0] : `https://www.procyclingstats.com/${imgMatch[0]}`;
           } else {
             update.photo_url = "none";
           }

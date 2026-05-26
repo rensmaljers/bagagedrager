@@ -11,7 +11,7 @@ let competitions = [];
 let riders = [];
 let stages = [];
 let myPicks = [];
-let myPickDnfKeys: Set<string> = new Set(); // "${stageId}_${riderId}" voor DNF picks
+let dnfRiderIds: Set<number> = new Set(); // renners die globaal DNF zijn in actieve competitie
 let selectedRiderId = null;
 let activeCompId = null;
 let _cache = { standings: null, standingsCompId: null, latestStagePicks: null, participants: null, participantsCompId: null, allProfiles: null };
@@ -547,26 +547,16 @@ $('comp-select').addEventListener('change', async () => {
   if (activeTab) activeTab.click();
 });
 
-async function refreshMyPicks() {
-  const [picks, dnfPicks] = await Promise.all([
-    supaRest('picks', { filters: `user_id=eq.${session.user.id}&order=stage_id` }),
-    supaRest('stage_picks_public', { select: 'stage_id,rider_id', filters: `user_id=eq.${session.user.id}&dnf=eq.true` }),
-  ]);
-  myPicks = picks;
-  myPickDnfKeys = new Set((dnfPicks || []).map((p: any) => `${p.stage_id}_${p.rider_id}`));
-}
-
 // --- INIT ---
 async function initApp() {
   // Gebruik opgeslagen compId om riders mee te batchen in de eerste round-trip
   const savedCompId = parseInt(localStorage.getItem('bagagedrager_comp')) || null;
 
-  const [profiles, comps, allStages, picks, dnfPicks, allProfiles, preloadedRiders, preloadedStandings] = await Promise.all([
+  const [profiles, comps, allStages, picks, allProfiles, preloadedRiders, preloadedStandings] = await Promise.all([
     supaRest('profiles', { filters: `id=eq.${session.user.id}` }),
     supaRest('competitions', { filters: 'order=year.desc,name' }),
     supaRest('stages', { filters: 'order=stage_number' }),
     supaRest('picks', { filters: `user_id=eq.${session.user.id}&order=stage_id` }),
-    supaRest('stage_picks_public', { select: 'stage_id,rider_id', filters: `user_id=eq.${session.user.id}&dnf=eq.true` }),
     supaRest('profiles'),
     savedCompId ? supaRest('riders', { filters: `competition_id=eq.${savedCompId}&order=bib_number` }) : Promise.resolve(null),
     savedCompId ? supaRest('general_classification', { filters: `competition_id=eq.${savedCompId}` }) : Promise.resolve(null),
@@ -576,7 +566,6 @@ async function initApp() {
   competitions = comps;
   stages = allStages;
   myPicks = picks;
-  myPickDnfKeys = new Set((dnfPicks || []).map((p: any) => `${p.stage_id}_${p.rider_id}`));
   _cache.allProfiles = allProfiles;
   allProfiles.forEach(p => { _avatarMap[p.display_name] = p.avatar_url; });
 
@@ -659,7 +648,7 @@ function setupRealtime() {
       _cache.participants = null;
       _cache.standings = null;
       // Herlaad eigen picks zodat "al gebruikt" direct klopt
-      await refreshMyPicks();
+      myPicks = await supaRest('picks', { filters: `user_id=eq.${session.user.id}&order=stage_id` });
       if (document.querySelector('#section-pick.active')) renderPickStage();
       if (document.querySelector('#section-participants.active')) loadParticipants();
     })
@@ -680,16 +669,29 @@ async function loadRidersForComp() {
         select: 'stage_id,rider_id',
       }));
     }
-    const [ridersData, srData] = await Promise.all(fetches);
+    const compStageIdsForDnf = activeStages().map(s => s.id);
+    if (compStageIdsForDnf.length) {
+      fetches.push(supaRest('stage_results', {
+        select: 'rider_id',
+        filters: `stage_id=in.(${compStageIdsForDnf.join(',')})&dnf=eq.true`,
+      }));
+    }
+    const [ridersData, srData, dnfData] = await Promise.all(fetches);
     riders = ridersData;
     stageRiders = {};
     for (const sr of srData || []) {
       if (!stageRiders[sr.stage_id]) stageRiders[sr.stage_id] = new Set();
       stageRiders[sr.stage_id].add(sr.rider_id);
     }
+    dnfRiderIds = new Set((dnfData || []).map((r: any) => r.rider_id));
   } else {
-    riders = await supaRest('riders', { filters: 'order=bib_number' });
+    const [ridersData, dnfData] = await Promise.all([
+      supaRest('riders', { filters: 'order=bib_number' }),
+      supaRest('stage_results', { select: 'rider_id', filters: 'dnf=eq.true' }),
+    ]);
+    riders = ridersData;
     stageRiders = {};
+    dnfRiderIds = new Set((dnfData || []).map((r: any) => r.rider_id));
   }
   _riderMap = {};
   for (const r of riders) _riderMap[r.id] = r;
@@ -1320,10 +1322,7 @@ function renderPickStage() {
 
   const compStageIds = new Set(activeStages().map(s => s.id));
   const usedInOtherStages = new Set(
-    myPicks
-      .filter(p => p.stage_id !== stageId && compStageIds.has(p.stage_id))
-      .filter(p => !myPickDnfKeys.has(`${p.stage_id}_${p.rider_id}`))
-      .map(p => p.rider_id)
+    myPicks.filter(p => p.stage_id !== stageId && compStageIds.has(p.stage_id)).map(p => p.rider_id)
   );
 
   renderRiderGrid(usedInOtherStages, isLocked);
@@ -1340,11 +1339,13 @@ function updateRiderAvailability(usedInOtherStages) {
     ? riders.filter(r => stageRiderSet.has(r.id))
     : riders;
   const total = stageRiderList.length;
-  const used = stageRiderList.filter(r => usedInOtherStages.has(r.id)).length;
-  const available = total - used;
+  const dnf = stageRiderList.filter(r => dnfRiderIds.has(r.id)).length;
+  const used = stageRiderList.filter(r => usedInOtherStages.has(r.id) && !dnfRiderIds.has(r.id)).length;
+  const available = total - used - dnf;
   $('rider-availability').innerHTML = `
     <span class="avail-stat available">🟢 ${available} beschikbaar</span>
     <span class="avail-stat used">🔴 ${used} gebruikt</span>
+    ${dnf ? `<span class="avail-stat dnf">⬛ ${dnf} uit koers</span>` : ''}
     <span class="avail-stat total">📋 ${total} totaal</span>`;
 }
 
@@ -1457,7 +1458,7 @@ function renderRiderGrid(usedInOtherStages, fullyLocked) {
     (r.name.toLowerCase().includes(search) || r.team.toLowerCase().includes(search)) &&
     (!teamFilter || r.team === teamFilter) &&
     (!nationalityFilter || r.nationality === nationalityFilter) &&
-    (!hideUsed || !usedInOtherStages.has(r.id))
+    (!hideUsed || (!usedInOtherStages.has(r.id) && !dnfRiderIds.has(r.id)))
   );
 
   // Group riders by team
@@ -1476,11 +1477,13 @@ function renderRiderGrid(usedInOtherStages, fullyLocked) {
         <div class="row g-2">
           ${teamRiders.map(r => {
             const used = usedInOtherStages.has(r.id);
+            const dnf = dnfRiderIds.has(r.id);
+            const blocked = used || dnf;
             const selected = r.id === selectedRiderId;
             return `
               <div class="col-6 col-md-4 col-lg-4">
-                <div class="card pick-card ${selected ? 'selected' : ''} ${used ? 'used' : ''}"
-                     data-rider-id="${r.id}" ${fullyLocked || used ? '' : `onclick="selectRider(${r.id})"`}>
+                <div class="card pick-card ${selected ? 'selected' : ''} ${used ? 'used' : ''} ${dnf ? 'used dnf-rider' : ''}"
+                     data-rider-id="${r.id}" ${fullyLocked || blocked ? '' : `onclick="selectRider(${r.id})"`}>
                   <div class="card-body py-2 px-3">
                     <div class="d-flex align-items-center gap-2">
                       ${r.photo_url && r.photo_url !== 'none' ? `<img src="${escapeHtml(r.photo_url)}" class="rider-photo" alt="" onerror="this.style.display='none'">` : ''}
@@ -1493,7 +1496,7 @@ function renderRiderGrid(usedInOtherStages, fullyLocked) {
                           r.nationality || null,
                           r.weight_kg ? `${r.weight_kg}kg` : null,
                         ].filter(Boolean).join(' ')}</div>` : ''}
-                        ${used ? '<small class="text-danger mt-1 d-block">Al gebruikt</small>' : ''}
+                        ${dnf ? '<small class="text-secondary mt-1 d-block">Uit koers (DNF)</small>' : used ? '<small class="text-danger mt-1 d-block">Al gebruikt</small>' : ''}
                       </div>
                     </div>
                   </div>
@@ -1510,10 +1513,7 @@ window.selectRider = function selectRider(riderId) {
   const stageId = parseInt($('stage-select').value);
   const compStageIds = new Set(activeStages().map(s => s.id));
   const usedInOtherStages = new Set(
-    myPicks
-      .filter(p => p.stage_id !== stageId && compStageIds.has(p.stage_id))
-      .filter(p => !myPickDnfKeys.has(`${p.stage_id}_${p.rider_id}`))
-      .map(p => p.rider_id)
+    myPicks.filter(p => p.stage_id !== stageId && compStageIds.has(p.stage_id)).map(p => p.rider_id)
   );
   const stage = stages.find(s => s.id === stageId);
   const isLocked = !stage || stage.locked || new Date() > new Date(stage.deadline);
@@ -1553,7 +1553,7 @@ $('btn-submit-pick').addEventListener('click', async () => {
     status.textContent = result.warning || 'Keuze opgeslagen!';
     status.className = result.warning ? 'ms-3 text-warning' : 'ms-3 text-success';
     if (!result.warning) { confettiBurst(); toast('Keuze bevestigd!', 'success'); }
-    await refreshMyPicks();
+    myPicks = await supaRest('picks', { filters: `user_id=eq.${session.user.id}&order=stage_id` });
     _cache.standings = null; _cache.participants = null;
     renderPickStage();
   } catch (e) {
@@ -1649,15 +1649,24 @@ async function loadHistory() {
   // Stats
   const withResults = rows.filter(r => r.result);
   if (withResults.length) {
-    const best = withResults.reduce((a, b) => a.gp >= b.gp ? a : b);
-    const worst = withResults.reduce((a, b) => a.gp <= b.gp ? a : b);
     const totalGp = withResults.reduce((s, r) => s + r.gp, 0);
     const avg = Math.round(totalGp / withResults.length);
+
+    // Favoriete renner: meest gekozen in deze competitie
+    const riderPickCount: Record<number, number> = {};
+    for (const r of rows) if (r.rider) riderPickCount[r.rider.id] = (riderPickCount[r.rider.id] || 0) + 1;
+    const favRiderId = Object.entries(riderPickCount).sort((a, b) => +b[1] - +a[1])[0]?.[0];
+    const favRider = favRiderId ? rows.find(r => r.rider?.id === +favRiderId)?.rider : null;
+    const favCount = favRiderId ? riderPickCount[+favRiderId] : 0;
+
+    // Etappewinnaars
+    const winCount = withResults.filter(r => r.result?.finish_position === 1 && !r.pick.is_late && !r.result?.dnf).length;
+
     $('history-stats').innerHTML = `
       <div class="col-4"><div class="card"><div class="card-body py-2 px-3 text-center">
-        <div class="text-muted" style="font-size:0.7rem;">Beste etappe</div>
-        <div style="font-size:1.1rem; font-weight:700; color:var(--green);">${best.gp} pts</div>
-        <div style="font-size:0.75rem;">${riderDisplay(best.rider?.name, best.rider?.photo_url)}</div>
+        <div class="text-muted" style="font-size:0.7rem;">Favoriete renner</div>
+        <div style="font-size:0.85rem; font-weight:700; margin:2px 0;">${favRider ? riderDisplay(favRider.name, favRider.photo_url) : '—'}</div>
+        <div style="font-size:0.7rem; color:var(--text-muted);">${favCount}× gekozen</div>
       </div></div></div>
       <div class="col-4"><div class="card"><div class="card-body py-2 px-3 text-center">
         <div class="text-muted" style="font-size:0.7rem;">Gemiddeld</div>
@@ -1665,9 +1674,9 @@ async function loadHistory() {
         <div style="font-size:0.75rem;">${withResults.length} etappes</div>
       </div></div></div>
       <div class="col-4"><div class="card"><div class="card-body py-2 px-3 text-center">
-        <div class="text-muted" style="font-size:0.7rem;">Slechtste etappe</div>
-        <div style="font-size:1.1rem; font-weight:700; color:var(--red);">${worst.gp} pts</div>
-        <div style="font-size:0.75rem;">${riderDisplay(worst.rider?.name, worst.rider?.photo_url)}</div>
+        <div class="text-muted" style="font-size:0.7rem;">Etappewinnaars ⭐</div>
+        <div style="font-size:1.6rem; font-weight:700; color:var(--green);">${winCount}</div>
+        <div style="font-size:0.7rem; color:var(--text-muted);">van ${withResults.length} etappes</div>
       </div></div></div>`;
 
     // Achievements
