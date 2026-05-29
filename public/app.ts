@@ -907,6 +907,45 @@ async function loadStandings() {
   renderPotCard(standings).catch(() => {});
 }
 
+function computePrizeSplits(
+  sorted: any[],
+  valueFn: (s: any) => number,
+  slots: { label: string; pct: number }[]
+): { label: string; winners: any[]; pctEach: number }[] {
+  const rows: { label: string; winners: any[]; pctEach: number }[] = [];
+  let i = 0;
+  let slotIdx = 0;
+
+  while (slotIdx < slots.length) {
+    if (i >= sorted.length) {
+      rows.push({ label: slots[slotIdx].label, winners: [], pctEach: slots[slotIdx].pct });
+      slotIdx++;
+      continue;
+    }
+
+    const val = valueFn(sorted[i]);
+    let j = i + 1;
+    while (j < sorted.length && valueFn(sorted[j]) === val) j++;
+    const tiedCount = j - i;
+
+    const slotsConsumed = Math.min(tiedCount, slots.length - slotIdx);
+    const combinedPct = slots.slice(slotIdx, slotIdx + slotsConsumed).reduce((s, r) => s + r.pct, 0);
+    const pctEach = combinedPct / tiedCount;
+
+    const slotLabels = slots.slice(slotIdx, slotIdx + slotsConsumed).map(r => r.label);
+    // "1e AK" + "2e AK" → "1e/2e AK"
+    const label = slotLabels.length === 1
+      ? slotLabels[0]
+      : `${slotLabels[0].split(' ')[0]}/${slotLabels[slotLabels.length - 1].split(' ')[0]} ${slotLabels[0].split(' ').slice(1).join(' ')}`;
+
+    rows.push({ label, winners: sorted.slice(i, j), pctEach });
+    slotIdx += slotsConsumed;
+    i += tiedCount;
+  }
+
+  return rows;
+}
+
 async function renderPotCard(standings: any[]) {
   const potWrap = $('pot-card-wrap');
   if (!potWrap) return;
@@ -930,13 +969,11 @@ async function renderPotCard(standings: any[]) {
   const mtn = [...paid].sort((a, b) => b.total_mountain_points - a.total_mountain_points);
   const cmb = [...paid].sort((a, b) => b.total_combativity_points - a.total_combativity_points);
 
-  const PRIZE_SPLIT = [
-    { label: '1e AK',              pct: 35, winner: gc[0] },
-    { label: '2e AK',              pct: 25, winner: gc[1] },
-    { label: '3e AK',              pct: 15, winner: gc[2] },
-    { label: 'Winnaar punten',     pct: 10, winner: pts[0] },
-    { label: 'Winnaar berg',       pct: 10, winner: mtn[0] },
-    { label: 'Winnaar strijdlust', pct: 5,  winner: cmb[0] },
+  const prizeRows = [
+    ...computePrizeSplits(gc,  s => s.total_time,                 [{label:'1e AK', pct:35},{label:'2e AK', pct:25},{label:'3e AK', pct:15}]),
+    ...computePrizeSplits(pts, s => s.total_points,               [{label:'Winnaar punten', pct:10}]),
+    ...computePrizeSplits(mtn, s => s.total_mountain_points,      [{label:'Winnaar berg', pct:10}]),
+    ...computePrizeSplits(cmb, s => s.total_combativity_points,   [{label:'Winnaar strijdlust', pct:5}]),
   ];
 
   const isProvisional = activeStages().some(s => !s.locked) && gc.length > 0;
@@ -953,16 +990,29 @@ async function renderPotCard(standings: any[]) {
         <table class="table table-sm mb-0">
           <thead><tr><th>Prijs</th><th>Speler</th><th class="text-end">Bedrag</th><th class="text-end" style="color:var(--text-muted);font-size:0.75rem;">%</th></tr></thead>
           <tbody>
-            ${PRIZE_SPLIT.map(row => {
-              const amount = Math.floor(totalPot * row.pct / 100);
-              const name = row.winner?.display_name || '—';
-              const isMe = row.winner?.user_id === myId;
-              return `<tr${isMe ? ' style="background:var(--accent-bg);"' : ''}>
-                <td style="font-size:0.85rem;">${row.label}</td>
-                <td>${escapeHtml(name)}</td>
-                <td class="text-end" style="font-weight:${amount > 0 ? '700' : '400'};">€${amount}</td>
-                <td class="text-end" style="color:var(--text-muted);font-size:0.75rem;">${row.pct}%</td>
-              </tr>`;
+            ${prizeRows.flatMap(row => {
+              const amountEach = Math.floor(totalPot * row.pctEach / 100);
+              const pctDisplay = Number.isInteger(row.pctEach) ? `${row.pctEach}%` : `${row.pctEach.toFixed(1)}%`;
+              const isTie = row.winners.length > 1;
+
+              if (row.winners.length === 0) {
+                return [`<tr>
+                  <td style="font-size:0.85rem;">${row.label}</td>
+                  <td>—</td>
+                  <td class="text-end">€${amountEach}</td>
+                  <td class="text-end" style="color:var(--text-muted);font-size:0.75rem;">${pctDisplay}</td>
+                </tr>`];
+              }
+
+              return row.winners.map((s, idx) => {
+                const isMe = s.user_id === myId;
+                return `<tr${isMe ? ' style="background:var(--accent-bg);"' : ''}>
+                  <td style="font-size:0.85rem;">${idx === 0 ? escapeHtml(row.label) + (isTie ? ' <span class="badge bg-secondary ms-1" style="font-size:0.6rem;vertical-align:middle;">gedeeld</span>' : '') : ''}</td>
+                  <td>${escapeHtml(s.display_name)}</td>
+                  <td class="text-end" style="font-weight:700;">€${amountEach}</td>
+                  <td class="text-end" style="color:var(--text-muted);font-size:0.75rem;">${idx === 0 ? pctDisplay : ''}</td>
+                </tr>`;
+              });
             }).join('')}
           </tbody>
         </table>
