@@ -369,6 +369,7 @@ $('btn-delete-account').addEventListener('click', async () => {
     await supaRpc('delete_own_account');
     await supabase.auth.signOut();
     session = null; profile = null;
+    $('app-loading').style.display = 'none';
     $('app').style.display = 'none';
     $('auth-screen').style.display = 'block';
     toast('Account verwijderd.', 'success');
@@ -488,6 +489,7 @@ $('btn-logout').addEventListener('click', async () => {
   if (_realtimeChannel) { supabase.removeChannel(_realtimeChannel); _realtimeChannel = null; }
   await supabase.auth.signOut();
   session = null; profile = null;
+  $('app-loading').style.display = 'none';
   $('app').style.display = 'none';
   $('auth-screen').style.display = 'block';
 });
@@ -570,6 +572,7 @@ async function initApp() {
   allProfiles.forEach(p => { _avatarMap[p.display_name] = p.avatar_url; });
 
   $('user-name').textContent = profile?.display_name || session.user.email;
+  $('app-loading').style.display = 'none';
   $('auth-screen').style.display = 'none';
   $('app').style.display = 'block';
 
@@ -2690,6 +2693,41 @@ $('btn-pcs-sync-race').addEventListener('click', async () => {
   }
 });
 
+$('btn-pcs-sync-startlist').addEventListener('click', async () => {
+  const compId = parseInt($('race-sync-comp').value);
+  const comp = competitions.find(c => c.id === compId);
+  const status = $('pcs-sync-status');
+  const log = $('pcs-sync-log');
+  const btn = $('btn-pcs-sync-startlist') as HTMLButtonElement;
+
+  if (!comp) { status.textContent = 'Kies een ronde'; status.className = 'text-danger'; return; }
+  if (!comp.pcs_url) { status.textContent = 'Stel eerst een PCS URL in bij de ronde'; status.className = 'text-danger'; return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span>Bezig…';
+  status.textContent = '';
+  log.innerHTML = '';
+
+  try {
+    const result = await callEdgeFunction('sync-pcs-race', {
+      pcs_url: comp.pcs_url,
+      competition_id: compId,
+      startlist_only: true,
+    });
+    status.textContent = '✅ Startlijst bijgewerkt!';
+    status.className = 'text-success';
+    log.innerHTML = (result.log || []).join('<br>');
+    loadAdminRiders();
+    await loadRidersForComp();
+  } catch (e) {
+    status.textContent = (e as Error).message;
+    status.className = 'text-danger';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '🔄 Startlijst bijwerken';
+  }
+});
+
 // Foto's ophalen in batches van 25
 $('btn-pcs-sync-photos').addEventListener('click', async () => {
   const compId = parseInt($('race-sync-comp').value);
@@ -3530,6 +3568,7 @@ if ('serviceWorker' in navigator) {
     return;
   }
   // Geen geldige sessie: toon login scherm
+  $('app-loading').style.display = 'none';
   $('auth-screen').style.display = 'block';
 })();
 

@@ -270,7 +270,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Admin toegang vereist" }), { status: 403, headers: corsHeaders });
     }
 
-    const { pcs_url, competition_id, stage_id } = await req.json();
+    const { pcs_url, competition_id, stage_id, startlist_only } = await req.json();
     if (!competition_id) {
       return new Response(JSON.stringify({ error: "Geen competitie geselecteerd" }), { status: 400, headers: corsHeaders });
     }
@@ -278,6 +278,69 @@ Deno.serve(async (req) => {
     // Check of het een eendagskoers is
     const { data: comp } = await adminClient
       .from("competitions").select("is_one_day,name").eq("id", competition_id).single();
+
+    // Startlijst-only sync: bijwerken zonder etappes/race-info aan te raken
+    if (startlist_only) {
+      if (!pcs_url || !pcs_url.includes("procyclingstats.com")) {
+        return new Response(JSON.stringify({ error: "Geen geldige PCS URL voor deze ronde" }), { status: 400, headers: corsHeaders });
+      }
+      const baseUrl = pcs_url.replace(/\/$/, "").replace(/\/(stages|startlist|gc|general-classification|stage-\d+|results?|resuts?|overview)$/, "");
+      const log: string[] = [];
+
+      log.push("🚴 Startlijst ophalen van PCS...");
+      const startDoc = await fetchPCS(baseUrl + "/startlist");
+      const { riders: pcsRiders } = parseStartlist(startDoc);
+      log.push(`✅ ${pcsRiders.length} renners op PCS startlijst`);
+
+      const { data: dbRiders } = await adminClient
+        .from("riders").select("id,pcs_slug,bib_number,name").eq("competition_id", competition_id);
+
+      const pcsSlugs = new Set(pcsRiders.filter(r => r.pcs_slug).map(r => r.pcs_slug));
+
+      // Nieuwe renners toevoegen
+      let added = 0;
+      for (const r of pcsRiders) {
+        const exists = dbRiders?.some(d =>
+          (r.pcs_slug && d.pcs_slug === r.pcs_slug) || d.bib_number === r.bib_number
+        );
+        if (!exists) {
+          try {
+            const enriched = await enrichFromExisting(adminClient, r.pcs_slug);
+            await adminClient.from("riders").insert({ ...enriched, ...r, competition_id });
+            log.push(`➕ ${r.name} toegevoegd`);
+            added++;
+          } catch (e) {
+            log.push(`⚠️ ${r.name}: ${(e as Error).message}`);
+          }
+        }
+      }
+
+      // Renners niet meer op startlijst verwijderen (alleen zonder picks)
+      let removed = 0, skipped = 0;
+      for (const dbRider of dbRiders || []) {
+        const stillOnList = dbRider.pcs_slug
+          ? pcsSlugs.has(dbRider.pcs_slug)
+          : pcsRiders.some(r => r.bib_number === dbRider.bib_number);
+        if (!stillOnList) {
+          const { count } = await adminClient
+            .from("picks").select("id", { count: "exact", head: true }).eq("rider_id", dbRider.id);
+          if (!count) {
+            await adminClient.from("riders").delete().eq("id", dbRider.id);
+            log.push(`🗑 ${dbRider.name} verwijderd (niet meer op startlijst)`);
+            removed++;
+          } else {
+            log.push(`⚠️ ${dbRider.name} niet meer op startlijst maar heeft picks — overgeslagen`);
+            skipped++;
+          }
+        }
+      }
+
+      log.push(`✅ Klaar: ${added} toegevoegd, ${removed} verwijderd${skipped ? `, ${skipped} overgeslagen (heeft picks)` : ""}`);
+      await adminClient.from("competitions").update({ last_synced_at: new Date().toISOString() }).eq("id", competition_id);
+      return new Response(JSON.stringify({ success: true, log }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Per-stage sync: sync één etappe met eigen PCS URL (voor klassiekers-bundel)
     if (stage_id) {
