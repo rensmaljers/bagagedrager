@@ -575,6 +575,7 @@ async function initApp() {
   $('app-loading').style.display = 'none';
   $('auth-screen').style.display = 'none';
   $('app').style.display = 'block';
+  supaRest('profiles', { method: 'PATCH', filters: `id=eq.${session.user.id}`, body: { last_seen_at: new Date().toISOString() } }).catch(() => {});
 
   if (profile?.is_admin) $('admin-tab').style.display = 'block';
 
@@ -1815,6 +1816,7 @@ async function loadPeloton() {
       ${isAdmin ? `<td style="font-size:0.8rem;">${escapeHtml(p.email || '-')}</td>` : ''}
       <td class="d-none d-md-table-cell"><span class="badge ${role.badge}">${role.icon} ${role.name}</span></td>
       <td class="d-none d-md-table-cell">${new Date(p.created_at).toLocaleDateString('nl-NL')}</td>
+      <td class="d-none d-md-table-cell" style="font-size:0.8rem;color:var(--text-muted);">${p.last_seen_at ? new Date(p.last_seen_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
       ${isAdmin ? `<td>
         <button class="btn btn-sm btn-outline-${p.is_admin ? 'secondary' : 'danger'}"
                 onclick="toggleAdmin('${p.id}', ${!p.is_admin})">
@@ -1976,6 +1978,7 @@ async function loadAdminUsers() {
         ${!emailConfirmed ? '<span class="badge bg-warning text-dark">E-mail onbevestigd</span>' : ''}
       </td>
       <td>${new Date(p.created_at).toLocaleDateString('nl-NL')}</td>
+      <td style="font-size:0.8rem;">${p.last_seen_at ? new Date(p.last_seen_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : (p.last_sign_in_at ? new Date(p.last_sign_in_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' }) + ' (auth)' : '—')}</td>
       <td>
         <div class="d-flex gap-1 flex-wrap">
           <button class="btn btn-sm btn-outline-${p.is_admin ? 'secondary' : 'danger'}"

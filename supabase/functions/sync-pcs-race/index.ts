@@ -220,29 +220,29 @@ function parseStartlist(doc: any) {
   return { riders, shirts };
 }
 
-// Haal bestaande rider-details op uit andere competities (foto, nationaliteit, specialiteiten, etc.)
+// Haal bestaande rider-details op uit global_riders (één record per renner)
+// Geeft ook global_rider_id terug zodat de FK gezet kan worden
 async function enrichFromExisting(adminClient: any, pcs_slug: string | null): Promise<Record<string, any>> {
   if (!pcs_slug) return {};
   const { data } = await adminClient
-    .from("riders")
-    .select("photo_url,nationality,date_of_birth,weight_kg,height_m,specialty_one_day,specialty_gc,specialty_tt,specialty_sprint,specialty_climber,specialty_hills")
+    .from("global_riders")
+    .select("id,photo_url,nationality,date_of_birth,weight_kg,height_m,specialty_one_day,specialty_gc,specialty_tt,specialty_sprint,specialty_climber,specialty_hills")
     .eq("pcs_slug", pcs_slug)
-    .not("photo_url", "is", null)
-    .limit(1)
     .maybeSingle();
-  if (!data) {
-    // Probeer zonder photo_url filter — pak gewoon de eerste met details
-    const { data: fallback } = await adminClient
-      .from("riders")
-      .select("photo_url,nationality,date_of_birth,weight_kg,height_m,specialty_one_day,specialty_gc,specialty_tt,specialty_sprint,specialty_climber,specialty_hills")
-      .eq("pcs_slug", pcs_slug)
-      .limit(1)
-      .maybeSingle();
-    if (!fallback) return {};
-    // Filter null values
-    return Object.fromEntries(Object.entries(fallback).filter(([_, v]) => v != null));
-  }
-  return Object.fromEntries(Object.entries(data).filter(([_, v]) => v != null));
+  if (!data) return {};
+  const { id, ...rest } = data;
+  return { global_rider_id: id, ...Object.fromEntries(Object.entries(rest).filter(([_, v]) => v != null)) };
+}
+
+// Upsert een renner in global_riders en geef het id terug
+async function upsertGlobalRider(adminClient: any, rider: { pcs_slug: string | null; name: string }): Promise<number | null> {
+  if (!rider.pcs_slug) return null;
+  const { data } = await adminClient
+    .from("global_riders")
+    .upsert({ pcs_slug: rider.pcs_slug, name: rider.name }, { onConflict: "pcs_slug", ignoreDuplicates: false })
+    .select("id")
+    .maybeSingle();
+  return data?.id ?? null;
 }
 
 Deno.serve(async (req) => {

@@ -138,9 +138,18 @@ Deno.serve(async (req) => {
           if (specMatch) update[field] = parseInt(specMatch[1]);
         }
 
-        await adminClient.from("riders").update(update).eq("id", r.id);
-        if (update.photo_url && update.photo_url !== "none") fetched++;
-        else if (update.photo_url === "none") log.push(`⚠️ ${r.name}: geen foto`);
+        // Schrijf naar global_riders (trigger verspreidt photo_url naar alle competities)
+        const { photo_url, ...nonPhotoUpdate } = update;
+        if (r.pcs_slug && Object.keys(update).length > 0) {
+          await adminClient.from("global_riders")
+            .upsert({ pcs_slug: r.pcs_slug, name: r.name, ...update, updated_at: new Date().toISOString() }, { onConflict: "pcs_slug" });
+        }
+        // Schrijf niet-foto velden ook direct naar deze competitie's rider record
+        if (Object.keys(nonPhotoUpdate).length > 0) {
+          await adminClient.from("riders").update(nonPhotoUpdate).eq("id", r.id);
+        }
+        if (photo_url && photo_url !== "none") fetched++;
+        else if (photo_url === "none") log.push(`⚠️ ${r.name}: geen foto`);
       } catch (e) {
         log.push(`❌ ${r.name}: ${(e as Error).message}`);
       }
