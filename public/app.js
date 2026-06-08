@@ -1931,11 +1931,19 @@ async function loadAdminStages() {
   const typeLabels = { flat: 'Vlak', mountain: 'Berg', tt: 'Tijdrit', sprint: 'Sprint' };
 
   $('admin-stages-table').innerHTML = stages.map(s => {
-    const comp = competitions.find(c => c.id === s.competition_id);
-    return `<tr>
+    const compOptions = competitions.map(c =>
+      `<option value="${c.id}"${c.id === s.competition_id ? ' selected' : ''}>${escapeHtml(c.name)}</option>`
+    ).join('');
+    return `<tr${!s.competition_id || !competitions.find(c => c.id === s.competition_id) ? ' class="table-warning"' : ''}>
       <td>${s.stage_number}</td>
       <td>${s.name}</td>
-      <td>${comp ? comp.name : '<span class="text-muted">-</span>'}</td>
+      <td>
+        <select class="form-select form-select-sm" style="min-width:140px;font-size:0.7rem;"
+                onchange="updateStageCompetition(${s.id}, parseInt(this.value))">
+          <option value="">— kies ronde —</option>
+          ${compOptions}
+        </select>
+      </td>
       <td>${new Date(s.date).toLocaleDateString('nl-NL')}</td>
       <td>${s.start_time ? new Date(s.start_time).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
       <td>${typeLabels[s.stage_type] || s.stage_type}</td>
@@ -2004,6 +2012,17 @@ window.updateStagePcsUrl = async function(stageId, pcsUrl) {
     await supaPatch('stages', `id=eq.${stageId}`, { pcs_url: pcsUrl.trim() || null });
     const stage = stages.find(s => s.id === stageId);
     if (stage) stage.pcs_url = pcsUrl.trim() || null;
+    loadAdminStages();
+  } catch (e) { toast(e.message, 'error'); }
+};
+
+window.updateStageCompetition = async function(stageId, compId) {
+  if (!compId) return;
+  try {
+    await supaPatch('stages', `id=eq.${stageId}`, { competition_id: compId });
+    const stage = stages.find(s => s.id === stageId);
+    if (stage) stage.competition_id = compId;
+    toast('Ronde bijgewerkt', 'success');
     loadAdminStages();
   } catch (e) { toast(e.message, 'error'); }
 };
