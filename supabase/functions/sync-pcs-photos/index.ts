@@ -140,13 +140,22 @@ Deno.serve(async (req) => {
 
         // Schrijf naar global_riders (trigger verspreidt photo_url naar alle competities)
         const { photo_url, ...nonPhotoUpdate } = update;
+        let globalRiderId: number | null = null;
         if (r.pcs_slug && Object.keys(update).length > 0) {
-          await adminClient.from("global_riders")
-            .upsert({ pcs_slug: r.pcs_slug, name: r.name, ...update, updated_at: new Date().toISOString() }, { onConflict: "pcs_slug" });
+          const { data: globalRecord } = await adminClient.from("global_riders")
+            .upsert({ pcs_slug: r.pcs_slug, name: r.name, ...update, updated_at: new Date().toISOString() }, { onConflict: "pcs_slug" })
+            .select("id")
+            .single();
+          globalRiderId = globalRecord?.id ?? null;
         }
-        // Schrijf niet-foto velden ook direct naar deze competitie's rider record
-        if (Object.keys(nonPhotoUpdate).length > 0) {
-          await adminClient.from("riders").update(nonPhotoUpdate).eq("id", r.id);
+        // Schrijf alle velden direct naar riders: niet-foto velden + global_rider_id + photo_url
+        // Niet alleen via trigger, zodat foto altijd op het juiste record terechtkomt
+        // ook als global_rider_id nog niet was gezet (trigger mist dan het record)
+        const directUpdate: Record<string, any> = { ...nonPhotoUpdate };
+        if (globalRiderId) directUpdate.global_rider_id = globalRiderId;
+        if (photo_url && photo_url !== "none") directUpdate.photo_url = photo_url;
+        if (Object.keys(directUpdate).length > 0) {
+          await adminClient.from("riders").update(directUpdate).eq("id", r.id);
         }
         if (photo_url && photo_url !== "none") fetched++;
         else if (photo_url === "none") log.push(`⚠️ ${r.name}: geen foto`);

@@ -297,30 +297,45 @@ Deno.serve(async (req) => {
 
       const pcsSlugs = new Set(pcsRiders.filter(r => r.pcs_slug).map(r => r.pcs_slug));
 
-      // Nieuwe renners toevoegen
-      let added = 0;
+      // Renners toevoegen of bijwerken — match uitsluitend op pcs_slug (bibnummers wisselen per koers)
+      let added = 0, updated = 0;
       for (const r of pcsRiders) {
-        const exists = dbRiders?.some(d =>
-          (r.pcs_slug && d.pcs_slug === r.pcs_slug) || d.bib_number === r.bib_number
-        );
-        if (!exists) {
-          try {
-            const enriched = await enrichFromExisting(adminClient, r.pcs_slug);
-            await adminClient.from("riders").insert({ ...enriched, ...r, competition_id });
-            log.push(`➕ ${r.name} toegevoegd`);
-            added++;
-          } catch (e) {
-            log.push(`⚠️ ${r.name}: ${(e as Error).message}`);
+        if (r.pcs_slug) {
+          const existing = dbRiders?.find(d => d.pcs_slug === r.pcs_slug);
+          if (existing) {
+            // Bijwerken: naam, team en bibnummer kunnen gewijzigd zijn
+            await adminClient.from("riders").update({ name: r.name, team: r.team, bib_number: r.bib_number }).eq("id", existing.id);
+            updated++;
+          } else {
+            try {
+              const enriched = await enrichFromExisting(adminClient, r.pcs_slug);
+              await adminClient.from("riders").insert({ ...enriched, ...r, competition_id });
+              log.push(`➕ ${r.name} toegevoegd`);
+              added++;
+            } catch (e) {
+              log.push(`⚠️ ${r.name}: ${(e as Error).message}`);
+            }
+          }
+        } else {
+          // Geen slug: bib als laatste redmiddel
+          const exists = dbRiders?.some(d => d.bib_number === r.bib_number);
+          if (!exists) {
+            try {
+              await adminClient.from("riders").insert({ ...r, competition_id });
+              log.push(`➕ ${r.name} toegevoegd (geen slug)`);
+              added++;
+            } catch (e) {
+              log.push(`⚠️ ${r.name}: ${(e as Error).message}`);
+            }
           }
         }
       }
 
-      // Renners niet meer op startlijst verwijderen (alleen zonder picks)
+      // Renners niet meer op startlijst verwijderen — alleen op basis van pcs_slug, nooit op bib
+      // Renners zonder pcs_slug worden nooit automatisch verwijderd
       let removed = 0, skipped = 0;
       for (const dbRider of dbRiders || []) {
-        const stillOnList = dbRider.pcs_slug
-          ? pcsSlugs.has(dbRider.pcs_slug)
-          : pcsRiders.some(r => r.bib_number === dbRider.bib_number);
+        const stillOnList = !dbRider.pcs_slug || pcsSlugs.has(dbRider.pcs_slug);
         if (!stillOnList) {
           const { count } = await adminClient
             .from("picks").select("id", { count: "exact", head: true }).eq("rider_id", dbRider.id);
@@ -335,7 +350,7 @@ Deno.serve(async (req) => {
         }
       }
 
-      log.push(`✅ Klaar: ${added} toegevoegd, ${removed} verwijderd${skipped ? `, ${skipped} overgeslagen (heeft picks)` : ""}`);
+      log.push(`✅ Klaar: ${added} toegevoegd, ${updated} bijgewerkt, ${removed} verwijderd${skipped ? `, ${skipped} overgeslagen (heeft picks)` : ""}`);
       await adminClient.from("competitions").update({ last_synced_at: new Date().toISOString() }).eq("id", competition_id);
       return new Response(JSON.stringify({ success: true, log }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -781,8 +796,9 @@ Deno.serve(async (req) => {
     let ridersSaved = 0, ridersUpdated = 0;
     for (const r of riders) {
       try {
-        // Zoek eerst op pcs_slug (stabiel), dan op bib_number
-        let existing = null;
+        // Zoek eerst op pcs_slug (stabiel), dan op bib_number als fallback
+        let existing: any = null;
+        let foundByBib = false;
         if (r.pcs_slug) {
           const { data } = await adminClient
             .from("riders").select("id")
@@ -793,18 +809,33 @@ Deno.serve(async (req) => {
         }
         if (!existing) {
           const { data } = await adminClient
-            .from("riders").select("id")
+            .from("riders").select("id,pcs_slug")
             .eq("competition_id", competition_id)
             .eq("bib_number", r.bib_number)
             .maybeSingle();
-          existing = data;
+          // Alleen gebruiken als het bestaande record géén pcs_slug heeft —
+          // anders zou een andere renner met hetzelfde bibnummer overschreven worden
+          // wat leidt tot verkeerde foto's via de global_rider_id koppeling
+          if (data && !data.pcs_slug) {
+            existing = data;
+            foundByBib = true;
+          }
         }
         if (existing) {
           // Update bestaande renner (bibnummer kan veranderd zijn)
-          await adminClient.from("riders").update({ ...r }).eq("id", existing.id);
+          const updateData: any = { ...r };
+          if (foundByBib && r.pcs_slug) {
+            // Bij bib-fallback: herstel global_rider_id en foto voor de correcte renner
+            const enriched = await enrichFromExisting(adminClient, r.pcs_slug);
+            updateData.global_rider_id = enriched.global_rider_id ?? null;
+            updateData.photo_url = enriched.photo_url ?? null;
+          }
+          await adminClient.from("riders").update(updateData).eq("id", existing.id);
           ridersUpdated++;
         } else {
           // Neem details over van dezelfde renner in andere competities
+          // Zorg dat global_riders record bestaat zodat global_rider_id altijd gezet is
+          if (r.pcs_slug) await upsertGlobalRider(adminClient, r);
           const enriched = await enrichFromExisting(adminClient, r.pcs_slug);
           await adminClient.from("riders").insert({ ...enriched, ...r, competition_id });
           ridersSaved++;
