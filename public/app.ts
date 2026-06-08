@@ -2381,23 +2381,23 @@ window.togglePotPayment = async function(compId: number, userId: string, paid: b
 let allRiders = [];
 
 async function loadAdminRiders() {
-  allRiders = await supaRest('riders', { filters: 'order=bib_number' });
-
   const sel = $('admin-rider-comp-filter');
   const current = sel.value;
   sel.innerHTML = '<option value="">Alle rondes</option>' +
     competitions.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
   if (current) sel.value = current;
 
+  const compId = sel.value;
+  allRiders = await supaRest('riders', {
+    filters: compId ? `competition_id=eq.${compId}&order=bib_number` : 'order=bib_number',
+  });
   renderAdminRiders();
 }
 
 function renderAdminRiders(filter = '') {
-  const compFilter = $('admin-rider-comp-filter').value;
-  let list = compFilter ? allRiders.filter(r => r.competition_id == compFilter) : allRiders;
   const filtered = filter
-    ? list.filter(r => r.name.toLowerCase().includes(filter) || r.team.toLowerCase().includes(filter))
-    : list;
+    ? allRiders.filter(r => r.name.toLowerCase().includes(filter) || r.team.toLowerCase().includes(filter))
+    : allRiders;
 
   $('admin-riders-table').innerHTML = filtered.map(r => `
     <tr>
@@ -2413,7 +2413,11 @@ function renderAdminRiders(filter = '') {
   `).join('') || '<tr><td colspan="4" class="text-muted">Geen renners gevonden</td></tr>';
 }
 
-$('admin-rider-comp-filter').addEventListener('change', () => {
+$('admin-rider-comp-filter').addEventListener('change', async () => {
+  const compId = $('admin-rider-comp-filter').value;
+  allRiders = await supaRest('riders', {
+    filters: compId ? `competition_id=eq.${compId}&order=bib_number` : 'order=bib_number',
+  });
   renderAdminRiders($('admin-rider-search').value.toLowerCase());
 });
 
