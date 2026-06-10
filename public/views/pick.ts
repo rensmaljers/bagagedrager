@@ -169,7 +169,12 @@ function updatePickBar(stage, currentPick) {
 
   if (rider) {
     const status = currentPick && rider.id === currentPick.rider_id ? '✓ Bevestigd' : '⚠ Nog niet bevestigd';
-    $('pick-bar-rider').innerHTML = `${riderDisplay(rider.name, rider.photo_url)} #${rider.bib_number} — ${status}`;
+    // Bij wijziging: laat zien welke bevestigde keuze vervangen gaat worden
+    const currentRider = isChanged ? state._riderMap[currentPick.rider_id] : null;
+    const replaces = currentRider
+      ? ` <span class="pick-bar-replaces">vervangt ${escapeHtml(currentRider.name)}</span>`
+      : '';
+    $('pick-bar-rider').innerHTML = `${riderDisplay(rider.name, rider.photo_url)} #${rider.bib_number} — ${status}${replaces}`;
   }
 
   // Countdown
@@ -244,6 +249,9 @@ function renderRiderGrid(usedInOtherStages, fullyLocked) {
   }
   const teamNames = Object.keys(grouped).sort();
 
+  // Bevestigde keuze voor deze etappe blijft zichtbaar, ook als een andere renner geselecteerd is
+  const currentPickRiderId = state.myPicks.find(p => p.stage_id === stageId)?.rider_id ?? null;
+
   $('rider-grid').innerHTML = teamNames.length ? teamNames.map(team => {
     const teamRiders = grouped[team];
     return `
@@ -255,9 +263,10 @@ function renderRiderGrid(usedInOtherStages, fullyLocked) {
             const dnf = state.dnfRiderIds.has(r.id);
             const blocked = used || dnf;
             const selected = r.id === state.selectedRiderId;
+            const isCurrent = r.id === currentPickRiderId;
             return `
               <div class="col-6 col-md-4 col-lg-4">
-                <div class="card pick-card ${selected ? 'selected' : ''} ${used ? 'used' : ''} ${dnf ? 'used dnf-rider' : ''}"
+                <div class="card pick-card ${selected ? 'selected' : ''} ${isCurrent && !selected ? 'current-pick' : ''} ${used ? 'used' : ''} ${dnf ? 'used dnf-rider' : ''}"
                      data-rider-id="${r.id}" ${fullyLocked || blocked ? '' : `onclick="selectRider(${r.id})"`}>
                   <div class="card-body py-2 px-3">
                     <div class="d-flex align-items-center gap-2">
@@ -271,7 +280,7 @@ function renderRiderGrid(usedInOtherStages, fullyLocked) {
                           r.nationality || null,
                           r.weight_kg ? `${r.weight_kg}kg` : null,
                         ].filter(Boolean).join(' ')}</div>` : ''}
-                        ${dnf ? '<small class="text-secondary mt-1 d-block">Uit koers (DNF)</small>' : used ? '<small class="text-danger mt-1 d-block">Al gebruikt</small>' : ''}
+                        ${dnf ? '<small class="text-secondary mt-1 d-block">Uit koers (DNF)</small>' : used ? '<small class="text-danger mt-1 d-block">Al gebruikt</small>' : isCurrent ? '<small class="current-pick-label mt-1 d-block">✓ Huidige keuze</small>' : ''}
                       </div>
                     </div>
                   </div>

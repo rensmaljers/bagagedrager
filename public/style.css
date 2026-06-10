@@ -323,6 +323,30 @@
       display: flex; align-items: center; justify-content: center;
       font-size: 0.65rem; font-weight: 800;
     }
+    /* Bevestigde keuze blijft gemarkeerd terwijl een andere renner geselecteerd is */
+    .pick-card.current-pick {
+      border: 2px dashed var(--comp-color, var(--accent)) !important;
+    }
+    .pick-card.current-pick::after {
+      content: '✓';
+      position: absolute;
+      top: 6px; right: 8px;
+      border: 1.5px solid var(--comp-color, var(--accent));
+      color: var(--comp-color, var(--accent));
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.65rem; font-weight: 800;
+    }
+    .current-pick-label {
+      color: var(--comp-color, var(--accent));
+      font-weight: 600;
+    }
+    .pick-bar-replaces {
+      opacity: 0.75;
+      font-weight: 400;
+      font-size: 0.85em;
+    }
     .pick-card.used {
       opacity: 0.25;
       pointer-events: none;
