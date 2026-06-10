@@ -10,7 +10,8 @@ const corsHeaders = {
 function parseTime(timeStr: string): number {
   // PCS time formats: "3:53:11", "53:11", "11"
   // Proloog/TT: "3:35,12" of "0:06.12" — honderdsten strippen voor parsing
-  const noHundredths = timeStr.replace(/[,\.]\d{1,2}$/, "");
+  // Ploegentijdrit: "32:52.170" — driede­cimale milliseconden ook strippen
+  const noHundredths = timeStr.replace(/[,\.]\d+$/, "");
   const clean = noHundredths.replace(/[^0-9:]/g, "").trim();
   if (!clean) return 0;
   const parts = clean.split(":").map(Number);
@@ -71,6 +72,8 @@ Deno.serve(async (req) => {
     }
 
     // PCS gebruikt tabs (STAGE, GC, POINTS, KOM, BONIS) — zoek via tab-nav
+    // Bij ploegentijdritten gebruikt de STAGE-tab soms table.basic i.p.v. table.results;
+    // val terug op elke tabel in die tab als table.results ontbreekt.
     function findTabTable(tabKeyword: string) {
       const tabLinks = doc.querySelectorAll("ul.restabs li a, ul.resultTabs li a");
       for (const link of tabLinks) {
@@ -79,7 +82,7 @@ Deno.serve(async (req) => {
           const dataId = link.getAttribute("data-id");
           if (dataId) {
             const tabDiv = doc.querySelector(`div.resTab[data-id="${dataId}"]`);
-            return tabDiv?.querySelector("table.results") || null;
+            return tabDiv?.querySelector("table.results") || tabDiv?.querySelector("table") || null;
           }
         }
       }
