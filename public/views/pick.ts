@@ -169,12 +169,13 @@ function updatePickBar(stage, currentPick) {
 
   if (rider) {
     const status = currentPick && rider.id === currentPick.rider_id ? '✓ Bevestigd' : '⚠ Nog niet bevestigd';
-    // Bij wijziging: laat zien welke bevestigde keuze vervangen gaat worden
+    $('pick-bar-rider').innerHTML = `${riderDisplay(rider.name, rider.photo_url)} #${rider.bib_number} — ${status}`;
+    // Bij wijziging: laat op een eigen regel zien welke bevestigde keuze vervangen wordt
+    // (zelfde regel als de naam wordt op mobiel te lang)
     const currentRider = isChanged ? state._riderMap[currentPick.rider_id] : null;
-    const replaces = currentRider
-      ? ` <span class="pick-bar-replaces">vervangt ${escapeHtml(currentRider.name)}</span>`
-      : '';
-    $('pick-bar-rider').innerHTML = `${riderDisplay(rider.name, rider.photo_url)} #${rider.bib_number} — ${status}${replaces}`;
+    const replacesEl = $('pick-bar-replaces');
+    replacesEl.textContent = currentRider ? `vervangt ${currentRider.name}` : '';
+    replacesEl.style.display = currentRider ? 'block' : 'none';
   }
 
   // Countdown
