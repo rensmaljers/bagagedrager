@@ -61,4 +61,7 @@ supabase functions deploy sync-pcs-results
 
 # Apply migrations
 supabase db push
+
+# Run tests (parse- en pushlogica in supabase/functions/_shared/)
+deno test --allow-read supabase/functions/tests/
 ```
