@@ -396,8 +396,9 @@
                   <button id="btn-test-push" class="btn btn-sm btn-outline-primary" style="display:none; min-width:110px;">Test sturen</button>
                 </div>
               </div>
-              <!-- Email-herinnering -->
-              <div class="d-flex align-items-start justify-content-between gap-3">
+              <!-- Email-herinnering — verborgen: geen eigen domein, dus geen afzender mogelijk.
+                   Weer tonen (display:flex) zodra een domein bij Resend geverifieerd is. -->
+              <div class="d-flex align-items-start justify-content-between gap-3" id="email-remind-row" style="display:none !important;">
                 <div>
                   <div style="font-size:0.82rem; font-weight:600;">E-mail</div>
                   <div style="font-size:0.75rem; color:var(--text-muted); line-height:1.5;">4 uur voor de deadline een mail als je nog geen keuze hebt gemaakt.</div>
