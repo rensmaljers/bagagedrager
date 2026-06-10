@@ -18,9 +18,16 @@ Fantasy cycling game ("wielerspel") where players pick one rider per stage and c
 
 ## Key files
 - `public/index.html` — Full app UI (HTML + inline CSS + auth/theme scripts)
-- `public/app.js` — All app logic (data loading, rendering, admin panel)
+- `public/app.ts` — Entry: init, tab-navigatie, auth-handlers, account, realtime
+- `public/state.ts` — Gedeeld mutable state-object (session, riders, stages, caches)
+- `public/api.ts` — Supabase REST-helpers (supaRest/supaPatch/supaUpsert/supaRpc)
+- `public/helpers.ts` — UI-helpers (teamBadge, comp-banner, PCS-url)
+- `public/views/` — Tabbladen: dashboard, pick, history, peloton
+- `public/admin.ts` — Volledig admin-panel incl. PCS-sync en imports
+- `public/notifications.ts` — Deadline- en push-notificaties
 - `supabase/migrations/` — Database schema, views, functions (numbered sequentially)
 - `supabase/functions/sync-pcs-results/` — PCS result scraper edge function
+- `supabase/functions/_shared/` — Geteste parse- en webpush-modules
 
 ## Scoring system (4 classifications)
 1. **Algemeen Klassement (GC)** — Sum of time gaps to stage winner, minus `bonification_seconds` from `stage_results`. DNF/late = worst time gap of any picked rider who finished that stage. No sharing penalty.
