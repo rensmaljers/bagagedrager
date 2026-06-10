@@ -9,6 +9,15 @@ const corsHeaders = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  // Alleen aanroepbaar met het cron-secret (zelfde mechaniek als cron-refresh-specialties)
+  const { data: expectedSecret } = await createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  ).rpc("get_cron_secret");
+  if (!expectedSecret || req.headers.get("x-cron-secret") !== expectedSecret) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+  }
+
   try {
     const adminClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -41,6 +50,6 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: corsHeaders });
+    return new Response(JSON.stringify({ error: (e as Error).message }), { status: 500, headers: corsHeaders });
   }
 });

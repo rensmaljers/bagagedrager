@@ -16,7 +16,16 @@ function parseTime(timeStr: string): number {
   return parts[0];
 }
 
-Deno.serve(async () => {
+Deno.serve(async (req: Request) => {
+  // Alleen aanroepbaar met het cron-secret (zelfde mechaniek als cron-refresh-specialties)
+  const { data: expectedSecret } = await createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  ).rpc("get_cron_secret");
+  if (!expectedSecret || req.headers.get("x-cron-secret") !== expectedSecret) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+  }
+
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!

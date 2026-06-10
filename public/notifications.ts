@@ -7,17 +7,23 @@ import { supaDelete, supaRest } from './api';
 import { activeStages } from './helpers';
 
 // --- DEADLINE NOTIFICATIONS ---
+let _deadlineInterval: ReturnType<typeof setInterval> | null = null;
+
 export function setupDeadlineNotifications() {
   if (!('Notification' in window)) return;
   if (Notification.permission === 'default') {
     Notification.requestPermission();
   }
-  // Check every minute for upcoming deadlines
-  setInterval(checkDeadlineNotifications, 60000);
+  // Check every minute for upcoming deadlines.
+  // initApp draait opnieuw bij herlogin — oude interval eerst opruimen,
+  // anders stapelen ze per login/logout-cyclus.
+  if (_deadlineInterval) clearInterval(_deadlineInterval);
+  _deadlineInterval = setInterval(checkDeadlineNotifications, 60000);
   checkDeadlineNotifications();
 }
 
 function checkDeadlineNotifications() {
+  if (!state.session) return;
   if (Notification.permission !== 'granted') return;
   const now = new Date();
   const compStages = activeStages();

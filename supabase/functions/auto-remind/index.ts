@@ -8,7 +8,16 @@ import { importVapidPrivateKey, sendPush } from "../_shared/webpush.ts";
 const VAPID_PUBLIC_KEY = "BHodiDUcQDWpi3kcE5Y6zWPslv5Gzw50tups7rev8hd98zAlMiUHnTSdmvfoa4G1zUycnhf5hVjdg_SiXGRpoPQ";
 const VAPID_SUBJECT = "https://hdkvirtytljnuawcmoui.supabase.co";
 
-Deno.serve(async () => {
+Deno.serve(async (req: Request) => {
+  // Alleen aanroepbaar met het cron-secret (zelfde mechaniek als cron-refresh-specialties)
+  const { data: expectedSecret } = await createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  ).rpc("get_cron_secret");
+  if (!expectedSecret || req.headers.get("x-cron-secret") !== expectedSecret) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+  }
+
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
