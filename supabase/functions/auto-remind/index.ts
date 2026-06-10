@@ -22,20 +22,19 @@ function utf8ToBase64url(str: string): string {
   return base64urlEncode(new TextEncoder().encode(str));
 }
 
+// Deno's ring-crypto weigert minimale PKCS8 (zonder embedded public key) met
+// "InvalidEncoding" bij het signen — daarom JWK-import: d = secret,
+// x/y afgeleid uit de publieke sleutel (raw P-256 punt: 0x04 || x || y).
 async function importVapidPrivateKey(rawBase64url: string): Promise<CryptoKey> {
-  const rawBytes = base64urlDecode(rawBase64url);
-  // Wrap raw 32-byte P-256 private key in PKCS8 DER envelope
-  const pkcs8Prefix = new Uint8Array([
-    0x30, 0x41, 0x02, 0x01, 0x00, 0x30, 0x13, 0x06,
-    0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01,
-    0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03,
-    0x01, 0x07, 0x04, 0x27, 0x30, 0x25, 0x02, 0x01,
-    0x01, 0x04, 0x20,
-  ]);
-  const pkcs8 = new Uint8Array(pkcs8Prefix.length + rawBytes.length);
-  pkcs8.set(pkcs8Prefix);
-  pkcs8.set(rawBytes, pkcs8Prefix.length);
-  return crypto.subtle.importKey("pkcs8", pkcs8, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
+  const pubBytes = base64urlDecode(VAPID_PUBLIC_KEY);
+  const jwk = {
+    kty: "EC",
+    crv: "P-256",
+    d: rawBase64url.trim(),
+    x: base64urlEncode(pubBytes.slice(1, 33)),
+    y: base64urlEncode(pubBytes.slice(33, 65)),
+  };
+  return crypto.subtle.importKey("jwk", jwk, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
 }
 
 async function makeVapidJWT(audience: string, privateKey: CryptoKey): Promise<string> {
@@ -216,15 +215,24 @@ Deno.serve(async () => {
     };
 
     let sent = 0;
+    const statuses: (number | string)[] = [];
     for (const sub of subscriptions) {
       try {
-        await sendPush(sub.endpoint, sub, payload, privateKey);
-        sent++;
-      } catch (_) { /* subscription mogelijk verlopen */ }
+        const res = await sendPush(sub.endpoint, sub, payload, privateKey);
+        statuses.push(res.status);
+        if (res.ok || res.status === 201) {
+          sent++;
+        } else if (res.status === 404 || res.status === 410) {
+          // Subscription verlopen — opruimen zodat we er niet naar blijven sturen
+          await supabase.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
+        }
+      } catch (e) {
+        statuses.push(e.message);
+      }
     }
 
     await supabase.from("stages").update({ reminder_sent: true }).eq("id", stage.id);
-    results.push({ stage_id: stage.id, stage_number: stage.stage_number, reminded: sent });
+    results.push({ stage_id: stage.id, stage_number: stage.stage_number, reminded: sent, statuses });
   }
 
   return new Response(JSON.stringify({ results }), { headers: { "Content-Type": "application/json" } });
