@@ -29,3 +29,9 @@ verify_jwt = false
 
 [functions.auto-remind]
 verify_jwt = false
+
+[functions.test-push]
+verify_jwt = false
+
+[functions.test-email]
+verify_jwt = false

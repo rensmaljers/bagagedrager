@@ -7,7 +7,16 @@ import { importVapidPrivateKey, sendPush } from "../_shared/webpush.ts";
 const VAPID_PUBLIC_KEY = "BHodiDUcQDWpi3kcE5Y6zWPslv5Gzw50tups7rev8hd98zAlMiUHnTSdmvfoa4G1zUycnhf5hVjdg_SiXGRpoPQ";
 const VAPID_SUBJECT = "https://hdkvirtytljnuawcmoui.supabase.co";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Content-Type": "application/json",
+};
+
 Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -16,11 +25,11 @@ Deno.serve(async (req: Request) => {
   // Haal ingelogde gebruiker op via auth header
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) {
-    return new Response(JSON.stringify({ error: "Niet ingelogd" }), { status: 401 });
+    return new Response(JSON.stringify({ error: "Niet ingelogd" }), { status: 401, headers: corsHeaders });
   }
   const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader.replace("Bearer ", ""));
   if (authError || !user) {
-    return new Response(JSON.stringify({ error: "Ongeldige sessie" }), { status: 401 });
+    return new Response(JSON.stringify({ error: "Ongeldige sessie" }), { status: 401, headers: corsHeaders });
   }
 
   // Controleer admin
@@ -31,12 +40,12 @@ Deno.serve(async (req: Request) => {
     .single();
 
   if (!profile?.is_admin) {
-    return new Response(JSON.stringify({ error: "Geen toegang" }), { status: 403 });
+    return new Response(JSON.stringify({ error: "Geen toegang" }), { status: 403, headers: corsHeaders });
   }
 
   const vapidPrivateKeyRaw = Deno.env.get("VAPID_PRIVATE_KEY");
   if (!vapidPrivateKeyRaw) {
-    return new Response(JSON.stringify({ error: "VAPID_PRIVATE_KEY niet ingesteld" }), { status: 500 });
+    return new Response(JSON.stringify({ error: "VAPID_PRIVATE_KEY niet ingesteld" }), { status: 500, headers: corsHeaders });
   }
   const privateKey = await importVapidPrivateKey(vapidPrivateKeyRaw, VAPID_PUBLIC_KEY);
 
@@ -47,7 +56,7 @@ Deno.serve(async (req: Request) => {
     .eq("user_id", user.id);
 
   if (!subscriptions?.length) {
-    return new Response(JSON.stringify({ error: "Geen push subscription gevonden. Schakel eerst app-meldingen in." }), { status: 404 });
+    return new Response(JSON.stringify({ error: "Geen push subscription gevonden. Schakel eerst app-meldingen in." }), { status: 404, headers: corsHeaders });
   }
 
   const payload = {
@@ -73,6 +82,6 @@ Deno.serve(async (req: Request) => {
 
   return new Response(
     JSON.stringify({ sent, subscriptions: subscriptions.length, details }),
-    { headers: { "Content-Type": "application/json" } }
+    { headers: corsHeaders }
   );
 });
