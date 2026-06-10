@@ -4,7 +4,6 @@ import { $, escapeHtml, formatTime, formatGap, formatDeadline, riderDisplay, ava
 import { supabase } from './supabase-client';
 import { icon } from './icons';
 import { state } from './state';
-import { loadAdminView } from './admin';
 import { supaPatch, supaRest, supaRpc } from './api';
 import { login, signup } from './auth';
 import { activeScoringMode, activeStages, showError, updateCompBanner, updateCompSelectOptions, updateSyncInfo } from './helpers';
@@ -34,7 +33,8 @@ function navigateToTab(tab) {
   if (tab === 'history') loadHistory();
   if (tab === 'participants') { Promise.all([loadPeloton(), loadParticipants()]); }
   if (tab === 'account') loadAccountView();
-  if (tab === 'admin') loadAdminView();
+  // Admin is code-gesplitst: module wordt pas geladen als een admin het tabblad opent
+  if (tab === 'admin') import('./admin').then(m => m.loadAdminView());
 }
 
 document.querySelectorAll('[data-tab]').forEach(a => {

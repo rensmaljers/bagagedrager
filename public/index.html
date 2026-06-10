@@ -18,6 +18,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+  <link rel="preconnect" href="https://hdkvirtytljnuawcmoui.supabase.co" crossorigin>
   <script>
     (function(){var s=localStorage.getItem('bagagedrager_theme');var d=s||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',d);})();
   </script>
@@ -30,8 +31,14 @@
     .app-loader{width:36px;height:36px;border:3px solid rgba(128,128,128,0.15);border-top-color:var(--accent);border-radius:50%;animation:_spin .7s linear infinite;}
     @keyframes _spin{to{transform:rotate(360deg);}}
   </style>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@1&display=swap" rel="stylesheet">
+  <!-- Async CSS: blokkeert first paint niet — kritieke styles staan hierboven inline.
+       media="print" + onload-swap is de standaard async-CSS-truc; noscript als fallback. -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" media="print" onload="this.media='all'">
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@1&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://api.fontshare.com/v2/css?f[]=satoshi@1&display=swap" rel="stylesheet">
+  </noscript>
 </head>
 <body>
 <div id="app-loading"><div class="app-loader"></div></div>
@@ -843,7 +850,7 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" defer></script>
 <script>
 // --- THEME ---
 (function() {
