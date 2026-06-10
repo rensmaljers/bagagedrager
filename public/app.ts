@@ -219,7 +219,13 @@ $('btn-test-email').addEventListener('click', async () => {
     if (data?.sent) toast(`Test-mail verstuurd naar ${data.to}`, 'success');
     else toast(data?.error || 'Onbekende fout', 'error');
   } catch (e: any) {
-    toast('Fout: ' + (e?.message || String(e)), 'error');
+    // FunctionsHttpError: echte foutmelding zit in de response body (e.context)
+    let msg = e?.message || String(e);
+    try {
+      const body = await e?.context?.json();
+      if (body?.error) msg = body.error;
+    } catch { /* body al gelezen of geen json */ }
+    toast('Fout: ' + msg, 'error');
   } finally {
     btn.disabled = false;
     btn.textContent = 'Test sturen';
