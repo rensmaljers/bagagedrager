@@ -10,8 +10,8 @@ const corsHeaders = {
 function parseTime(timeStr: string): number {
   // PCS time formats: "3:53:11", "53:11", "11"
   // Proloog/TT: "3:35,12" of "0:06.12" — honderdsten strippen voor parsing
-  // Ploegentijdrit: "32:52.170" — driede­cimale milliseconden ook strippen
-  const noHundredths = timeStr.replace(/[,\.]\d+$/, "");
+  // TTT: "32:52.170" — milliseconden (3 cijfers) ook strippen
+  const noHundredths = timeStr.replace(/[,\.]\d{1,3}$/, "");
   const clean = noHundredths.replace(/[^0-9:]/g, "").trim();
   if (!clean) return 0;
   const parts = clean.split(":").map(Number);
@@ -72,35 +72,90 @@ Deno.serve(async (req) => {
     }
 
     // PCS gebruikt tabs (STAGE, GC, POINTS, KOM, BONIS) — zoek via tab-nav
-    // Bij ploegentijdritten gebruikt de STAGE-tab soms table.basic i.p.v. table.results;
-    // val terug op elke tabel in die tab als table.results ontbreekt.
-    function findTabTable(tabKeyword: string) {
+    function findTabDiv(tabKeyword: string) {
       const tabLinks = doc.querySelectorAll("ul.restabs li a, ul.resultTabs li a");
       for (const link of tabLinks) {
         const text = (link.textContent || "").toUpperCase();
         if (text.includes(tabKeyword)) {
           const dataId = link.getAttribute("data-id");
-          if (dataId) {
-            const tabDiv = doc.querySelector(`div.resTab[data-id="${dataId}"]`);
-            return tabDiv?.querySelector("table.results") || tabDiv?.querySelector("table") || null;
-          }
+          if (dataId) return doc.querySelector(`div.resTab[data-id="${dataId}"]`);
         }
       }
       return null;
     }
+    function findTabTable(tabKeyword: string) {
+      return findTabDiv(tabKeyword)?.querySelector("table.results") || null;
+    }
+
+    const hasTabs = doc.querySelectorAll("ul.restabs li a, ul.resultTabs li a").length > 0;
+    const stageDiv = findTabDiv("STAGE") || findTabDiv("ÉTAPE") || findTabDiv("ETAPA") || findTabDiv("ETAPPE") || findTabDiv("PROLOGUE");
 
     // Gebruik de STAGE-tab als die bestaat, anders de eerste table.results
     // (zonder tab-selectie pakt de scraper de GC-tabel bij etappes met meerdere tabs)
-    const table = findTabTable("STAGE") || findTabTable("ÉTAPE") || findTabTable("ETAPA") || findTabTable("ETAPPE") || doc.querySelector("table.results");
-    if (!table) {
+    const table = stageDiv?.querySelector("table.results") || (!hasTabs ? doc.querySelector("table.results") : null);
+
+    // Ploegentijdrit (TTT): STAGE-tab heeft geen table.results maar ul.list.ttt-results
+    // met per team een blok (teamtijd in div.time, "32:52.170") en daarin een geneste
+    // tabel met renners; individuele achterstand staat in <font class="blue">+0:14</font>
+    const tttList = !table
+      ? (stageDiv?.querySelector("ul.ttt-results") || doc.querySelector("ul.ttt-results"))
+      : null;
+
+    if (!table && !tttList) {
       return new Response(JSON.stringify({ error: "Geen resultaten-tabel gevonden op deze pagina" }), { status: 400, headers: corsHeaders });
     }
 
-    const rows = table.querySelectorAll("tbody tr");
     const results: any[] = [];
     let winnerTime = 0; // Absolute time of the stage winner (first row)
     let lastTime = 0;   // Last assigned absolute time (for ,, same-time groups)
     let position = 0;   // PCS finish position (row order = official result order)
+
+    if (tttList) {
+      // TTT: renner-tijd = teamtijd + eigen achterstand (gelost = blauwe gap)
+      const tttRiders: { pcs_slug: string; pcs_name: string; time: number; dnf: boolean }[] = [];
+      for (const li of tttList.querySelectorAll("li")) {
+        const teamLink = li.querySelector("a[href*='team/']");
+        const timeEl = li.querySelector("div.time");
+        if (!teamLink || !timeEl) continue; // header-regel overslaan
+        const teamTime = parseTime(timeEl.textContent || "");
+        if (teamTime <= 0) continue;
+        if (winnerTime === 0) winnerTime = teamTime;
+        for (const tr of li.querySelectorAll("tr")) {
+          const riderLink = tr.querySelector("a[href*='rider/']");
+          if (!riderLink) continue;
+          const href = riderLink.getAttribute("href") || "";
+          const pcs_slug = href.replace(/^.*rider\//, "").trim();
+          if (!pcs_slug) continue;
+          const dnf = /\b(dnf|dns|otl|dsq)\b/i.test(tr.textContent || "");
+          const blue = tr.querySelector("font.blue");
+          const gap = blue ? parseTime(blue.textContent || "") : 0;
+          tttRiders.push({
+            pcs_slug,
+            pcs_name: riderLink.textContent?.trim() || pcs_slug,
+            time: teamTime + gap,
+            dnf,
+          });
+        }
+      }
+      // Volgorde op individuele tijd (gelost van team 1 kan trager zijn dan team 2)
+      tttRiders.sort((a, b) => a.time - b.time);
+      for (const r of tttRiders) {
+        if (!r.dnf) position++;
+        results.push({
+          bib_number: 0,
+          pcs_slug: r.pcs_slug,
+          pcs_name: r.pcs_name,
+          time_seconds: r.time,
+          finish_position: r.dnf ? null : position,
+          points: 0,
+          mountain_points: 0,
+          bonification_seconds: 0,
+          dnf: r.dnf,
+        });
+      }
+    }
+
+    const rows = table ? table.querySelectorAll("tbody tr") : [];
 
     for (const row of rows) {
       const cells = row.querySelectorAll("td");
