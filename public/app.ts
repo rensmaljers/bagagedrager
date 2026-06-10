@@ -3646,6 +3646,16 @@ async function updateNotificationButton() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     btn.textContent = 'Niet beschikbaar';
     btn.disabled = true;
+    // iOS Safari ondersteunt web push alleen in een geïnstalleerde PWA
+    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent)
+      || (navigator.userAgent.includes('Macintosh') && navigator.maxTouchPoints > 1);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
+    if (isIos && !isStandalone && !document.getElementById('ios-push-hint')) {
+      btn.insertAdjacentHTML('afterend',
+        `<div id="ios-push-hint" style="font-size:0.75rem;color:var(--text-muted);margin-top:4px;">` +
+        `Op iPhone/iPad werken meldingen alleen als de app op je beginscherm staat: ` +
+        `open het deelmenu <span aria-hidden="true">⎋</span> en kies <strong>Zet op beginscherm</strong>.</div>`);
+    }
     return;
   }
   const sub = await getCurrentPushSubscription();
@@ -3680,8 +3690,9 @@ async function subscribeNotifications() {
       applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
     });
     const json = newSub.toJSON();
-    // Verwijder eerst alle oude subscriptions voor deze user (bijv. vanuit Safari-tab)
-    await supaDelete('push_subscriptions', `user_id=eq.${session.user.id}`);
+    // Vervang alleen de subscription van dít apparaat — andere apparaten
+    // (telefoon/laptop) houden hun eigen subscription
+    await supaDelete('push_subscriptions', `endpoint=eq.${encodeURIComponent(json.endpoint)}`);
     await supaRest('push_subscriptions', {
       method: 'POST',
       body: { user_id: session.user.id, endpoint: json.endpoint, p256dh: json.keys.p256dh, auth_key: json.keys.auth },
