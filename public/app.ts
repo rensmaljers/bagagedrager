@@ -493,3 +493,20 @@ export async function loadRidersForComp() {
   });
 }
 
+// --- BOOT ---
+// Service worker vroeg registreren zodat push notificaties werken ook zonder account tab
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+
+(async () => {
+  const { data: { session: s } } = await supabase.auth.getSession();
+  if (s) {
+    state.session = s;
+    await initApp();
+    return;
+  }
+  // Geen geldige sessie: toon login scherm
+  $('app-loading').style.display = 'none';
+  $('auth-screen').style.display = 'block';
+})();
