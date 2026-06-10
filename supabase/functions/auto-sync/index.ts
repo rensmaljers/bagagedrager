@@ -6,7 +6,9 @@ import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.46/deno-dom-wasm.ts
 // haalt de resultaten op van PCS en slaat ze op.
 
 function parseTime(timeStr: string): number {
-  const clean = timeStr.replace(/[^0-9:]/g, "").trim();
+  // Strip decimalen (honderdsten/duizendsten) voor parsing — bijv. "32:52.170" → "32:52"
+  const noDecimals = timeStr.replace(/[,\.]\d+$/, "");
+  const clean = noDecimals.replace(/[^0-9:]/g, "").trim();
   if (!clean) return 0;
   const parts = clean.split(":").map(Number);
   if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
@@ -62,7 +64,25 @@ Deno.serve(async () => {
         continue;
       }
 
-      const table = doc.querySelector("table.results");
+      // Gebruik STAGE-tab indien aanwezig (net als sync-pcs-results),
+      // anders eerste table.results — bij PTT pakt dit anders de GC-tabel.
+      // Gebruik inline lookup (geen aparte functie) om conflict met de
+      // findTabTable verderop in deze scope te voorkomen.
+      let table = null;
+      const stageTabLinks = doc.querySelectorAll("ul.restabs li a, ul.resultTabs li a");
+      for (const link of stageTabLinks) {
+        const txt = (link.textContent || "").toUpperCase();
+        if (["STAGE", "ÉTAPE", "ETAPA", "ETAPPE"].some(kw => txt.includes(kw))) {
+          const dataId = link.getAttribute("data-id");
+          if (dataId) {
+            const tabDiv = doc.querySelector(`div.resTab[data-id="${dataId}"]`);
+            // PTT-fallback: STAGE-tab gebruikt soms table.basic i.p.v. table.results
+            table = tabDiv?.querySelector("table.results") || tabDiv?.querySelector("table") || null;
+            break;
+          }
+        }
+      }
+      if (!table) table = doc.querySelector("table.results");
       if (!table) {
         syncResults.push({ stage_id: stage.id, error: "Geen resultaten-tabel gevonden" });
         continue;
