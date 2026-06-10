@@ -95,7 +95,7 @@ Deno.serve(async (req: Request) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: "Bagagedrager <noreply@bagagedrager.app>",
+          from: Deno.env.get("EMAIL_FROM") || "Bagagedrager <onboarding@resend.dev>",
           to: email,
           subject: `⏰ Nog geen keuze voor ${stageName} — deadline over ~4 uur`,
           html: buildReminderEmail(p.display_name || "wielrenner", stageName, deadlineStr, appUrl),
