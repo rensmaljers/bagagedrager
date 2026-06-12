@@ -23,8 +23,8 @@
     (function(){var s=localStorage.getItem('bagagedrager_theme');var d=s||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',d);})();
   </script>
   <style>
-    :root,[data-theme="dark"]{--bg:#0a0b10;--bg-card:#14151d;--border:#272938;--accent:#f5c518;}
-    [data-theme="light"]{--bg:#f3efe3;--bg-card:#fcfaf3;--border:#ded7c2;--accent:#a87400;}
+    :root,[data-theme="dark"]{--bg:#0b0c0f;--bg-card:#13151a;--border:rgba(255,255,255,0.07);--accent:#e6b520;}
+    [data-theme="light"]{--bg:#f5f5f7;--bg-card:#ffffff;--border:rgba(15,18,25,0.09);--accent:#9a6b00;}
     body{background:var(--bg);margin:0;min-height:100vh;}
     #auth-screen,#app{display:none;}
     #app-loading{display:flex;align-items:center;justify-content:center;min-height:100vh;}
@@ -34,10 +34,10 @@
   <!-- Async CSS: blokkeert first paint niet — kritieke styles staan hierboven inline.
        media="print" + onload-swap is de standaard async-CSS-truc; noscript als fallback. -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" media="print" onload="this.media='all'">
-  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@1&f[]=khand@400,500,600,700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@1&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
   <noscript>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://api.fontshare.com/v2/css?f[]=satoshi@1&f[]=khand@400,500,600,700&display=swap" rel="stylesheet">
+    <link href="https://api.fontshare.com/v2/css?f[]=satoshi@1&display=swap" rel="stylesheet">
   </noscript>
 </head>
 <body>
@@ -172,7 +172,7 @@
       <div class="row g-4" id="standings-row">
         <div class="col-md-6" id="gc-card">
           <div class="card h-100">
-            <div class="card-header jersey-gc"><h5 class="mb-0" style="font-size:0.95rem;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-jersey" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Algemeen Klassement <span class="info-tooltip" data-tip="Totaal tijdsverschil met de etappewinnaar per etappe.\nBonificatie: 1e −10s, 2e −6s, 3e −4s.\nTe laat of DNF = slechtste tijd.">&#9432;</span></h5></div>
+            <div class="card-header jersey-gc"><h5 class="mb-0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-jersey" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Algemeen Klassement <span class="info-tooltip" data-tip="Totaal tijdsverschil met de etappewinnaar per etappe.\nBonificatie: 1e −10s, 2e −6s, 3e −4s.\nTe laat of DNF = slechtste tijd.">&#9432;</span></h5></div>
             <div id="gc-hero" class="leader-hero"></div>
             <div class="card-body p-0 table-responsive-wrapper">
               <table class="table table-sm table-striped mb-0">
@@ -184,7 +184,7 @@
         </div>
         <div class="col-md-6" id="points-card">
           <div class="card h-100">
-            <div class="card-header jersey-points"><h5 class="mb-0" style="font-size:0.95rem;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-jersey" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Puntenklassement <span class="info-tooltip" data-tip="Totaal sprintpunten van jouw gekozen renners, overgenomen uit het puntenklassement op PCS.">&#9432;</span></h5></div>
+            <div class="card-header jersey-points"><h5 class="mb-0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-jersey" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg> Puntenklassement <span class="info-tooltip" data-tip="Totaal sprintpunten van jouw gekozen renners, overgenomen uit het puntenklassement op PCS.">&#9432;</span></h5></div>
             <div id="points-hero" class="leader-hero"></div>
             <div class="card-body p-0 table-responsive-wrapper">
               <table class="table table-sm table-striped mb-0">
@@ -196,7 +196,7 @@
         </div>
         <div class="col-md-6" id="mountain-card">
           <div class="card h-100">
-            <div class="card-header jersey-mountain"><h5 class="mb-0" style="font-size:0.95rem;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-jersey" aria-hidden="true"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg> Bergklassement <span class="info-tooltip" data-tip="Totaal bergpunten (KOM) van jouw gekozen renners, overgenomen uit het bergklassement op PCS.">&#9432;</span></h5></div>
+            <div class="card-header jersey-mountain"><h5 class="mb-0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-jersey" aria-hidden="true"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg> Bergklassement <span class="info-tooltip" data-tip="Totaal bergpunten (KOM) van jouw gekozen renners, overgenomen uit het bergklassement op PCS.">&#9432;</span></h5></div>
             <div id="mountain-hero" class="leader-hero"></div>
             <div class="card-body p-0 table-responsive-wrapper">
               <table class="table table-sm table-striped mb-0">
@@ -208,7 +208,7 @@
         </div>
         <div class="col-md-6" id="combativity-card">
           <div class="card h-100">
-            <div class="card-header jersey-game"><h5 class="mb-0" style="font-size:0.95rem;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-jersey" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Strijdlust <span class="info-tooltip" data-tip="1 punt als je de etappewinnaar correct hebt voorspeld.\nTe laat of DNF = 0 punten.">&#9432;</span></h5></div>
+            <div class="card-header jersey-game"><h5 class="mb-0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-jersey" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Strijdlust <span class="info-tooltip" data-tip="1 punt als je de etappewinnaar correct hebt voorspeld.\nTe laat of DNF = 0 punten.">&#9432;</span></h5></div>
             <div id="combativity-hero" class="leader-hero"></div>
             <div class="card-body p-0 table-responsive-wrapper">
               <table class="table table-sm table-striped mb-0">
@@ -220,7 +220,7 @@
         </div>
         <div class="col-md-6" id="game-card">
           <div class="card h-100">
-            <div class="card-header jersey-game"><h5 class="mb-0" style="font-size:0.95rem;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-jersey" aria-hidden="true"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg> Spelklassement <span class="info-tooltip" data-tip="Spelpunten op basis van finishpositie (1e=100, 2e=80, 3e=70 … 20e=5).\nDeelpenalty als meerdere spelers dezelfde renner kiezen.\nTe laat of DNF = 0 punten.">&#9432;</span></h5></div>
+            <div class="card-header jersey-game"><h5 class="mb-0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-jersey" aria-hidden="true"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg> Spelklassement <span class="info-tooltip" data-tip="Spelpunten op basis van finishpositie (1e=100, 2e=80, 3e=70 … 20e=5).\nDeelpenalty als meerdere spelers dezelfde renner kiezen.\nTe laat of DNF = 0 punten.">&#9432;</span></h5></div>
             <div id="game-hero" class="leader-hero"></div>
             <div class="card-body p-0 table-responsive-wrapper">
               <table class="table table-sm table-striped mb-0">
@@ -327,7 +327,7 @@
 
       <!-- Peloton: alle gebruikers -->
       <div class="card mb-3">
-        <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">Het Peloton</h5></div>
+        <div class="card-header"><h5 class="mb-0">Het Peloton</h5></div>
         <div class="card-body p-0 table-responsive-wrapper">
           <table class="table table-sm table-striped mb-0">
             <thead><tr><th>Naam</th><th id="peloton-email-col" style="display:none;">Email</th><th class="d-none d-md-table-cell">Rol</th><th class="d-none d-md-table-cell">Lid sinds</th><th class="d-none d-md-table-cell">Laatst gezien</th><th id="peloton-actions-col" style="display:none;">Acties</th></tr></thead>
@@ -342,7 +342,7 @@
       <div class="row g-4">
         <div class="col-md-6">
           <div class="card">
-            <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg> Account Instellingen</h5></div>
+            <div class="card-header"><h5 class="mb-0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg> Account Instellingen</h5></div>
             <div class="card-body">
               <div class="mb-3 d-flex align-items-center gap-3">
                 <div class="avatar-upload-wrapper">
@@ -423,7 +423,7 @@
         </div>
         <div class="col-md-6">
           <div class="card">
-            <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg> Spelregels</h5></div>
+            <div class="card-header"><h5 class="mb-0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg> Spelregels</h5></div>
             <div class="card-body" style="font-size:0.83rem; line-height:1.7;">
               <p class="mb-2"><strong>Basis</strong></p>
               <ul class="ps-3 mb-3">
@@ -476,7 +476,7 @@
             </div>
           </div>
           <div class="card mt-3">
-            <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><circle cx="12" cy="16" r="5"/><path d="M8.56 2.9A7 7 0 0 1 19 9v1h-2"/><path d="M7 10.72V9a7 7 0 0 1 .89-3.45"/></svg> Rollen</h5></div>
+            <div class="card-header"><h5 class="mb-0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><circle cx="12" cy="16" r="5"/><path d="M8.56 2.9A7 7 0 0 1 19 9v1h-2"/><path d="M7 10.72V9a7 7 0 0 1 .89-3.45"/></svg> Rollen</h5></div>
             <div class="card-body" style="font-size:0.83rem; line-height:1.7;">
               <ul class="mb-0 ps-3">
                 <li><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> <strong>Ploegleider</strong> — Admin</li>
@@ -506,7 +506,7 @@
       <!-- Admin: Gebruikers -->
       <div class="admin-sub active" id="admin-users">
         <div class="card mb-3">
-          <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">Speler Aanmaken</h5></div>
+          <div class="card-header"><h5 class="mb-0">Speler Aanmaken</h5></div>
           <div class="card-body">
             <div class="row g-2">
               <div class="col-md-3">
@@ -527,7 +527,7 @@
         </div>
         <div class="card">
           <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0" style="font-size:0.95rem;">Gebruikers</h5>
+            <h5 class="mb-0">Gebruikers</h5>
             <span id="user-count" class="badge bg-secondary"></span>
           </div>
           <div class="card-body p-0">
@@ -542,7 +542,7 @@
       <!-- Admin: Rondes -->
       <div class="admin-sub" id="admin-competitions">
         <div class="card mb-3">
-          <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">Ronde Toevoegen</h5></div>
+          <div class="card-header"><h5 class="mb-0">Ronde Toevoegen</h5></div>
           <div class="card-body">
             <div class="row g-2">
               <div class="col-md-4">
@@ -591,7 +591,7 @@
       <!-- Admin: Renners -->
       <div class="admin-sub" id="admin-riders">
         <div class="card mb-3">
-          <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">Renner Toevoegen</h5></div>
+          <div class="card-header"><h5 class="mb-0">Renner Toevoegen</h5></div>
           <div class="card-body">
             <div class="row g-2">
               <div class="col-md-2">
@@ -611,7 +611,7 @@
         </div>
         <div class="card">
           <div class="card-header d-flex justify-content-between align-items-center gap-2">
-            <h5 class="mb-0" style="font-size:0.95rem;">Renners</h5>
+            <h5 class="mb-0">Renners</h5>
             <div class="d-flex gap-2">
               <select id="admin-rider-comp-filter" class="form-select form-select-sm" style="width:auto;"></select>
               <input type="text" id="admin-rider-search" class="form-control form-control-sm" style="width:200px;" placeholder="Zoek..." />
@@ -629,7 +629,7 @@
       <!-- Admin: Etappes -->
       <div class="admin-sub" id="admin-stages">
         <div class="card mb-3">
-          <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">Etappe Toevoegen</h5></div>
+          <div class="card-header"><h5 class="mb-0">Etappe Toevoegen</h5></div>
           <div class="card-body">
             <div class="row g-2">
               <div class="col-6 col-md-1">
@@ -676,7 +676,7 @@
         <!-- PCS Resultaten Sync -->
         <div class="card mb-3">
           <div class="card-header">
-            <h5 class="mb-0" style="font-size:0.95rem;">📊 Uitslagen importeren</h5>
+            <h5 class="mb-0">📊 Uitslagen importeren</h5>
             <p class="mb-0 text-muted" style="font-size:0.72rem;">Haal finish-tijden, punten en bergpunten op van PCS na afloop van een etappe.</p>
           </div>
           <div class="card-body">
@@ -711,7 +711,7 @@
 
         <!-- Handmatig -->
         <div class="card">
-          <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">Handmatig Invoeren</h5></div>
+          <div class="card-header"><h5 class="mb-0">Handmatig Invoeren</h5></div>
           <div class="card-body">
             <div class="mb-3">
               <label class="form-label" style="font-size:0.8rem; color:var(--text-muted);">Etappe</label>
@@ -729,7 +729,7 @@
         <!-- Directe PCS Sync -->
         <div class="card mb-3" style="border-color: var(--accent);">
           <div class="card-header" style="background: var(--accent-bg);">
-            <h5 class="mb-0" style="font-size:0.95rem;">🏁 Ronde klaarzetten</h5>
+            <h5 class="mb-0">🏁 Ronde klaarzetten</h5>
             <p class="mb-0 text-muted" style="font-size:0.72rem;">Importeer etappes, renners en race-info vanuit PCS. Doe dit <strong>voor</strong> de ronde begint.</p>
           </div>
           <div class="card-body">
@@ -773,7 +773,7 @@
 
         <p class="text-muted mb-3" style="font-size:0.75rem;">Of importeer handmatig per onderdeel:</p>
         <div class="card mb-3">
-          <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">Renners Importeren</h5></div>
+          <div class="card-header"><h5 class="mb-0">Renners Importeren</h5></div>
           <div class="card-body">
             <p class="text-muted" style="font-size:0.8rem;">
               Plak rennerdata uit ProCyclingStats of FirstCycling. Formaat per regel:<br>
@@ -796,7 +796,7 @@
         </div>
 
         <div class="card mb-3">
-          <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">Etappes Importeren (handmatig)</h5></div>
+          <div class="card-header"><h5 class="mb-0">Etappes Importeren (handmatig)</h5></div>
           <div class="card-body">
             <p class="text-muted" style="font-size:0.8rem;">
               Formaat per regel: <code>nummer, naam, datum (YYYY-MM-DD), type (flat/mountain/tt/sprint)</code><br>
@@ -818,7 +818,7 @@
         </div>
 
         <div class="card">
-          <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">PCS Startlijst Ophalen</h5></div>
+          <div class="card-header"><h5 class="mb-0">PCS Startlijst Ophalen</h5></div>
           <div class="card-body">
             <p class="text-muted" style="font-size:0.8rem;">
               Snel renners ophalen via een ProCyclingStats race-URL.<br>
@@ -833,7 +833,7 @@
       <!-- Admin: Pot -->
       <div class="admin-sub" id="admin-pot">
         <div class="card mb-3">
-          <div class="card-header"><h5 class="mb-0" style="font-size:0.95rem;">💰 Inlegpot beheren</h5></div>
+          <div class="card-header"><h5 class="mb-0">💰 Inlegpot beheren</h5></div>
           <div class="card-body">
             <div class="row g-2 align-items-end mb-3">
               <div class="col-auto">
