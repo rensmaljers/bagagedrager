@@ -1,74 +1,102 @@
-    /* ========== THEME VARIABLES ========== */
+    /* ========== THEME VARIABLES — "Koersdag": koersposter × broadcast ========== */
     :root, [data-theme="dark"] {
-      --bg: #0c0d12;
-      --bg-card: #15161d;
-      --bg-card-hover: #1c1d26;
-      --border: #252733;
-      --text: #e8e8ec;
-      --text-muted: #6b6d7a;
+      --bg: #0a0b10;
+      --bg-card: #14151d;
+      --bg-card-hover: #1b1d27;
+      --border: #272938;
+      --text: #ecebee;
+      --text-muted: #777989;
       --accent: #f5c518;
-      --accent-hover: #d4a90f;
-      --accent-text: #0c0d12;
-      --green: #22c55e;
-      --green-dim: rgba(34,197,94,0.12);
-      --red: #ef4444;
-      --red-dim: rgba(239,68,68,0.12);
+      --accent-hover: #ffd83d;
+      --accent-text: #14130b;
+      --green: #2dd66c;
+      --green-dim: rgba(45,214,108,0.12);
+      --red: #f4503e;
+      --red-dim: rgba(244,80,62,0.12);
       --pink: #ec4899;
-      --blue: #3b82f6;
-      --blue-dim: rgba(59,130,246,0.1);
-      --hover-overlay: rgba(255,255,255,0.04);
+      --blue: #4d8dff;
+      --blue-dim: rgba(77,141,255,0.1);
+      --hover-overlay: rgba(255,255,255,0.045);
       --stripe: rgba(255,255,255,0.025);
       --badge-muted-bg: rgba(255,255,255,0.07);
-      --accent-dim: rgba(245,197,24,0.12);
-      --accent-bg: rgba(245,197,24,0.06);
-      --jersey-gc-bg: linear-gradient(135deg, rgba(245,197,24,0.14), rgba(245,197,24,0.04));
-      --jersey-pts-bg: linear-gradient(135deg, rgba(34,197,94,0.14), rgba(34,197,94,0.04));
-      --jersey-mt-bg: linear-gradient(135deg, rgba(239,68,68,0.14), rgba(239,68,68,0.04));
-      --jersey-game-bg: linear-gradient(135deg, rgba(168,85,247,0.14), rgba(168,85,247,0.04));
-      --purple: #a855f7;
-      --radius: 10px;
-      --radius-lg: 14px;
+      --accent-dim: rgba(245,197,24,0.14);
+      --accent-bg: rgba(245,197,24,0.07);
+      --jersey-gc-bg: linear-gradient(135deg, rgba(245,197,24,0.16), rgba(245,197,24,0.04));
+      --jersey-pts-bg: linear-gradient(135deg, rgba(45,214,108,0.16), rgba(45,214,108,0.04));
+      --jersey-mt-bg: linear-gradient(135deg, rgba(244,80,62,0.16), rgba(244,80,62,0.04));
+      --jersey-game-bg: linear-gradient(135deg, rgba(180,108,249,0.16), rgba(180,108,249,0.04));
+      --purple: #b46cf9;
+      --radius: 8px;
+      --radius-lg: 12px;
+      --display: 'Khand', 'Satoshi', sans-serif;
+      --checker: rgba(255,255,255,0.10);
+      --card-shadow: 0 1px 0 rgba(255,255,255,0.03) inset, 0 12px 30px -20px rgba(0,0,0,0.9);
+      --card-shadow-hover: 0 16px 40px -20px rgba(0,0,0,0.95);
+      --page-glow: radial-gradient(70% 45% at 50% 0%, rgba(245,197,24,0.06), transparent 70%);
     }
 
     [data-theme="light"] {
-      --bg: #f0f0f2;
-      --bg-card: #ffffff;
-      --bg-card-hover: #f7f7f9;
-      --border: #dcdce0;
-      --text: #111114;
-      --text-muted: #6b6d7a;
-      --accent: #c88400;
-      --accent-hover: #a06800;
-      --accent-text: #ffffff;
-      --green: #16a34a;
-      --green-dim: rgba(22,163,74,0.1);
-      --red: #dc2626;
-      --red-dim: rgba(220,38,38,0.08);
+      --bg: #f3efe3;
+      --bg-card: #fcfaf3;
+      --bg-card-hover: #f6f2e6;
+      --border: #ded7c2;
+      --text: #1d1a10;
+      --text-muted: #7a745f;
+      --accent: #a87400;
+      --accent-hover: #8a5e00;
+      --accent-text: #fffdf5;
+      --green: #157f3c;
+      --green-dim: rgba(21,127,60,0.1);
+      --red: #c52f1d;
+      --red-dim: rgba(197,47,29,0.09);
       --pink: #db2777;
-      --blue: #2563eb;
-      --blue-dim: rgba(37,99,235,0.08);
-      --hover-overlay: rgba(0,0,0,0.025);
-      --stripe: rgba(0,0,0,0.018);
-      --badge-muted-bg: rgba(0,0,0,0.05);
-      --accent-dim: rgba(200,132,0,0.1);
-      --accent-bg: rgba(200,132,0,0.05);
-      --jersey-gc-bg: linear-gradient(135deg, rgba(200,132,0,0.1), rgba(200,132,0,0.03));
-      --jersey-pts-bg: linear-gradient(135deg, rgba(22,163,74,0.1), rgba(22,163,74,0.03));
-      --jersey-mt-bg: linear-gradient(135deg, rgba(220,38,38,0.08), rgba(220,38,38,0.03));
-      --jersey-game-bg: linear-gradient(135deg, rgba(147,51,234,0.1), rgba(147,51,234,0.03));
-      --purple: #9333ea;
+      --blue: #1d5fd6;
+      --blue-dim: rgba(29,95,214,0.09);
+      --hover-overlay: rgba(60,46,4,0.05);
+      --stripe: rgba(60,46,4,0.03);
+      --badge-muted-bg: rgba(60,46,4,0.07);
+      --accent-dim: rgba(168,116,0,0.14);
+      --accent-bg: rgba(168,116,0,0.06);
+      --jersey-gc-bg: linear-gradient(135deg, rgba(168,116,0,0.12), rgba(168,116,0,0.03));
+      --jersey-pts-bg: linear-gradient(135deg, rgba(21,127,60,0.12), rgba(21,127,60,0.03));
+      --jersey-mt-bg: linear-gradient(135deg, rgba(197,47,29,0.1), rgba(197,47,29,0.03));
+      --jersey-game-bg: linear-gradient(135deg, rgba(124,58,237,0.11), rgba(124,58,237,0.03));
+      --purple: #7c3aed;
+      --checker: rgba(29,26,16,0.18);
+      --card-shadow: 0 1px 2px rgba(73,60,24,0.05), 0 8px 20px -14px rgba(73,60,24,0.25);
+      --card-shadow-hover: 5px 5px 0 rgba(29,26,16,0.07);
+      --page-glow: none;
     }
 
     * { font-family: 'Satoshi', system-ui, sans-serif; }
     body {
       background: var(--bg);
+      background-image: var(--page-glow);
+      background-attachment: fixed;
       color: var(--text);
       transition: background 0.2s, color 0.2s;
     }
-    h1, h2, h3, h4, h5, .navbar-brand, .auth-card h1 {
-      font-family: 'Satoshi', sans-serif;
-      font-weight: 900;
-      letter-spacing: -0.02em;
+    /* Filmkorrel over de hele pagina — heel subtiel, geeft posterpapier-gevoel */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 99999;
+      opacity: 0.035;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+    [data-theme="light"] body::after { opacity: 0.05; }
+    ::selection { background: var(--accent); color: var(--accent-text); }
+    h1, h2, h3, h4, h5, h6, .navbar-brand, .auth-card h1 {
+      font-family: var(--display);
+      font-weight: 600;
+      letter-spacing: 0.015em;
+    }
+    .card-header h5, .card-header h6 {
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 600;
     }
 
     /* --- THEME TOGGLE --- */
@@ -84,9 +112,10 @@
       font-size: 1rem;
       padding: 0;
     }
-    .theme-toggle:hover { border-color: var(--text-muted); color: var(--text); }
+    .theme-toggle:hover { border-color: var(--text-muted); color: var(--text); transform: rotate(18deg) scale(1.06); }
+    .theme-toggle:active { transform: rotate(180deg) scale(0.95); }
 
-    /* --- NAVBAR --- */
+    /* --- NAVBAR (met finishlijn-checkerboard onderaan) --- */
     .navbar {
       background: var(--bg-card) !important;
       border-bottom: 1px solid var(--border);
@@ -97,12 +126,21 @@
       backdrop-filter: blur(16px);
       background: color-mix(in srgb, var(--bg-card) 85%, transparent) !important;
     }
+    .navbar::after {
+      content: '';
+      position: absolute;
+      left: 0; right: 0; bottom: -9px;
+      height: 8px;
+      pointer-events: none;
+      background: repeating-conic-gradient(var(--checker) 0% 25%, transparent 0% 50%);
+      background-size: 8px 8px;
+    }
     .navbar-brand {
-      font-family: 'Satoshi', sans-serif;
-      font-weight: 900;
-      font-size: 1.1rem;
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: 1.35rem;
       color: var(--accent) !important;
-      letter-spacing: 1.5px;
+      letter-spacing: 2px;
       text-transform: uppercase;
       display: flex;
       align-items: center;
@@ -112,9 +150,9 @@
     .navbar-brand .brand-logo {
       width: 26px; height: 26px;
       flex-shrink: 0;
-      transition: transform 0.3s;
+      transition: transform 0.8s cubic-bezier(0.45, 0, 0.2, 1);
     }
-    .navbar-brand:hover .brand-logo { transform: rotate(20deg); }
+    .navbar-brand:hover .brand-logo { transform: rotate(360deg); }
 
     /* --- CARDS --- */
     .card {
@@ -122,10 +160,12 @@
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
       overflow: hidden;
-      transition: border-color 0.2s, box-shadow 0.2s;
+      box-shadow: var(--card-shadow);
+      transition: border-color 0.2s, box-shadow 0.25s, transform 0.25s;
     }
     .card:not(.pick-card):hover {
       border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+      box-shadow: var(--card-shadow-hover);
     }
     .card-header {
       background: transparent;
@@ -133,10 +173,11 @@
       padding: 0.85rem 1.15rem;
     }
 
-    /* --- JERSEY HEADERS --- */
+    /* --- JERSEY HEADERS — truikleurblok links + lijn onder --- */
     .jersey-gc, .jersey-points, .jersey-mountain, .jersey-game {
       position: relative;
       overflow: hidden;
+      padding-left: 1.35rem;
     }
     .jersey-gc::after, .jersey-points::after, .jersey-mountain::after, .jersey-game::after {
       content: '';
@@ -144,6 +185,16 @@
       bottom: 0; left: 0; right: 0;
       height: 3px;
     }
+    .jersey-gc::before, .jersey-points::before, .jersey-mountain::before, .jersey-game::before {
+      content: '';
+      position: absolute;
+      top: 0; bottom: 0; left: 0;
+      width: 6px;
+    }
+    .jersey-gc::before { background: var(--accent); }
+    .jersey-points::before { background: var(--green); }
+    .jersey-mountain::before { background: var(--red); }
+    .jersey-game::before { background: var(--purple); }
     .jersey-gc {
       background: var(--jersey-gc-bg);
     }
@@ -216,24 +267,39 @@
     }
     .table td { color: var(--text); border-bottom-color: var(--border); vertical-align: middle; }
     .table-striped > tbody > tr:nth-of-type(odd) > * { --bs-table-bg-type: var(--stripe); }
-    .time { font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; font-size: 0.85rem; }
+    .time { font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace; font-size: 0.85rem; font-variant-numeric: tabular-nums; }
 
-    /* --- NAV PILLS --- */
+    /* --- NAV PILLS — broadcast-tabs met schuin actief vlak --- */
     .nav-pills .nav-link {
       color: var(--text-muted);
       border-radius: var(--radius);
-      padding: 0.45rem 0.9rem;
-      font-weight: 700;
-      font-size: 0.82rem;
-      transition: all 0.15s;
-      letter-spacing: 0.02em;
+      padding: 0.45rem 1rem;
+      font-family: var(--display);
+      font-weight: 600;
+      font-size: 0.95rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      transition: color 0.15s, background 0.15s;
+      position: relative;
+      z-index: 1;
     }
     .nav-pills .nav-link:hover { color: var(--text); background: var(--hover-overlay); }
     .nav-pills .nav-link.active {
-      background: var(--comp-color, var(--accent));
+      background: transparent;
       color: var(--accent-text);
-      box-shadow: 0 2px 8px color-mix(in srgb, var(--comp-color, var(--accent)) 30%, transparent);
     }
+    .nav-pills .nav-link.active::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      background: var(--comp-color, var(--accent));
+      border-radius: 6px;
+      transform: skewX(-8deg);
+      box-shadow: 0 2px 10px color-mix(in srgb, var(--comp-color, var(--accent)) 35%, transparent);
+      animation: tab-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @keyframes tab-pop { from { transform: skewX(-8deg) scale(0.75); opacity: 0.4; } }
 
     /* --- NAV TABS (admin) --- */
     .nav-tabs { border-bottom-color: var(--border); }
@@ -278,7 +344,22 @@
       color: var(--accent-text);
       border: none;
       box-shadow: 0 2px 8px color-mix(in srgb, var(--comp-color, var(--accent)) 25%, transparent);
+      position: relative;
+      overflow: hidden;
     }
+    /* Shine sweep over accent-knoppen bij hover */
+    .btn-accent::after {
+      content: '';
+      position: absolute;
+      top: 0; bottom: 0;
+      left: -130%;
+      width: 60%;
+      background: linear-gradient(105deg, transparent, rgba(255,255,255,0.5), transparent);
+      transform: skewX(-20deg);
+      transition: left 0.5s ease;
+      pointer-events: none;
+    }
+    .btn-accent:hover::after { left: 140%; }
     .btn-accent:hover { background: var(--accent-hover); color: var(--accent-text); transform: translateY(-1px); box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 35%, transparent); }
     .btn-accent:disabled { opacity: 0.4; transform: none; box-shadow: none; }
     .btn-ghost {
@@ -304,14 +385,18 @@
     .pick-card:not(.used):not(.selected):hover {
       border-color: var(--accent);
       background: var(--bg-card-hover);
-      transform: translateY(-2px);
-      box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+      transform: translateY(-3px) rotate(-0.4deg);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.12);
     }
+    .pick-card:not(.used):not(.selected):hover .rider-photo { transform: scale(1.12); }
+    .pick-card .rider-photo { transition: transform 0.25s ease; }
     .pick-card.selected {
       border: 2px solid var(--comp-color, var(--accent)) !important;
       background: color-mix(in srgb, var(--comp-color, var(--accent)) 8%, transparent);
       box-shadow: 0 0 0 3px color-mix(in srgb, var(--comp-color, var(--accent)) 12%, transparent);
+      animation: card-select 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
+    @keyframes card-select { 50% { transform: scale(1.025); } }
     .pick-card.selected::after {
       content: '✓';
       position: absolute;
@@ -322,7 +407,9 @@
       border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
       font-size: 0.65rem; font-weight: 800;
+      animation: check-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
+    @keyframes check-pop { from { transform: scale(0) rotate(-120deg); } }
     /* Bevestigde keuze blijft gemarkeerd terwijl een andere renner geselecteerd is */
     .pick-card.current-pick {
       border: 2px dashed var(--comp-color, var(--accent)) !important;
@@ -418,6 +505,7 @@
       transition: transform 0.15s;
     }
     .avatar-upload-btn:hover { transform: scale(1.1); }
+    /* Rugnummer-look: Khand zoals op een echt dossard */
     .pick-card .bib-badge {
       display: inline-flex;
       align-items: center;
@@ -427,8 +515,9 @@
       border-radius: 4px;
       background: var(--badge-muted-bg);
       color: var(--text-muted);
-      font-size: 0.65rem;
-      font-weight: 700;
+      font-family: var(--display);
+      font-size: 0.8rem;
+      font-weight: 600;
       padding: 0 4px;
     }
 
@@ -455,18 +544,21 @@
       scrollbar-width: none;
     }
     .stage-timeline::-webkit-scrollbar { display: none; }
+    /* Kilometerpaaltjes: vierkant met afgeronde hoeken, Khand-cijfers */
     .stage-dot {
       flex-shrink: 0;
       width: 34px; height: 34px;
-      border-radius: 50%;
+      border-radius: 9px;
       display: flex; align-items: center; justify-content: center;
-      font-size: 0.68rem; font-weight: 800;
+      font-family: var(--display);
+      font-size: 0.85rem; font-weight: 600;
       border: 2.5px solid var(--border);
       background: var(--bg-card);
       color: var(--text-muted);
       cursor: default;
-      transition: all 0.2s;
+      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
+    .stage-dot:hover { transform: translateY(-3px) rotate(-4deg) scale(1.1); }
     .stage-dot.completed { background: var(--green-dim); border-color: var(--green); color: var(--green); box-shadow: 0 0 0 2px color-mix(in srgb, var(--green) 10%, transparent); }
     .stage-dot.locked { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
     .stage-dot.open { background: color-mix(in srgb, var(--comp-color, var(--blue)) 15%, transparent); border-color: var(--comp-color, var(--blue)); color: var(--comp-color, var(--blue)); animation: pulse-dot 2s ease-in-out infinite; }
@@ -572,7 +664,9 @@
       padding: 0.75rem 1rem;
       box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
       margin: 1rem -0.75rem -0.75rem;
+      animation: bar-up 0.35s cubic-bezier(0.22, 1, 0.36, 1);
     }
+    @keyframes bar-up { from { transform: translateY(100%); opacity: 0; } }
     .pick-bar-inner {
       display: flex;
       align-items: center;
@@ -743,7 +837,7 @@
       color: var(--text);
       min-width: 220px;
       max-width: 360px;
-      animation: toast-in 0.3s ease-out;
+      animation: toast-in 0.45s cubic-bezier(0.34, 1.4, 0.64, 1);
       transition: opacity 0.3s, transform 0.3s;
     }
     .toast.removing { opacity: 0; transform: translateX(100%); }
@@ -890,7 +984,7 @@
       border-radius: var(--radius);
     }
     .h2h-stat-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; font-weight: 700; }
-    .h2h-stat-value { font-size: 1.2rem; font-weight: 800; }
+    .h2h-stat-value { font-size: 1.5rem; font-weight: 600; font-family: var(--display); line-height: 1.1; }
 
     /* --- RIDER PHOTO & DETAILS --- */
     .rider-photo {
@@ -1027,33 +1121,37 @@
       background: linear-gradient(90deg, var(--accent) 0%, var(--green) 33%, var(--red) 66%, var(--purple) 100%);
     }
     .auth-card h1 {
-      font-family: 'Satoshi', sans-serif;
+      font-family: var(--display);
       color: var(--accent);
-      font-size: 1.7rem;
+      font-size: 2.1rem;
       letter-spacing: 5px;
       text-transform: uppercase;
-      font-weight: 900;
+      font-weight: 700;
     }
     .auth-logo-svg {
       width: 68px; height: 68px;
       margin-bottom: 0.75rem;
       color: var(--accent);
       filter: drop-shadow(0 2px 8px color-mix(in srgb, var(--accent) 25%, transparent));
+      animation: logo-float 3.5s ease-in-out infinite;
     }
+    @keyframes logo-float { 50% { transform: translateY(-6px) rotate(3deg); } }
     .auth-subtitle {
       font-size: 0.82rem;
       line-height: 1.5;
       letter-spacing: 0.01em;
     }
 
-    /* Road stripe decoratie onder auth card */
+    /* Road stripe decoratie onder auth card — rijdt langzaam voorbij */
     .auth-road {
       height: 5px;
       background: repeating-linear-gradient(90deg, var(--accent) 0, var(--accent) 16px, transparent 16px, transparent 24px);
       border-radius: 3px;
       margin-top: 1.25rem;
       opacity: 0.3;
+      animation: road-roll 1.4s linear infinite;
     }
+    @keyframes road-roll { to { background-position: 24px 0; } }
 
     /* --- AUTH INTRO PANEL --- */
     .auth-intro {
@@ -1137,8 +1235,27 @@
       border-bottom: 1px solid var(--border);
       background: var(--accent-bg);
       gap: 0.75rem;
+      position: relative;
+      overflow: hidden;
     }
     .leader-hero:not(:empty) { display: flex; }
+    /* Periodieke shine sweep over de leider */
+    .leader-hero::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.08) 50%, transparent 65%);
+      transform: translateX(-100%);
+      animation: hero-shine 5s ease-in-out infinite;
+    }
+    [data-theme="light"] .leader-hero::after {
+      background: linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.55) 50%, transparent 65%);
+    }
+    @keyframes hero-shine {
+      0%, 60% { transform: translateX(-100%); }
+      85%, 100% { transform: translateX(100%); }
+    }
     /* Jersey-specifieke achtergrond- en scorekkleuren */
     .jersey-gc      + .leader-hero { background: var(--jersey-gc-bg); }
     .jersey-points  + .leader-hero { background: var(--jersey-pts-bg); }
@@ -1170,16 +1287,25 @@
       margin-top: 0.05rem;
     }
     .leader-hero-score {
-      font-size: 1.05rem;
-      font-weight: 900;
-      font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+      font-size: 1.45rem;
+      font-weight: 600;
+      font-family: var(--display);
+      font-variant-numeric: tabular-nums;
       white-space: nowrap;
       flex-shrink: 0;
+      line-height: 1;
     }
 
-    /* --- LEADER ROW (first place highlight in standings tables) --- */
+    /* --- LEADER ROW (first place highlight + langzame shimmer) --- */
     .leader-row > td {
-      background: color-mix(in srgb, var(--accent) 7%, transparent) !important;
+      background-color: color-mix(in srgb, var(--accent) 7%, transparent) !important;
+      background-image: linear-gradient(105deg, transparent 42%, color-mix(in srgb, var(--accent) 16%, transparent) 50%, transparent 58%);
+      background-size: 250% 100%;
+      animation: row-shimmer 4s linear infinite;
+    }
+    @keyframes row-shimmer {
+      from { background-position: 130% 0; }
+      to { background-position: -130% 0; }
     }
 
     /* --- SVG ICONS --- */
@@ -1194,10 +1320,11 @@
     .jersey-mountain .icon-jersey { color: var(--red); }
     .jersey-game  .icon-jersey { color: var(--purple); }
 
-    /* --- RANK NUMBER --- */
-    .rank-1 { color: var(--accent); font-weight: 800; font-size: 1rem; }
-    .rank-2 { color: #a8a29e; font-weight: 700; }
-    .rank-3 { color: #b45309; font-weight: 700; }
+    /* --- RANK NUMBER — Khand, broadcast-stijl --- */
+    .rank-1, .rank-2, .rank-3 { font-family: var(--display); }
+    .rank-1 { color: var(--accent); font-weight: 700; font-size: 1.2rem; }
+    .rank-2 { color: #a8a29e; font-weight: 600; font-size: 1.05rem; }
+    .rank-3 { color: #b45309; font-weight: 600; font-size: 1.05rem; }
     .rank-change { font-size: 0.6em; font-weight: 700; vertical-align: super; margin-left: 2px; white-space: nowrap; }
     .rank-up   { color: #22c55e; }
     .rank-down { color: #ef4444; }
@@ -1508,11 +1635,98 @@
     }
 
     @media (max-width: 400px) {
-      .navbar-brand { font-size: 1rem; }
+      .navbar-brand { font-size: 1.15rem; }
       #user-name { display: none; }
       .pick-card .fw-bold { font-size: 0.75rem; }
       #main-tabs .nav-link {
         padding: 0.35rem 0.45rem;
         font-size: 0.7rem;
+      }
+    }
+
+    /* ========== MICRO-ANIMATIES: ENTRANCES ========== */
+    @keyframes rise-in {
+      from { opacity: 0; transform: translateY(14px); }
+      to { opacity: 1; transform: none; }
+    }
+    @keyframes row-in {
+      from { opacity: 0; transform: translateX(-10px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    /* Kaarten komen gestaggerd omhoog bij tab-wissel / render */
+    .tab-section.active > .card,
+    .tab-section.active > .row > [class*="col-"] > .card,
+    .tab-section.active .admin-sub.active > .card {
+      animation: rise-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+    }
+    #standings-row > [class*="col-"]:nth-child(2) > .card { animation-delay: 0.06s; }
+    #standings-row > [class*="col-"]:nth-child(3) > .card { animation-delay: 0.12s; }
+    #standings-row > [class*="col-"]:nth-child(4) > .card { animation-delay: 0.18s; }
+    #standings-row > [class*="col-"]:nth-child(5) > .card { animation-delay: 0.24s; }
+
+    /* Tabelrijen druppelen binnen */
+    .tab-section.active tbody tr { animation: row-in 0.35s ease-out backwards; }
+    .tab-section.active tbody tr:nth-child(1) { animation-delay: 0.03s; }
+    .tab-section.active tbody tr:nth-child(2) { animation-delay: 0.06s; }
+    .tab-section.active tbody tr:nth-child(3) { animation-delay: 0.09s; }
+    .tab-section.active tbody tr:nth-child(4) { animation-delay: 0.12s; }
+    .tab-section.active tbody tr:nth-child(5) { animation-delay: 0.15s; }
+    .tab-section.active tbody tr:nth-child(6) { animation-delay: 0.18s; }
+    .tab-section.active tbody tr:nth-child(7) { animation-delay: 0.21s; }
+    .tab-section.active tbody tr:nth-child(8) { animation-delay: 0.24s; }
+
+    /* Rennersgrid: teams gestaggerd */
+    #rider-grid > .rider-team-group { animation: rise-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+    #rider-grid > .rider-team-group:nth-child(2) { animation-delay: 0.05s; }
+    #rider-grid > .rider-team-group:nth-child(3) { animation-delay: 0.1s; }
+    #rider-grid > .rider-team-group:nth-child(4) { animation-delay: 0.15s; }
+    #rider-grid > .rider-team-group:nth-child(5) { animation-delay: 0.2s; }
+
+    /* Etappe-tijdlijn paaltjes */
+    .stage-timeline .stage-dot { animation: rise-in 0.4s ease-out backwards; }
+    .stage-timeline .stage-dot:nth-child(2) { animation-delay: 0.02s; }
+    .stage-timeline .stage-dot:nth-child(3) { animation-delay: 0.04s; }
+    .stage-timeline .stage-dot:nth-child(4) { animation-delay: 0.06s; }
+    .stage-timeline .stage-dot:nth-child(5) { animation-delay: 0.08s; }
+    .stage-timeline .stage-dot:nth-child(6) { animation-delay: 0.1s; }
+    .stage-timeline .stage-dot:nth-child(7) { animation-delay: 0.12s; }
+    .stage-timeline .stage-dot:nth-child(8) { animation-delay: 0.14s; }
+    .stage-timeline .stage-dot:nth-child(9) { animation-delay: 0.16s; }
+    .stage-timeline .stage-dot:nth-child(10) { animation-delay: 0.18s; }
+    .stage-timeline .stage-dot:nth-child(n+11) { animation-delay: 0.2s; }
+
+    /* Auth-scherm entrance */
+    .auth-card { animation: rise-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards; animation-delay: 0.1s; }
+    .auth-intro h2 { animation: rise-in 0.5s ease-out backwards; }
+    .auth-intro p { animation: rise-in 0.5s ease-out 0.08s backwards; }
+    .auth-features li { animation: row-in 0.4s ease-out backwards; }
+    .auth-features li:nth-child(1) { animation-delay: 0.16s; }
+    .auth-features li:nth-child(2) { animation-delay: 0.24s; }
+    .auth-features li:nth-child(3) { animation-delay: 0.32s; }
+    .auth-features li:nth-child(4) { animation-delay: 0.4s; }
+
+    /* Avatar-zoom bij hover */
+    .avatar img { transition: transform 0.25s ease; }
+    .avatar:hover img { transform: scale(1.1); }
+
+    /* Tooltip popt zachtjes */
+    .tip-popup { transform: translateY(4px) scale(0.97); transition: opacity 0.18s, transform 0.18s cubic-bezier(0.34, 1.3, 0.64, 1); }
+    .tip-popup.visible { transform: none; }
+
+    /* Comp-selector in broadcast-stijl */
+    .comp-selector select {
+      font-family: var(--display);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      font-size: 0.95rem;
+    }
+
+    /* ========== TOEGANKELIJKHEID: REDUCED MOTION ========== */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
       }
     }
