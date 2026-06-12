@@ -77,21 +77,18 @@ export async function loadStandings() {
   const isClassic = mode === 'classic';
   const myName = state.profile?.display_name;
 
-  // Show/hide cards based on scoring mode
+  // Kaarten per scoring mode: hoofdkolom toont AK (grote ronde) of Spel (klassieker)
   $('gc-card').style.display = isClassic ? 'none' : '';
   $('points-card').style.display = isClassic ? 'none' : '';
   $('mountain-card').style.display = isClassic ? 'none' : '';
   $('combativity-card').style.display = '';  // altijd zichtbaar
   $('game-card').style.display = isClassic ? '' : 'none';
 
-  // Adjust column widths
-  const cards = ['gc-card', 'points-card', 'mountain-card', 'combativity-card', 'game-card'];
-  cards.forEach(id => {
-    const el = $(id);
-    if (el.style.display !== 'none') {
-      el.className = 'col-md-6';
-    }
-  });
+  // Persoonlijke status-strip: gevuld tijdens het renderen van de klassementen
+  const statusEntries: { label: string; value: string; sub?: string; deltaHtml?: string }[] = [];
+  const deltaChip = (d?: number | null) => d
+    ? `<span class="my-status-delta ${d > 0 ? 'rank-up' : 'rank-down'}">${d > 0 ? '↑' : '↓'}${Math.abs(d) > 1 ? Math.abs(d) : ''}</span>`
+    : '';
 
   // Rivalry tracker helper: add row showing gap to neighbor above only
   function rivalryRow(sorted, myIdx, valueFn, isTime) {
@@ -191,6 +188,28 @@ export async function loadStandings() {
     renderClassification('mountain-table', mt, s => s.total_mountain_points, (s) => s.total_mountain_points, false,
       mt.length > 0 ? mt[0].total_mountain_points + ' pts' : null, mtDeltas, 'mountain');
 
+    // Status-strip: AK, Punten, Berg
+    const myGcIdx = gc.findIndex(s => s.display_name === myName);
+    if (myGcIdx >= 0) statusEntries.push({
+      label: 'Algemeen',
+      value: `${myGcIdx + 1}e`,
+      sub: myGcIdx > 0 ? `${formatGap(gc[myGcIdx].total_time - leaderTime)} achter` : 'aan de leiding',
+      deltaHtml: deltaChip(gcDeltas?.get(gc[myGcIdx].user_id)),
+    });
+    const myPtsIdx = pts.findIndex(s => s.display_name === myName);
+    if (myPtsIdx >= 0) statusEntries.push({
+      label: 'Punten',
+      value: `${myPtsIdx + 1}e`,
+      sub: `${pts[myPtsIdx].total_points} pts`,
+      deltaHtml: deltaChip(ptsDeltas?.get(pts[myPtsIdx].user_id)),
+    });
+    const myMtIdx = mt.findIndex(s => s.display_name === myName);
+    if (myMtIdx >= 0) statusEntries.push({
+      label: 'Berg',
+      value: `${myMtIdx + 1}e`,
+      sub: `${mt[myMtIdx].total_mountain_points} pts`,
+      deltaHtml: deltaChip(mtDeltas?.get(mt[myMtIdx].user_id)),
+    });
   }
 
   const cv = [...standings].sort((a, b) => (b.total_combativity_points || 0) - (a.total_combativity_points || 0));
@@ -204,11 +223,77 @@ export async function loadStandings() {
   renderClassification('game-table', gp, s => s.total_game_points, (s) => s.total_game_points || 0, false,
     gp.length > 0 ? (gp[0].total_game_points || 0) + ' pts' : null, gpDeltas);
 
-  renderStageTimeline();
+  // Status-strip: Spel (klassieker) + Strijdlust
+  if (isClassic) {
+    const myGpIdx = gp.findIndex(s => s.display_name === myName);
+    if (myGpIdx >= 0) statusEntries.push({
+      label: 'Spel',
+      value: `${myGpIdx + 1}e`,
+      sub: `${gp[myGpIdx].total_game_points || 0} pts`,
+      deltaHtml: deltaChip(gpDeltas?.get(gp[myGpIdx].user_id)),
+    });
+  }
+  const myCvIdx = cv.findIndex(s => s.display_name === myName);
+  if (myCvIdx >= 0) statusEntries.push({
+    label: 'Strijdlust',
+    value: `${cv[myCvIdx].total_combativity_points || 0}`,
+    sub: 'winnaars geraden',
+    deltaHtml: deltaChip(cvDeltas?.get(cv[myCvIdx].user_id)),
+  });
+
+  renderMyStatus(statusEntries);
   renderWelcomeCard();
 
   // Pot kaart — asynchroon renderen (blokkeert standings niet)
   renderPotCard(standings).catch(() => {});
+}
+
+// "Jouw koers": persoonlijke status-strip bovenaan het dashboard —
+// jouw posities per klassement + volgende etappe met pick-status.
+function renderMyStatus(entries: { label: string; value: string; sub?: string; deltaHtml?: string }[]) {
+  const wrap = $('my-status-wrap');
+  if (!wrap) return;
+
+  const comp = state.competitions.find(c => c.id === state.activeCompId);
+  if (!comp || !entries.length) {
+    wrap.style.display = 'none';
+    wrap.innerHTML = '';
+    return;
+  }
+
+  const now = new Date();
+  const nextOpen = activeStages()
+    .filter(s => !s.locked && now <= new Date(s.deadline))
+    .sort((a, b) => a.stage_number - b.stage_number)[0];
+
+  let nextHtml = '';
+  if (nextOpen) {
+    const pick = state.myPicks.find(p => p.stage_id === nextOpen.id);
+    const rider = pick ? state._riderMap[pick.rider_id] : null;
+    const stageTitle = nextOpen.stage_number === 0 ? 'Proloog' : `Etappe ${nextOpen.stage_number}`;
+    nextHtml = `<div class="my-status-next">
+      <span class="my-status-next-stage">Volgende: <strong>${stageTitle}</strong>${nextOpen.name ? ` · ${escapeHtml(nextOpen.name)}` : ''} · deadline ${formatDeadline(nextOpen.deadline)}</span>
+      ${rider
+        ? `<span class="my-status-pick">✓ ${escapeHtml(rider.name)}</span>`
+        : `<button class="btn btn-accent btn-sm" onclick="location.hash='pick'">Kies je renner</button>`}
+    </div>`;
+  }
+
+  wrap.style.display = '';
+  wrap.innerHTML = `
+    <div class="card my-status-card">
+      <div class="card-body">
+        <div class="my-status-label">Jouw koers — ${escapeHtml(comp.name)}</div>
+        <div class="my-status-stats">
+          ${entries.map(e => `
+            <div class="my-status-stat">
+              <div class="my-status-value">${e.value}${e.deltaHtml || ''}</div>
+              <div class="my-status-stat-label">${escapeHtml(e.label)}${e.sub ? `<span class="my-status-sub"> · ${escapeHtml(e.sub)}</span>` : ''}</div>
+            </div>`).join('')}
+        </div>
+        ${nextHtml}
+      </div>
+    </div>`;
 }
 
 // Welkom-hero: deelname is impliciet (eerste pick = meedoen), dus maak dat
@@ -594,33 +679,5 @@ export function renderAchievements(badges) {
   return `<div class="achievements-wrap">${badges.map(b =>
     `<span class="achievement-badge ${b.cls}">${b.icon} ${b.text}</span>`
   ).join('')}</div>`;
-}
-
-function renderStageTimeline() {
-  const compStages = activeStages();
-  const now = new Date();
-  const dots = compStages.map(s => {
-    const hasResults = s.locked;
-    const deadline = new Date(s.deadline);
-    const isPast = now > deadline;
-    let cls = 'upcoming';
-    const stageTitle = s.stage_number === 0 ? 'Proloog' : `Etappe ${s.stage_number}`;
-    let title = `${stageTitle}: ${s.name}${s.distance_km ? ` (${s.distance_km} km)` : ''}`;
-    if (hasResults) { cls = 'completed'; title += ' (afgerond)'; }
-    else if (isPast) { cls = 'locked'; title += ' (vergrendeld)'; }
-    else if (!hasResults && !isPast) {
-      const nextOpen = compStages.find(st => !st.locked && now <= new Date(st.deadline));
-      cls = nextOpen?.id === s.id ? 'open' : 'upcoming';
-      if (cls === 'open') title += ' (open voor keuze)';
-    }
-    return `<div class="stage-dot ${cls}" title="${title}">${s.stage_number === 0 ? 'P' : s.stage_number}</div>`;
-  }).join('');
-  const legend = `<div class="timeline-legend">
-    <span class="legend-item"><span class="stage-dot completed" style="width:12px;height:12px;font-size:0;"></span> Afgerond</span>
-    <span class="legend-item"><span class="stage-dot open" style="width:12px;height:12px;font-size:0;animation:none;"></span> Open</span>
-    <span class="legend-item"><span class="stage-dot locked" style="width:12px;height:12px;font-size:0;"></span> Gestart</span>
-    <span class="legend-item"><span class="stage-dot upcoming" style="width:12px;height:12px;font-size:0;"></span> Nog niet open</span>
-  </div>`;
-  $('stage-timeline').innerHTML = dots + legend;
 }
 

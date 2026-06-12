@@ -907,7 +907,19 @@ code, pre { color: var(--text); }
   .welcome-card-sub { max-width: none; }
 }
 
-/* --- Dashboard: klassementen --- */
+/* --- Dashboard: klassementen (bento: hoofdkolom + zijkolom) --- */
+.standings-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+/* Hoofdklassement: ruimere, editorial rijen */
+.standings-main-card .table td { padding: 0.6rem 0.9rem; font-size: 0.88rem; }
+.standings-main-card .table thead th { padding: 0.5rem 0.9rem; }
+.standings-main-card .leader-hero { padding: 0.85rem 1.2rem; }
+.standings-main-card .leader-hero-score { font-size: 1.35rem; }
+/* Zijkolom: compact */
+#standings-side .table td { padding: 0.38rem 0.75rem; }
 #standings-row table { table-layout: fixed; width: 100%; }
 #standings-row table th:first-child,
 #standings-row table td:first-child { width: 2rem; }
@@ -969,67 +981,55 @@ code, pre { color: var(--text); }
 .rivalry-up { color: var(--green); }
 .rivalry-down { color: var(--red); }
 
-/* --- Etappe-tijdlijn --- */
-.stage-timeline {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  overflow-x: auto;
-  padding: 0.5rem 0;
-  scrollbar-width: none;
+/* --- Dashboard: "Jouw koers" status-strip --- */
+.my-status-card {
+  background: linear-gradient(160deg, var(--bg-elevated), var(--bg-card) 70%);
 }
-.stage-timeline::-webkit-scrollbar { display: none; }
-.stage-dot {
-  flex-shrink: 0;
-  width: 32px; height: 32px;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 0.68rem;
-  font-weight: 700;
+.my-status-card .card-body { padding: 1.35rem 1.5rem 1.15rem; }
+.my-status-label {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 1.1rem;
+}
+.my-status-stats {
+  display: flex;
+  gap: 2.75rem;
+  flex-wrap: wrap;
+}
+.my-status-value {
+  font-size: 2.1rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
   font-variant-numeric: tabular-nums;
-  border: 1.5px solid var(--border-strong);
-  background: var(--bg-card);
+}
+.my-status-delta { font-size: 0.85rem; font-weight: 700; margin-left: 0.3rem; vertical-align: 0.5em; }
+.my-status-stat-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-weight: 600;
   color: var(--text-muted);
-  cursor: default;
-  transition: transform var(--dur) var(--ease), border-color var(--dur), box-shadow var(--dur);
+  margin-top: 0.45rem;
 }
-.stage-dot:hover { transform: translateY(-2px); }
-.stage-dot.completed {
-  background: var(--green-dim);
-  border-color: var(--green);
-  color: var(--green);
-}
-.stage-dot.locked {
-  background: var(--accent-dim);
-  border-color: var(--accent);
-  color: var(--accent);
-}
-.stage-dot.open {
-  background: color-mix(in srgb, var(--comp-color, var(--blue)) 14%, transparent);
-  border-color: var(--comp-color, var(--blue));
-  color: var(--comp-color, var(--blue));
-  animation: pulse-dot 2.4s ease-in-out infinite;
-}
-.stage-dot.upcoming { opacity: 0.4; }
-@keyframes pulse-dot {
-  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--comp-color, var(--blue)) 25%, transparent); }
-  50% { box-shadow: 0 0 0 5px transparent; }
-}
-.timeline-legend {
+.my-status-sub { text-transform: none; letter-spacing: 0; font-weight: 500; }
+.my-status-next {
   display: flex;
-  gap: 0.75rem;
-  margin-top: 0.25rem;
-  flex-wrap: wrap;
-  flex-basis: 100%;
-}
-.legend-item {
-  display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 0.65rem;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.82rem;
   color: var(--text-muted);
-  font-weight: 500;
 }
+.my-status-next strong { color: var(--text); }
+.my-status-pick { color: var(--green); font-weight: 600; }
 
 /* --- Pick: rennerselectie --- */
 .pick-card {
@@ -1317,12 +1317,13 @@ code, pre { color: var(--text); }
 
 .tab-section.active { animation: fade-in 0.2s var(--ease); }
 
-/* Klassementkaarten: korte, subtiele stagger */
-#standings-row > [class*="col-"] > .card { animation: rise-in 0.35s var(--ease) backwards; }
-#standings-row > [class*="col-"]:nth-child(2) > .card { animation-delay: 0.04s; }
-#standings-row > [class*="col-"]:nth-child(3) > .card { animation-delay: 0.08s; }
-#standings-row > [class*="col-"]:nth-child(4) > .card { animation-delay: 0.12s; }
-#standings-row > [class*="col-"]:nth-child(5) > .card { animation-delay: 0.16s; }
+/* Dashboard: korte, subtiele stagger */
+.my-status-card,
+#standings-row .standings-col > div > .card { animation: rise-in 0.35s var(--ease) backwards; }
+#standings-main > div:nth-child(1) > .card { animation-delay: 0.04s; }
+#standings-side > div:nth-child(1) > .card { animation-delay: 0.08s; }
+#standings-side > div:nth-child(2) > .card { animation-delay: 0.12s; }
+#standings-side > div:nth-child(3) > .card { animation-delay: 0.16s; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
