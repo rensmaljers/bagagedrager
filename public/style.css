@@ -878,6 +878,35 @@ code, pre { color: var(--text); }
 .feat-mt { background: var(--jersey-mt-bg); color: var(--red); }
 .feat-game { background: var(--jersey-game-bg); color: var(--purple); }
 
+/* --- Dashboard: welkom-hero (nog geen pick in actieve ronde) --- */
+.welcome-card {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  background: linear-gradient(135deg, var(--accent-bg), var(--bg-card) 60%);
+}
+.welcome-card-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+}
+.welcome-card-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  margin-bottom: 0.3rem;
+}
+.welcome-card-sub {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.55;
+  max-width: 560px;
+}
+.welcome-card-cta { flex-shrink: 0; white-space: nowrap; }
+@media (max-width: 768px) {
+  .welcome-card-inner { flex-direction: column; align-items: stretch; text-align: center; }
+  .welcome-card-sub { max-width: none; }
+}
+
 /* --- Dashboard: klassementen --- */
 #standings-row table { table-layout: fixed; width: 100%; }
 #standings-row table th:first-child,

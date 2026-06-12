@@ -205,9 +205,46 @@ export async function loadStandings() {
     gp.length > 0 ? (gp[0].total_game_points || 0) + ' pts' : null, gpDeltas);
 
   renderStageTimeline();
+  renderWelcomeCard();
 
   // Pot kaart — asynchroon renderen (blokkeert standings niet)
   renderPotCard(standings).catch(() => {});
+}
+
+// Welkom-hero: deelname is impliciet (eerste pick = meedoen), dus maak dat
+// expliciet zichtbaar voor wie nog geen pick heeft in de actieve ronde.
+function renderWelcomeCard() {
+  const wrap = $('welcome-card-wrap');
+  if (!wrap) return;
+
+  const comp = state.competitions.find(c => c.id === state.activeCompId);
+  const compStageIds = new Set(activeStages().map(s => s.id));
+  const hasPicks = state.myPicks.some(p => compStageIds.has(p.stage_id));
+  const now = new Date();
+  const nextOpen = activeStages()
+    .filter(s => !s.locked && now <= new Date(s.deadline))
+    .sort((a, b) => a.stage_number - b.stage_number)[0];
+
+  if (!comp || hasPicks || !nextOpen) {
+    wrap.style.display = 'none';
+    wrap.innerHTML = '';
+    return;
+  }
+
+  const stageTitle = nextOpen.stage_number === 0 ? 'de proloog' : `etappe ${nextOpen.stage_number}`;
+  wrap.style.display = '';
+  wrap.innerHTML = `
+    <div class="card welcome-card">
+      <div class="card-body">
+        <div class="welcome-card-inner">
+          <div>
+            <div class="welcome-card-title">Je doet nog niet mee aan ${escapeHtml(comp.name)}</div>
+            <div class="welcome-card-sub">Kies je renner voor ${stageTitle} en je zit in de koers — daarna doe je automatisch mee met alle klassementen. Deadline: ${formatDeadline(nextOpen.deadline)}.</div>
+          </div>
+          <button class="btn btn-accent welcome-card-cta" onclick="location.hash='pick'">Kies je eerste renner</button>
+        </div>
+      </div>
+    </div>`;
 }
 
 function computePrizeSplits(

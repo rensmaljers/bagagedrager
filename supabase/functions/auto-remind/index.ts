@@ -43,11 +43,17 @@ Deno.serve(async (req: Request) => {
   const results = [];
 
   for (const stage of stages) {
-    // Gebruikers in deze competitie zonder keuze voor deze etappe
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("competition_id", stage.competition_id);
+    // Deelnemers: iedereen met ≥1 pick in deze competitie
+    // (zelfde definitie als het Rad van Fortuin in assign_random_riders)
+    const { data: compPicks, error: compPicksError } = await supabase
+      .from("picks")
+      .select("user_id, stages!inner(competition_id)")
+      .eq("stages.competition_id", stage.competition_id);
+
+    if (compPicksError) {
+      results.push({ stage_id: stage.id, error: compPicksError.message });
+      continue;
+    }
 
     const { data: picks } = await supabase
       .from("picks")
@@ -55,7 +61,8 @@ Deno.serve(async (req: Request) => {
       .eq("stage_id", stage.id);
 
     const pickedUserIds = new Set((picks || []).map((p: any) => p.user_id));
-    const unpicked = (profiles || []).filter((p: any) => !pickedUserIds.has(p.id));
+    const participantIds = [...new Set((compPicks || []).map((p: any) => p.user_id))];
+    const unpicked = participantIds.filter((id) => !pickedUserIds.has(id)).map((id) => ({ id }));
 
     if (!unpicked.length) {
       await supabase.from("stages").update({ reminder_sent: true }).eq("id", stage.id);
