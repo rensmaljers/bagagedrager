@@ -1439,13 +1439,28 @@ code, pre { color: var(--text); }
     color: var(--accent-text);
   }
 
-  /* Klassementen stapelen */
-  #standings-row { gap: 0.75rem !important; }
+  /* Klassementen stapelen — uniforme afstand tussen alle kaarten */
+  #standings-row { gap: 1rem !important; }
   #standings-row > [class*="col-"] {
     flex: 0 0 100%;
     max-width: 100%;
   }
-  .card-header h5 { font-size: 0.82rem; }
+  .standings-col { gap: 1rem; }
+
+  /* Status-strip: 2-koloms grid i.p.v. wrappende flex met scheidingslijnen */
+  .my-status-card .card-body { padding: 1.15rem 1.25rem 1rem; }
+  .my-status-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem 1.25rem;
+  }
+  .my-status-stat { padding-right: 0; }
+  .my-status-stat + .my-status-stat {
+    border-left: none;
+    padding-left: 0;
+  }
+  .my-status-value { font-size: 1.85rem; }
+  .my-status-next { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
 
   /* Admin-formulieren stapelen */
   .admin-sub .row.g-2 > [class*="col-md"] {
