@@ -72,7 +72,9 @@ export async function loadStandings() {
   }
 
   const emptyRow = '<tr><td colspan="3" class="text-muted text-center py-3">Nog geen resultaten — wordt zichtbaar na de eerste etappe</td></tr>';
-  const medal = ['🥇', '🥈', '🥉'];
+  const rankBadge = (i: number) => i < 3
+    ? `<span class="rank-badge rank-badge-${i + 1}">${i + 1}</span>`
+    : `<span class="rank-badge">${i + 1}</span>`;
   const mode = activeScoringMode();
   const isClassic = mode === 'classic';
   const myName = state.profile?.display_name;
@@ -117,7 +119,7 @@ export async function loadStandings() {
       const deltaHtml = delta != null && delta !== 0
         ? `<span class="rank-change ${delta > 0 ? 'rank-up' : 'rank-down'}">${delta > 0 ? '↑' : '↓'}${Math.abs(delta) > 1 ? Math.abs(delta) : ''}</span>`
         : '';
-      return `<tr${meStyle}${trClass}><td class="${i < 3 ? 'rank-' + (i+1) : ''}">${medal[i] || i + 1}${deltaHtml}</td><td><div class="d-flex align-items-center gap-2">${avatarHtml(s.display_name, state._avatarMap[s.display_name], 'sm')}${escapeHtml(s.display_name)}${h2hBtn(s.display_name, classMode || 'game')}</div></td><td class="text-end">${formatFn(s, i)}</td></tr>`;
+      return `<tr${meStyle}${trClass}><td>${rankBadge(i)}${deltaHtml}</td><td><div class="d-flex align-items-center gap-2">${avatarHtml(s.display_name, state._avatarMap[s.display_name], 'sm')}${escapeHtml(s.display_name)}${h2hBtn(s.display_name, classMode || 'game')}</div></td><td class="text-end">${formatFn(s, i)}</td></tr>`;
     }).join('');
     $(tableId).innerHTML = rows || emptyRow;
 
@@ -408,7 +410,7 @@ async function renderPotCard(standings: any[]) {
   potWrap.innerHTML = `
     <div class="card">
       <div class="card-header d-flex align-items-center justify-content-between">
-        <h5 class="mb-0" style="font-size:0.95rem;">💰 Prijzenpot${isProvisional ? ' <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem;">Voorlopig</span>' : ''}</h5>
+        <h5 class="mb-0">Prijzenpot${isProvisional ? ' <span class="badge bg-warning ms-1" style="font-size:0.65rem;">Voorlopig</span>' : ''}</h5>
         <span style="font-size:0.85rem;color:var(--text-muted);">€${totalPot} &nbsp;<span style="font-size:0.75rem;">(${paidCount} × €${activeComp.entry_fee})</span></span>
       </div>
       <div class="card-body p-0 table-responsive-wrapper">

@@ -118,10 +118,10 @@ function updateRiderAvailability(usedInOtherStages) {
   const used = stageRiderList.filter(r => usedInOtherStages.has(r.id) && !state.dnfRiderIds.has(r.id)).length;
   const available = total - used - dnf;
   $('rider-availability').innerHTML = `
-    <span class="avail-stat available">🟢 ${available} beschikbaar</span>
-    <span class="avail-stat used">🔴 ${used} gebruikt</span>
-    ${dnf ? `<span class="avail-stat dnf">⬛ ${dnf} uit koers</span>` : ''}
-    <span class="avail-stat total">📋 ${total} totaal</span>`;
+    <span class="avail-stat available">${available} beschikbaar</span>
+    <span class="avail-stat used">${used} gebruikt</span>
+    ${dnf ? `<span class="avail-stat dnf">${dnf} uit koers</span>` : ''}
+    <span class="avail-stat total">${total} totaal</span>`;
 }
 
 async function updateOthersPicks(stageId, isLocked) {

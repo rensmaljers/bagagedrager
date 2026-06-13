@@ -7,16 +7,16 @@
 /* ========== 1. TOKENS ========== */
 :root, [data-theme="dark"] {
   /* Surfaces — gelaagd: bg < card < elevated */
-  --bg: #0b0c0f;
-  --bg-card: #13151a;
-  --bg-card-hover: #181b21;
-  --bg-elevated: #1c1f26;
-  --border: rgba(255, 255, 255, 0.07);
-  --border-strong: rgba(255, 255, 255, 0.13);
+  --bg: #0a0b0e;
+  --bg-card: #141519;
+  --bg-card-hover: #191b20;
+  --bg-elevated: #1d2026;
+  --border: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.12);
 
   /* Text */
-  --text: #f0f1f4;
-  --text-muted: #8b8f9c;
+  --text: #f3f4f6;
+  --text-muted: #828693;
 
   /* Brand */
   --accent: #e6b520;
@@ -114,10 +114,16 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 700;
   letter-spacing: -0.015em;
 }
+/* Kaartheaders als editorial sectielabels: klein, uppercase, getrackt */
 .card-header h5, .card-header h6 {
-  font-size: 0.88rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
 }
 
 ::selection { background: var(--accent-dim); }
@@ -313,24 +319,10 @@ code, pre { color: var(--text); }
 .card-header {
   background: transparent;
   border-bottom: 1px solid var(--border);
-  padding: 0.8rem 1.15rem;
+  padding: 0.85rem 1.25rem;
 }
 
-/* Jersey-headers: neutrale tekst, kleur via icoon + hairline-accent links */
-.jersey-gc, .jersey-points, .jersey-mountain, .jersey-game {
-  position: relative;
-}
-.jersey-gc::before, .jersey-points::before, .jersey-mountain::before, .jersey-game::before {
-  content: '';
-  position: absolute;
-  left: 0; top: 0.85rem; bottom: 0.85rem;
-  width: 3px;
-  border-radius: 0 2px 2px 0;
-}
-.jersey-gc::before { background: var(--accent); }
-.jersey-points::before { background: var(--green); }
-.jersey-mountain::before { background: var(--red); }
-.jersey-game::before { background: var(--purple); }
+/* Jersey-headers: neutrale labels, truikleur alleen in het icoon */
 .jersey-gc .icon-jersey { color: var(--accent); }
 .jersey-points .icon-jersey { color: var(--green); }
 .jersey-mountain .icon-jersey { color: var(--red); }
@@ -412,39 +404,59 @@ code, pre { color: var(--text); }
 .form-switch .form-check-input { border-color: var(--border-strong); }
 .form-switch .form-check-input:checked { background-color: var(--green); border-color: var(--green); }
 
-/* --- Tables --- */
+/* --- Tables — geen zebra, alleen flinterdunne scheidingslijnen --- */
 .table {
   color: var(--text);
   --bs-table-bg: transparent;
   --bs-table-color: var(--text);
-  --bs-table-striped-bg: var(--stripe);
+  --bs-table-striped-bg: transparent;
   --bs-table-striped-color: var(--text);
   --bs-table-hover-bg: var(--hover-overlay);
   --bs-table-hover-color: var(--text);
   --bs-table-border-color: var(--border);
 }
 .table thead th {
-  font-size: 0.66rem;
+  font-size: 0.64rem;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-muted);
-  border-bottom-color: var(--border);
+  letter-spacing: 0.1em;
+  color: color-mix(in srgb, var(--text-muted) 75%, transparent);
+  border-bottom: 1px solid var(--border);
   font-weight: 600;
+  padding-top: 0.55rem;
+  padding-bottom: 0.55rem;
 }
 .table td {
   color: var(--text);
-  border-bottom-color: var(--border);
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
   vertical-align: middle;
 }
-.table-striped > tbody > tr:nth-of-type(odd) > * { --bs-table-bg-type: var(--stripe); }
+.table tbody tr:last-child td { border-bottom: none; }
+.table-striped > tbody > tr:nth-of-type(odd) > * { --bs-table-bg-type: transparent; }
 .table tbody tr { transition: background var(--dur); }
 .table tbody tr:hover td { background: var(--hover-overlay); }
 .time {
   font-variant-numeric: tabular-nums;
   font-feature-settings: 'tnum';
-  font-size: 0.85rem;
-  font-weight: 500;
+  font-size: 0.84rem;
+  font-weight: 600;
 }
+
+/* --- Rank badges (vervangt medaille-emoji) --- */
+.rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+.rank-badge-1 { background: var(--accent-dim); color: var(--accent); }
+.rank-badge-2 { background: var(--badge-muted-bg); color: var(--text); }
+.rank-badge-3 { background: rgba(180, 83, 9, 0.16); color: #c9803a; }
 .table-responsive-wrapper,
 .card-body.p-0:has(> table) {
   overflow-x: auto;
@@ -914,31 +926,31 @@ code, pre { color: var(--text); }
   gap: 1.5rem;
 }
 /* Hoofdklassement: ruimere, editorial rijen */
-.standings-main-card .table td { padding: 0.6rem 0.9rem; font-size: 0.88rem; }
-.standings-main-card .table thead th { padding: 0.5rem 0.9rem; }
-.standings-main-card .leader-hero { padding: 0.85rem 1.2rem; }
-.standings-main-card .leader-hero-score { font-size: 1.35rem; }
-/* Zijkolom: compact */
-#standings-side .table td { padding: 0.38rem 0.75rem; }
+.standings-main-card .table td { padding: 0.65rem 1.25rem; font-size: 0.88rem; }
+.standings-main-card .table thead th { padding-left: 1.25rem; padding-right: 1.25rem; }
+.standings-main-card .leader-hero-score { font-size: 1.55rem; }
+/* Zijkolom: compact, kolomkoppen overbodig (badge + naam + getal spreekt) */
+#standings-side .table td { padding: 0.45rem 1.25rem; }
+#standings-side .table thead { display: none; }
+#standings-side .leader-hero-score { font-size: 1.15rem; }
 #standings-row table { table-layout: fixed; width: 100%; }
 #standings-row table th:first-child,
-#standings-row table td:first-child { width: 2rem; }
+#standings-row table td:first-child { width: 3.4rem; }
 #standings-row table th:last-child,
-#standings-row table td:last-child { width: 6.5rem; }
+#standings-row table td:last-child { width: 6.5rem; white-space: nowrap; }
+/* Hoofdkaart toont volledige finishtijd (uu:mm:ss) — meer ruimte */
+.standings-main-card table th:last-child,
+.standings-main-card table td:last-child { width: 7.5rem; }
 
 .leader-hero {
   display: none;
   align-items: center;
   justify-content: space-between;
-  padding: 0.7rem 1.15rem;
+  padding: 0.9rem 1.25rem;
   border-bottom: 1px solid var(--border);
   gap: 0.75rem;
 }
 .leader-hero:not(:empty) { display: flex; }
-.jersey-gc + .leader-hero { background: var(--jersey-gc-bg); }
-.jersey-points + .leader-hero { background: var(--jersey-pts-bg); }
-.jersey-mountain + .leader-hero { background: var(--jersey-mt-bg); }
-.jersey-game + .leader-hero { background: var(--jersey-game-bg); }
 .jersey-gc + .leader-hero .leader-hero-score { color: var(--accent); }
 .jersey-points + .leader-hero .leader-hero-score { color: var(--green); }
 .jersey-mountain + .leader-hero .leader-hero-score { color: var(--red); }
@@ -951,22 +963,23 @@ code, pre { color: var(--text); }
   gap: 0.75rem;
 }
 .leader-hero-name {
-  font-size: 0.92rem;
+  font-size: 0.95rem;
   font-weight: 700;
   color: var(--text);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
 }
 .leader-hero-sub {
-  font-size: 0.62rem;
+  font-size: 0.6rem;
   color: var(--text-muted);
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
-  margin-top: 0.1rem;
+  letter-spacing: 0.09em;
+  margin-top: 0.15rem;
 }
 .leader-hero-score {
-  font-size: 1.15rem;
+  font-size: 1.4rem;
   font-weight: 800;
+  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   flex-shrink: 0;
@@ -996,13 +1009,17 @@ code, pre { color: var(--text); }
 }
 .my-status-stats {
   display: flex;
-  gap: 2.75rem;
   flex-wrap: wrap;
 }
+.my-status-stat { padding-right: 2.25rem; }
+.my-status-stat + .my-status-stat {
+  border-left: 1px solid var(--border);
+  padding-left: 2.25rem;
+}
 .my-status-value {
-  font-size: 2.1rem;
+  font-size: 2.25rem;
   font-weight: 800;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.035em;
   line-height: 1;
   font-variant-numeric: tabular-nums;
 }
@@ -1165,11 +1182,19 @@ code, pre { color: var(--text); }
 .rider-availability .avail-stat {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.2rem 0.5rem;
-  border-radius: 6px;
+  gap: 0.4rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
   font-weight: 600;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+.rider-availability .avail-stat::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
 }
 .avail-stat.available { background: var(--green-dim); color: var(--green); }
 .avail-stat.used { background: var(--red-dim); color: var(--red); }
