@@ -37,7 +37,7 @@ Wil je iets aan scoring wijzigen? Maak een **nieuwe migratie** met de volledige 
 
 Een gekozen renner die **niet finisht** (DNF/DNS/OTL/DSQ) of een **te-late pick** levert geen punten en een GC-straf op:
 
-- **GC/tijd-straf** = het *slechtste tijdverschil van renners die wél finishten en door iemand gekozen waren* op die etappe. Finisht géén enkele gekozen renner, dan het slechtste tijdverschil van het hele veld. (fallback toegevoegd in migratie 059)
+- **GC/tijd-straf** = het *slechtste tijdverschil van het hele veld* (de hekkensluiter) op die etappe. Geldt gelijk voor elke niet-finisher/te-laat (migratie 063). (Eerder, migr. 059/062, was dit de slechtste gekozen finisher met veld-fallback — vervangen omdat niet-finishen dan even mild kon tellen als de traagste gekozen finisher.)
 - **Punten/berg/spel** = 0.
 
 ### "Niet gefinisht" = geen finish-positie
