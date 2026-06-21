@@ -1,0 +1,69 @@
+---
+name: pcs-sync
+description: Hoe etappe-resultaten van ProCyclingStats (PCS) worden gescraped en opgeslagen — de parser (_shared/pcs-parse.ts), het verschil tussen sync-pcs-results / auto-sync / admin-flow, renner-matching naar rider_id, en de PCS-HTML-valkuilen (TTT, ITT, bonificaties, startlijst). Gebruik dit bij elke wijziging aan scraping, sync-functies of als resultaten/tijden niet of verkeerd binnenkomen.
+---
+
+# PCS-sync pijplijn
+
+Resultaten komen van ProCyclingStats (PCS) via scraping. De parse-logica is gedeeld en getest; de sync-paden eromheen verschillen.
+
+## De gedeelde parser — gebruik altijd deze
+
+`supabase/functions/_shared/pcs-parse.ts` → `parseStagePage(doc)` geeft `StageResult[]` terug met `{ bib_number, pcs_slug, pcs_name, time_seconds, finish_position, points, mountain_points, bonification_seconds, dnf }`.
+
+Getest in `supabase/functions/tests/pcs-parse.test.ts`. Draaien:
+```bash
+deno test --allow-read supabase/functions/tests/
+```
+
+**Importeer deze parser overal** — schrijf geen inline kopie. (auto-sync had vroeger een eigen kopie die uit de pas liep en de startlijst-guard miste.)
+
+## Drie sync-paden
+
+1. **`sync-pcs-results`** (edge function, browser-aangeroepen, `--no-verify-jwt`): fetcht een PCS-URL, parset met `parseStagePage`, **geeft alleen de resultaten terug** (slaat niets op). De admin-frontend roept dit aan, koppelt renners en slaat dan op.
+2. **`auto-sync`** (cron, 9:00 + 16:00 UTC): pakt alle etappes van *vandaag*, bouwt zelf de PCS-URL (zie hieronder), parst, koppelt renners en slaat op via `admin_save_results`. Eist `x-cron-secret`.
+3. **Admin-knop** in `public/admin.ts`: bouwt URL met `buildPcsStageUrl(comp, stageNumber, stage)` → `sync-pcs-results` → `buildPcsPayload` (renner-matching) → `admin_save_results`.
+
+## URL bouwen — de link staat op de RONDE
+
+Bij een meerdaagse ronde staat de PCS-link op `competitions.pcs_url` (`.../race/tour-de-suisse/2026`), **niet** op elke etappe (`stages.pcs_url` is dan NULL). De etappe-URL wordt opgebouwd:
+
+- eigen `stage.pcs_url` (klassiekers-bundel) → `<base>/result`
+- anders `comp.pcs_url` → `<base>/stage-<N>` (of `/prologue` bij stage_number 0, of `/result` bij one-day)
+
+Frontend: `public/helpers.ts` → `buildPcsStageUrl`. Auto-sync heeft een spiegel hiervan (`buildStageUrl`). Houd ze gelijk.
+
+URL-vorm: `/race/<slug>/<jaar>/stage-N` (zónder `.php`). Kale `curl` wordt door Cloudflare geblokt; de edge function (datacenter-IP + browser-UA) komt er wél door. Lokaal testen kan met een Deno-scriptje dat `parseStagePage` importeert en de pagina fetcht met een browser-UA.
+
+## Renner-matching → rider_id (verplicht vóór opslaan)
+
+`admin_save_results` verwacht per item een **`rider_id`**, niet slug/bib. Koppeling (zelfde in frontend `buildPcsPayload` en in auto-sync):
+
+1. op `pcs_slug`, gepickte renner eerst, anders eerste match;
+2. anders op `bib_number`, gepickte renner eerst, anders eerste match.
+
+Renners staan per competitie in `riders` (`id, pcs_slug, bib_number, competition_id`). Bibnummers wisselen per koers → match bij voorkeur op `pcs_slug`.
+
+## PCS-HTML-valkuilen (allemaal getest)
+
+- **Tabbed interface**: `ul.restabs`/`ul.resultTabs` met tabs STAGE/GC/POINTS/KOM/BONIS; elke tab heeft `data-id` → `div.resTab[data-id]` met een `table.results`. Pak expliciet de STAGE-tab, anders pakt de scraper de GC-tabel.
+- **Wegrit tijd-cel**: `<font>3:34:46</font><span class="hide">3:34:46</span>` — de zichtbare tijd staat (verdubbeld) ook in de hide-span. Strip het hide-duplicaat van het einde.
+- **ITT/proloog tijd-cel**: `26.37<font class="fs10">,99</font><span class="hide"></span>` — tekstnode = tijd, font = honderdsten, hide-span leeg. Format is `M.SS,hh` (punt scheidt min/sec, komma = honderdsten). `parseTime` normaliseert de resterende punt naar `:` na het strippen van de honderdsten. Winnaar = absolute tijd, rest = achterstand.
+- **TTT (ploegentijdrit)**: STAGE-tab heeft géén `table.results` maar `ul.list.ttt-results`; per team een blok met teamtijd (`div.time`, `32:52.170` mét ms) en een geneste rennertabel; individuele achterstand in `<font class="blue">+0:14</font>`. Rennertijd = teamtijd + eigen gap.
+- **Bonificaties**: in `td.ar.cu600`, secondeteken `″` (U+2033); meerdere waarden (`2″-20″`) worden gesommeerd. De BONIS-tab overschrijft indien aanwezig.
+- **DNF/DNS/OTL/DSQ**: gedetecteerd door álle cellen van een rij te checken, niet alleen de tijdcel.
+- **Startlijst-guard**: vóór de etappe gereden is toont PCS de startlijst (renners, geen tijden). `parseStagePage` gooit dan een fout ("Geen tijden gevonden — startlijst"). De sync-paden moeten die fout afvangen en **niets opslaan / de etappe niet locken**.
+
+Wijzigt PCS de HTML? Test eerst live (Playwright/Deno-fetch), leg de nieuwe structuur vast in een test in `pcs-parse.test.ts`, en pas dan de parser aan.
+
+## Debuggen
+
+```bash
+# Welke etappes hebben (geen) resultaten?
+supabase db query "select stage_id, count(*) from stage_results where stage_id in (...) group by stage_id" --linked
+# Cron-runs en pg_net-responses
+supabase db query "select * from cron.job_run_details order by start_time desc limit 5" --linked
+supabase db query "select status_code, left(content,200), created from net._http_response order by created desc limit 5" --linked
+```
+
+Let op: `net._http_response` met `status_code`/`content` = NULL is meestal een pg_net-timing/niet-vastgelegde response, **geen** Cloudflare-blok. Een echt blok geeft 403/503 met content. `last_synced_at` op de competitie wordt door de admin-sync gezet, niet door auto-sync.
