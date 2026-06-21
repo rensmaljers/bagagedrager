@@ -1,0 +1,164 @@
+<title>Bagagedrager — truien-richting</title>
+<style>
+  :root{
+    --bg:#0a0b0e; --bg-card:#141519; --bg-elev:#1b1d23;
+    --border:rgba(255,255,255,.07); --border-strong:rgba(255,255,255,.13);
+    --text:#f3f4f6; --muted:#8a8e9c; --faint:#5a5e6b;
+    /* de vier truien — de structurele identiteit */
+    --jaune:#f2c200; --jaune-ink:#1a1606;
+    --vert:#2fbf5b;  --vert-ink:#06180c;
+    --pois:#e23b3b;  /* bolletjes */
+    --wit:#e9ebf0;   --wit-ink:#14151a;
+    --good:#3ecf6e; --bad:#e5484d;
+    --radius:13px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(242,194,0,.05), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Satoshi',system-ui,-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding:clamp(16px,4vw,44px);
+    line-height:1.45;
+  }
+  /* tabulaire cijfers overal waar het om uitslagen gaat */
+  .tnum{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;letter-spacing:-.01em}
+  /* condensed display via systeem: strakke tracking + zware weight benadert een koers-display face */
+  .display{font-weight:900;letter-spacing:-.03em;line-height:.95}
+
+  .wrap{max-width:1080px;margin:0 auto}
+
+  /* ── kop ─────────────────────────────────────────── */
+  .topline{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:6px}
+  .topline h1{font-size:clamp(30px,6vw,52px)}
+  .topline .sub{color:var(--muted);font-size:14px}
+  .startflag{
+    font-variant-numeric:tabular-nums;color:var(--faint);font-size:12px;
+    text-transform:uppercase;letter-spacing:.18em;margin-bottom:28px
+  }
+
+  /* ── Jouw koers — persoonlijke strip ─────────────── */
+  .koers{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:1px;
+    background:var(--border);border:1px solid var(--border);border-radius:var(--radius);
+    overflow:hidden;margin-bottom:28px
+  }
+  .koers .cell{background:var(--bg-card);padding:16px 18px;position:relative}
+  .koers .cell::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px}
+  .koers .cell.j::before{background:var(--jaune)}
+  .koers .cell.v::before{background:var(--vert)}
+  .koers .cell.p::before{background:var(--pois)}
+  .koers .cell.w::before{background:var(--wit)}
+  .koers .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.13em;color:var(--muted);margin-bottom:8px}
+  .koers .pos{font-size:30px}
+  .koers .pos small{font-size:14px;color:var(--faint);font-weight:600}
+  .koers .delta{font-size:12px;font-weight:700;margin-left:8px}
+  .up{color:var(--good)} .down{color:var(--bad)}
+
+  /* ── klassementen-grid ───────────────────────────── */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:720px){.grid{grid-template-columns:1fr}.koers{grid-template-columns:1fr 1fr}}
+
+  .klass{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+  /* trui-kop: de klassement-header IS de trui */
+  .khead{display:flex;align-items:center;gap:12px;padding:15px 18px;border-bottom:1px solid var(--border)}
+  .jersey{width:30px;height:30px;border-radius:7px;flex:none;position:relative;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25)}
+  .jersey.j{background:var(--jaune)} .jersey.v{background:var(--vert)} .jersey.w{background:var(--wit)}
+  .jersey.p{background:var(--wit);
+    background-image:radial-gradient(var(--pois) 32%,transparent 34%);
+    background-size:11px 11px;background-position:0 0}
+  .khead .name{font-size:13px;text-transform:uppercase;letter-spacing:.1em;font-weight:700}
+  .khead .meta{margin-left:auto;color:var(--faint);font-size:11px;text-transform:uppercase;letter-spacing:.1em}
+
+  /* uitslagenstaat-rijen */
+  .row{display:grid;grid-template-columns:30px 1fr auto;align-items:center;gap:12px;
+       padding:11px 18px;border-bottom:1px solid var(--border);position:relative}
+  .row:last-child{border-bottom:0}
+  .row .rank{font-size:15px;color:var(--muted);text-align:center}
+  .row .who{display:flex;align-items:center;gap:9px;min-width:0}
+  .av{width:26px;height:26px;border-radius:50%;flex:none;display:grid;place-items:center;
+      font-size:11px;font-weight:800;color:#0a0b0e}
+  .who .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;font-size:14.5px}
+  .row .val{font-size:17px;text-align:right}
+  .row .val .u{color:var(--faint);font-size:12px;font-weight:600;margin-left:1px}
+  .rdelta{font-size:11px;font-weight:700;margin-left:6px}
+
+  /* leider draagt de trui: kleur-edge + zachte gloed + grotere rank */
+  .row.leader{background:linear-gradient(90deg,var(--lead-glow),transparent 55%)}
+  .row.leader::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--lead)}
+  .row.leader .rank{color:var(--lead);font-size:18px}
+  .klass.gc{--lead:var(--jaune);--lead-glow:rgba(242,194,0,.09)}
+  .klass.pt{--lead:var(--vert);--lead-glow:rgba(47,191,91,.09)}
+  .klass.mt{--lead:var(--pois);--lead-glow:rgba(226,59,59,.09)}
+  .klass.gm{--lead:var(--wit);--lead-glow:rgba(233,235,240,.08)}
+  /* "draagt de trui"-chip naast de leider */
+  .wears{font-size:9px;text-transform:uppercase;letter-spacing:.12em;font-weight:800;
+         padding:2px 6px;border-radius:4px;color:#0a0b0e}
+  .gc .wears{background:var(--jaune)} .pt .wears{background:var(--vert)}
+  .mt .wears{background:var(--pois);color:#fff} .gm .wears{background:var(--wit)}
+  .me{box-shadow:inset 0 0 0 1px var(--border-strong)}
+  .me .nm::after{content:" · jij";color:var(--faint);font-weight:600}
+
+  .legend{margin-top:26px;color:var(--faint);font-size:12px;display:flex;gap:18px;flex-wrap:wrap}
+  .legend b{color:var(--muted);font-weight:700}
+</style>
+
+<div class="wrap">
+  <div class="topline">
+    <h1 class="display">Tour de Suisse</h1>
+    <span class="sub">8 etappes · 5 spelers</span>
+  </div>
+  <div class="startflag tnum">na etappe 4 — Aarburg (ITT) · etappe 5 vandaag 13:04</div>
+
+  <!-- Jouw koers: één rij met je positie in elk klassement -->
+  <div class="koers tnum">
+    <div class="cell j"><div class="lbl">Algemeen</div><div class="pos display">2<small>e</small><span class="delta up">↑1</span></div></div>
+    <div class="cell v"><div class="lbl">Punten</div><div class="pos display">1<small>e</small></div></div>
+    <div class="cell p"><div class="lbl">Berg</div><div class="pos display">4<small>e</small><span class="delta down">↓2</span></div></div>
+    <div class="cell w"><div class="lbl">Spel</div><div class="pos display">2<small>e</small></div></div>
+  </div>
+
+  <div class="grid">
+    <!-- ALGEMEEN -->
+    <section class="klass gc">
+      <div class="khead"><span class="jersey j"></span><span class="name">Algemeen klassement</span><span class="meta tnum">achterstand</span></div>
+      <div class="row leader"><div class="rank tnum">1</div>
+        <div class="who"><span class="av" style="background:#f2c200">J</span><span class="nm">Joost</span><span class="wears">trui</span></div>
+        <div class="val display tnum">14:04</div></div>
+      <div class="row me"><div class="rank tnum">2</div>
+        <div class="who"><span class="av" style="background:#4c8dff">R</span><span class="nm">Rens</span></div>
+        <div class="val tnum">+0:42<span class="rdelta up">↑1</span></div></div>
+      <div class="row"><div class="rank tnum">3</div>
+        <div class="who"><span class="av" style="background:#9d6ef0">S</span><span class="nm">Stefan</span></div>
+        <div class="val tnum">+5:46<span class="rdelta down">↓1</span></div></div>
+      <div class="row"><div class="rank tnum">4</div>
+        <div class="who"><span class="av" style="background:#3ecf6e">P</span><span class="nm">Patrick</span></div>
+        <div class="val tnum">+7:31</div></div>
+    </section>
+
+    <!-- BERG — bolletjestrui, de signatuur -->
+    <section class="klass mt">
+      <div class="khead"><span class="jersey p"></span><span class="name">Bergklassement</span><span class="meta tnum">punten</span></div>
+      <div class="row leader"><div class="rank tnum">1</div>
+        <div class="who"><span class="av" style="background:#9d6ef0">S</span><span class="nm">Stefan</span><span class="wears">trui</span></div>
+        <div class="val display tnum">38<span class="u">pt</span></div></div>
+      <div class="row"><div class="rank tnum">2</div>
+        <div class="who"><span class="av" style="background:#f2c200">J</span><span class="nm">Joost</span></div>
+        <div class="val tnum">26<span class="u">pt</span></div></div>
+      <div class="row"><div class="rank tnum">3</div>
+        <div class="who"><span class="av" style="background:#3ecf6e">P</span><span class="nm">Patrick</span></div>
+        <div class="val tnum">19<span class="u">pt</span></div></div>
+      <div class="row me"><div class="rank tnum">4</div>
+        <div class="who"><span class="av" style="background:#4c8dff">R</span><span class="nm">Rens</span></div>
+        <div class="val tnum">12<span class="u">pt</span><span class="rdelta down">↓2</span></div></div>
+    </section>
+  </div>
+
+  <div class="legend">
+    <span><b>Signatuur:</b> elk klassement draagt zijn echte trui — geel · groen · bolletjes · wit</span>
+    <span><b>Leider</b> krijgt de trui-rand + “trui”-chip, net als in de koers</span>
+    <span><b>Uitslagenstaat:</b> tabulaire cijfers, hairline-rijen, tijdverschillen rechts uitgelijnd</span>
+  </div>
+</div>

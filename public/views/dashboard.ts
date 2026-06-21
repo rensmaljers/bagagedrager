@@ -87,7 +87,7 @@ export async function loadStandings() {
   $('game-card').style.display = isClassic ? '' : 'none';
 
   // Persoonlijke status-strip: gevuld tijdens het renderen van de klassementen
-  const statusEntries: { label: string; value: string; sub?: string; deltaHtml?: string }[] = [];
+  const statusEntries: { label: string; value: string; sub?: string; deltaHtml?: string; jersey?: string }[] = [];
   const deltaChip = (d?: number | null) => d
     ? `<span class="my-status-delta ${d > 0 ? 'rank-up' : 'rank-down'}">${d > 0 ? '↑' : '↓'}${Math.abs(d) > 1 ? Math.abs(d) : ''}</span>`
     : '';
@@ -110,16 +110,19 @@ export async function loadStandings() {
   // Render standings with rivalry
   function renderClassification(tableId, sorted, valueFn, formatFn, isTime, heroLabel?: string, rankDelta?: Map<string, number>, classMode?: string) {
     const myIdx = sorted.findIndex(s => s.display_name === myName);
+    // Truikleur per klassement — de leider "draagt de trui" (strijdlust is geen trui)
+    const jerseyClass = ({ gc: 'jersey-gc', points: 'jersey-points', mountain: 'jersey-mountain', game: 'jersey-game' } as Record<string, string>)[classMode || 'game'] || '';
     const rows = sorted.map((s, i) => {
       const isMe = s.display_name === myName;
       const isLeader = i === 0 && sorted.length > 0;
       const meStyle = isMe ? ' style="background:var(--accent-bg);"' : '';
-      const trClass = isLeader ? ' class="leader-row"' : '';
+      const trClass = isLeader ? ` class="leader-row${jerseyClass ? ' wears ' + jerseyClass : ''}"` : '';
+      const truiChip = isLeader && jerseyClass ? ` <span class="trui-chip">trui</span>` : '';
       const delta = rankDelta?.get(s.user_id);
       const deltaHtml = delta != null && delta !== 0
         ? `<span class="rank-change ${delta > 0 ? 'rank-up' : 'rank-down'}">${delta > 0 ? '↑' : '↓'}${Math.abs(delta) > 1 ? Math.abs(delta) : ''}</span>`
         : '';
-      return `<tr${meStyle}${trClass}><td>${rankBadge(i)}${deltaHtml}</td><td><div class="d-flex align-items-center gap-2">${avatarHtml(s.display_name, state._avatarMap[s.display_name], 'sm')}${escapeHtml(s.display_name)}${h2hBtn(s.display_name, classMode || 'game')}</div></td><td class="text-end">${formatFn(s, i)}</td></tr>`;
+      return `<tr${meStyle}${trClass}><td class="tnum">${rankBadge(i)}${deltaHtml}</td><td><div class="d-flex align-items-center gap-2">${avatarHtml(s.display_name, state._avatarMap[s.display_name], 'sm')}${escapeHtml(s.display_name)}${truiChip}${h2hBtn(s.display_name, classMode || 'game')}</div></td><td class="text-end tnum">${formatFn(s, i)}</td></tr>`;
     }).join('');
     $(tableId).innerHTML = rows || emptyRow;
 
@@ -197,6 +200,7 @@ export async function loadStandings() {
       value: `${myGcIdx + 1}e`,
       sub: myGcIdx > 0 ? `${formatGap(gc[myGcIdx].total_time - leaderTime)} achter` : 'aan de leiding',
       deltaHtml: deltaChip(gcDeltas?.get(gc[myGcIdx].user_id)),
+      jersey: 'gc',
     });
     const myPtsIdx = pts.findIndex(s => s.display_name === myName);
     if (myPtsIdx >= 0) statusEntries.push({
@@ -204,6 +208,7 @@ export async function loadStandings() {
       value: `${myPtsIdx + 1}e`,
       sub: `${pts[myPtsIdx].total_points} pts`,
       deltaHtml: deltaChip(ptsDeltas?.get(pts[myPtsIdx].user_id)),
+      jersey: 'points',
     });
     const myMtIdx = mt.findIndex(s => s.display_name === myName);
     if (myMtIdx >= 0) statusEntries.push({
@@ -211,6 +216,7 @@ export async function loadStandings() {
       value: `${myMtIdx + 1}e`,
       sub: `${mt[myMtIdx].total_mountain_points} pts`,
       deltaHtml: deltaChip(mtDeltas?.get(mt[myMtIdx].user_id)),
+      jersey: 'mountain',
     });
   }
 
@@ -233,6 +239,7 @@ export async function loadStandings() {
       value: `${myGpIdx + 1}e`,
       sub: `${gp[myGpIdx].total_game_points || 0} pts`,
       deltaHtml: deltaChip(gpDeltas?.get(gp[myGpIdx].user_id)),
+      jersey: 'game',
     });
   }
   const myCvIdx = cv.findIndex(s => s.display_name === myName);
@@ -252,7 +259,7 @@ export async function loadStandings() {
 
 // "Jouw koers": persoonlijke status-strip bovenaan het dashboard —
 // jouw posities per klassement + volgende etappe met pick-status.
-function renderMyStatus(entries: { label: string; value: string; sub?: string; deltaHtml?: string }[]) {
+function renderMyStatus(entries: { label: string; value: string; sub?: string; deltaHtml?: string; jersey?: string }[]) {
   const wrap = $('my-status-wrap');
   if (!wrap) return;
 
@@ -288,8 +295,8 @@ function renderMyStatus(entries: { label: string; value: string; sub?: string; d
         <div class="my-status-label">Jouw koers — ${escapeHtml(comp.name)}</div>
         <div class="my-status-stats">
           ${entries.map(e => `
-            <div class="my-status-stat">
-              <div class="my-status-value">${e.value}${e.deltaHtml || ''}</div>
+            <div class="my-status-stat${e.jersey ? ' jersey-' + e.jersey : ''}">
+              <div class="my-status-value display tnum">${e.value}${e.deltaHtml || ''}</div>
               <div class="my-status-stat-label">${escapeHtml(e.label)}${e.sub ? `<span class="my-status-sub"> · ${escapeHtml(e.sub)}</span>` : ''}</div>
             </div>`).join('')}
         </div>

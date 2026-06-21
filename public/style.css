@@ -47,6 +47,15 @@
   --jersey-mt-bg: rgba(229, 72, 77, 0.07);
   --jersey-game-bg: rgba(157, 110, 240, 0.07);
 
+  /* Truien — solide klassement-identiteit (geel/groen/bolletjes/wit) */
+  --jaune: #f2c200; --jaune-ink: #1a1606; --jaune-glow: rgba(242, 194, 0, 0.10);
+  --vert:  #2fbf5b; --vert-ink:  #06180c; --vert-glow:  rgba(47, 191, 91, 0.10);
+  --pois:  #e23b3b; --pois-ink:  #ffffff; --pois-glow:  rgba(226, 59, 59, 0.10);
+  --wit:   #e9ebf0; --wit-edge:  #e9ebf0; --wit-ink:    #14151a; --wit-glow: rgba(233, 235, 240, 0.08);
+
+  /* Display-font (koppen + grote koers-cijfers) */
+  --font-display: 'Clash Display', 'Satoshi', system-ui, sans-serif;
+
   /* Geometry & depth */
   --radius: 10px;
   --radius-lg: 14px;
@@ -95,6 +104,12 @@
   --jersey-mt-bg: rgba(207, 48, 56, 0.05);
   --jersey-game-bg: rgba(124, 58, 237, 0.05);
 
+  /* Truien — op lichte achtergrond iets dieper; wit-trui krijgt grijze rand/ink */
+  --jaune: #e0a800; --jaune-ink: #1a1606; --jaune-glow: rgba(224, 168, 0, 0.13);
+  --vert:  #1f9d49; --vert-ink:  #ffffff; --vert-glow:  rgba(31, 157, 73, 0.12);
+  --pois:  #d62f2f; --pois-ink:  #ffffff; --pois-glow:  rgba(214, 47, 47, 0.10);
+  --wit:   #ffffff; --wit-edge:  #9aa0ad; --wit-ink:    #16181d; --wit-glow: rgba(15, 18, 25, 0.05);
+
   --shadow-sm: 0 1px 2px rgba(15, 18, 25, 0.05);
   --shadow-md: 0 4px 16px -6px rgba(15, 18, 25, 0.1);
   --shadow-lg: 0 24px 48px -16px rgba(15, 18, 25, 0.18);
@@ -114,6 +129,20 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 700;
   letter-spacing: -0.015em;
 }
+/* Display-face (Clash Display) voor paginatitels en grote koers-cijfers */
+h1, h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+.display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 0.98;
+}
+/* Tabulaire cijfers voor alle uitslag-data (tijdverschillen, posities, punten) */
+.tnum { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
 /* Kaartheaders als editorial sectielabels: klein, uppercase, getrackt */
 .card-header h5, .card-header h6 {
   font-size: 0.7rem;
@@ -322,11 +351,22 @@ code, pre { color: var(--text); }
   padding: 0.85rem 1.25rem;
 }
 
-/* Jersey-headers: neutrale labels, truikleur alleen in het icoon */
-.jersey-gc .icon-jersey { color: var(--accent); }
-.jersey-points .icon-jersey { color: var(--green); }
-.jersey-mountain .icon-jersey { color: var(--red); }
-.jersey-game .icon-jersey { color: var(--purple); }
+/* Jersey-headers: elk klassement draagt zijn trui — gekleurde rand + subtiele
+   tint + truikleur-icoon. Labeltekst blijft neutraal leesbaar. */
+.card-header.jersey-gc       { --jcol: var(--jaune); --jglow: var(--jaune-glow); }
+.card-header.jersey-points   { --jcol: var(--vert);  --jglow: var(--vert-glow); }
+.card-header.jersey-mountain { --jcol: var(--pois);  --jglow: var(--pois-glow); }
+.card-header.jersey-game     { --jcol: var(--wit-edge); --jglow: var(--wit-glow); }
+.card-header[class*="jersey-"] {
+  position: relative;
+  background: linear-gradient(90deg, var(--jglow), transparent 62%);
+}
+.card-header[class*="jersey-"]::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--jcol);
+}
+.card-header[class*="jersey-"] h5 { color: var(--text); }
+.card-header[class*="jersey-"] .icon-jersey { color: var(--jcol); }
 
 /* --- Buttons --- */
 .btn {
@@ -471,6 +511,27 @@ code, pre { color: var(--text); }
 .rank-change { font-size: 0.6em; font-weight: 700; vertical-align: super; margin-left: 2px; white-space: nowrap; }
 .rank-up { color: var(--green); }
 .rank-down { color: var(--red); }
+
+/* --- Leider draagt de trui: gekleurde rand + gloed + display-cijfer --- */
+.leader-row.wears { position: relative; }
+.leader-row.jersey-gc       { --jcol: var(--jaune);    --jglow: var(--jaune-glow); }
+.leader-row.jersey-points   { --jcol: var(--vert);     --jglow: var(--vert-glow); }
+.leader-row.jersey-mountain { --jcol: var(--pois);     --jglow: var(--pois-glow); }
+.leader-row.jersey-game     { --jcol: var(--wit-edge); --jglow: var(--wit-glow); }
+.leader-row.wears td { background: linear-gradient(90deg, var(--jglow), transparent 55%); }
+.leader-row.wears td:first-child {
+  box-shadow: inset 3px 0 0 0 var(--jcol);
+}
+.leader-row.wears td:last-child { font-family: var(--font-display); font-weight: 600; }
+/* "trui"-chip naast de leider, in de truikleur */
+.trui-chip {
+  font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 800;
+  padding: 0.1rem 0.34rem; border-radius: 4px; vertical-align: 0.12em;
+  background: var(--jcol, var(--accent)); color: var(--jaune-ink);
+}
+.leader-row.jersey-mountain .trui-chip { color: var(--pois-ink); }
+.leader-row.jersey-points .trui-chip { color: var(--vert-ink); }
+.leader-row.jersey-game .trui-chip { color: var(--wit-ink); }
 
 /* --- Badges --- */
 .badge { font-weight: 600; font-size: 0.68rem; letter-spacing: 0.02em; border-radius: 6px; }
@@ -1015,6 +1076,20 @@ code, pre { color: var(--text); }
 .my-status-stat + .my-status-stat {
   border-left: 1px solid var(--border);
   padding-left: 2.25rem;
+}
+/* Truikleur-stip per klassement bij het label */
+.my-status-stat.jersey-gc       { --jcol: var(--jaune); }
+.my-status-stat.jersey-points   { --jcol: var(--vert); }
+.my-status-stat.jersey-mountain { --jcol: var(--pois); }
+.my-status-stat.jersey-game     { --jcol: var(--wit-edge); }
+.my-status-stat[class*="jersey-"] .my-status-stat-label::before {
+  content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 2px;
+  background: var(--jcol); margin-right: 6px; vertical-align: 0;
+}
+.my-status-stat.jersey-mountain .my-status-stat-label::before {
+  background: var(--wit);
+  background-image: radial-gradient(var(--pois) 38%, transparent 40%);
+  background-size: 4px 4px;
 }
 .my-status-value {
   font-size: 2.25rem;
