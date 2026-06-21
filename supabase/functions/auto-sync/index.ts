@@ -1,21 +1,26 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.46/deno-dom-wasm.ts";
+import { parseStagePage } from "../_shared/pcs-parse.ts";
 
 // Draait dagelijks om 09:00 en 16:00 UTC (11:00 en 18:00 Nederlandse zomertijd).
-// Zoekt etappes die vandaag gereden worden en een PCS URL hebben,
-// haalt de resultaten op van PCS en slaat ze op.
+// Zoekt etappes die vandaag gereden worden en haalt de PCS-resultaten op.
+// Parsen gebeurt via de gedeelde, geteste parseStagePage (incl. startlijst-guard,
+// TTT- en ITT-formaten) — niet meer via een eigen inline kopie.
 
-function parseTime(timeStr: string): number {
-  // Strip decimalen (honderdsten/duizendsten) voor parsing — bijv. "32:52.170" → "32:52"
-  const noDecimals = timeStr.replace(/[,\.]\d+$/, "");
-  // ITT/proloog "26.37,99": resterende punt is min/sec-scheiding → normaliseer naar ":"
-  const normalized = noDecimals.replace(/\./g, ":");
-  const clean = normalized.replace(/[^0-9:]/g, "").trim();
-  if (!clean) return 0;
-  const parts = clean.split(":").map(Number);
-  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-  if (parts.length === 2) return parts[0] * 60 + parts[1];
-  return parts[0];
+// Spiegelt helpers.buildPcsStageUrl uit de frontend: bouwt de PCS-uitslag-URL voor
+// een etappe. Eigen etappe-URL (klassiekers-bundel) heeft voorrang op de ronde-URL.
+const STRIP_SUFFIX = /\/(stages|startlist|gc|general-classification|stage-\d+|prologue|results?|resuts?|overview)$/;
+function buildStageUrl(stage: any): string | null {
+  if (stage.pcs_url) {
+    const base = stage.pcs_url.replace(/\/$/, "").replace(STRIP_SUFFIX, "");
+    return `${base}/result`;
+  }
+  const comp = stage.competitions;
+  if (!comp?.pcs_url) return null;
+  const base = comp.pcs_url.replace(/\/$/, "").replace(STRIP_SUFFIX, "");
+  if (comp.is_one_day) return `${base}/result`;
+  if (stage.stage_number === 0) return `${base}/prologue`;
+  return `${base}/stage-${stage.stage_number}`;
 }
 
 Deno.serve(async (req: Request) => {
@@ -33,12 +38,13 @@ Deno.serve(async (req: Request) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  // Haal etappes op die vandaag gereden worden en een PCS URL hebben
+  // Haal alle etappes op die vandaag gereden worden, inclusief de PCS URL van de ronde.
+  // De PCS-link staat meestal op de ronde (competitions.pcs_url), niet op elke losse
+  // etappe — daarom bouwen we de etappe-URL zelf, net als de admin-knop in de frontend.
   const today = new Date().toISOString().slice(0, 10);
   const { data: stages, error } = await supabase
     .from("stages")
-    .select("id, stage_number, pcs_url, competition_id")
-    .not("pcs_url", "is", null)
+    .select("id, stage_number, pcs_url, competition_id, competitions(pcs_url, is_one_day)")
     .gte("start_time", `${today}T00:00:00`)
     .lte("start_time", `${today}T23:59:59`);
 
@@ -51,11 +57,20 @@ Deno.serve(async (req: Request) => {
   }
 
   const syncResults = [];
+  const ridersByComp = new Map<number, any[]>(); // comp_id → renners (cache over etappes)
 
   for (const stage of stages) {
     try {
+      // Bouw de PCS-uitslag-URL (zelfde logica als helpers.buildPcsStageUrl in de frontend):
+      // eigen etappe-URL (klassiekers) heeft voorrang, anders ronde-URL + /stage-N.
+      const pcsUrl = buildStageUrl(stage);
+      if (!pcsUrl) {
+        syncResults.push({ stage_id: stage.id, error: "Geen PCS URL (ronde noch etappe)" });
+        continue;
+      }
+
       // Fetch PCS pagina
-      const pcsRes = await fetch(stage.pcs_url, {
+      const pcsRes = await fetch(pcsUrl, {
         headers: {
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
           "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
@@ -75,193 +90,80 @@ Deno.serve(async (req: Request) => {
         continue;
       }
 
-      // Gebruik STAGE-tab indien aanwezig (net als sync-pcs-results),
-      // anders eerste table.results — bij PTT pakt dit anders de GC-tabel.
-      // Gebruik inline lookup (geen aparte functie) om conflict met de
-      // findTabTable verderop in deze scope te voorkomen.
-      let table = null;
-      const stageTabLinks = doc.querySelectorAll("ul.restabs li a, ul.resultTabs li a");
-      for (const link of stageTabLinks) {
-        const txt = (link.textContent || "").toUpperCase();
-        if (["STAGE", "ÉTAPE", "ETAPA", "ETAPPE"].some(kw => txt.includes(kw))) {
-          const dataId = link.getAttribute("data-id");
-          if (dataId) {
-            const tabDiv = doc.querySelector(`div.resTab[data-id="${dataId}"]`);
-            // PTT-fallback: STAGE-tab gebruikt soms table.basic i.p.v. table.results
-            table = tabDiv?.querySelector("table.results") || tabDiv?.querySelector("table") || null;
-            break;
-          }
-        }
-      }
-      if (!table) table = doc.querySelector("table.results");
-      if (!table) {
-        syncResults.push({ stage_id: stage.id, error: "Geen resultaten-tabel gevonden" });
+      // Gedeelde, geteste parser (STAGE/TTT/ITT-formaten + startlijst-guard).
+      // Gooit een fout als de pagina nog de startlijst toont (geen tijden) → dan
+      // niks opslaan en de etappe niet locken.
+      let results: any[];
+      try {
+        results = parseStagePage(doc);
+      } catch (e) {
+        syncResults.push({ stage_id: stage.id, error: (e as Error).message });
         continue;
       }
-
-      const rows = table.querySelectorAll("tbody tr");
-      const results: any[] = [];
-      let winnerTime = 0;
-      let lastTime = 0;
-      let position = 0;
-
-      for (const row of rows) {
-        const cells = row.querySelectorAll("td");
-        if (cells.length < 8) continue;
-
-        let bib = 0, time = 0, dnf = false;
-        let pcs_slug: string | null = null;
-
-        const riderLink = row.querySelector("a[href*='rider/']");
-        if (riderLink) {
-          const href = riderLink.getAttribute("href") || "";
-          pcs_slug = href.replace(/^.*rider\//, "").trim() || null;
-        }
-
-        for (const cell of cells) {
-          const cls = cell.className || "";
-          const text = cell.textContent?.trim() || "";
-
-          if (/\b(dnf|dns|otl|dsq)\b/i.test(text)) {
-            dnf = true;
-          }
-
-          if (cls.includes("bibs")) {
-            bib = parseInt(text) || 0;
-          } else if (cls.includes("time") && cls.includes("ar")) {
-            // Wegrit: <font>tijd</font><span class="hide">tijd</span> (duplicaat).
-            // ITT: tekstnode "26.37" + <font>",99"</font> + lege hide-span.
-            // Pak volle celtekst minus hide-duplicaat (zie _shared/pcs-parse.ts).
-            const hideText = cell.querySelector("span.hide")?.textContent?.trim() || "";
-            const timeText = hideText && text.endsWith(hideText)
-              ? text.slice(0, text.length - hideText.length).trim()
-              : text;
-            if (/\b(dnf|dns|otl|dsq)\b/i.test(timeText)) {
-              dnf = true;
-            } else {
-              const parsed = parseTime(timeText);
-              if (parsed > 0) {
-                if (winnerTime === 0) {
-                  winnerTime = parsed;
-                  time = parsed;
-                } else {
-                  time = winnerTime + parsed;
-                }
-                lastTime = time;
-              } else {
-                time = lastTime;
-              }
-            }
-          }
-        }
-
-        let bonus = 0;
-        for (const cell of cells) {
-          const cls = cell.className || "";
-          if (cls.includes("ar") && cls.includes("cu600")) {
-            const txt = cell.textContent || "";
-            const matches = [...txt.matchAll(/(\d+)\u2033/g)];
-            bonus = matches.reduce((sum, m) => sum + parseInt(m[1]), 0);
-          }
-        }
-
-        if (bib > 0 || pcs_slug) {
-          position++;
-          results.push({ bib_number: bib, pcs_slug, time_seconds: time || lastTime, finish_position: dnf ? null : position, points: 0, mountain_points: 0, bonification_seconds: bonus, dnf });
-        }
-      }
-
-      // Punten- en bergklassement
-      function findTabTable(tabKeyword: string) {
-        const tabLinks = doc.querySelectorAll("ul.restabs li a, ul.resultTabs li a");
-        for (const link of tabLinks) {
-          const text = (link.textContent || "").toUpperCase();
-          if (text.includes(tabKeyword)) {
-            const dataId = link.getAttribute("data-id");
-            if (dataId) {
-              const tabDiv = doc.querySelector(`div.resTab[data-id="${dataId}"]`);
-              return tabDiv?.querySelector("table.results") || null;
-            }
-          }
-        }
-        return null;
-      }
-
-      function extractClassificationPoints(classTable: any, field: "points" | "mountain_points") {
-        if (!classTable) return;
-        for (const row of classTable.querySelectorAll("tbody tr")) {
-          const cells = row.querySelectorAll("td");
-          let classBib = 0, classPts = 0, classSlug: string | null = null;
-          const riderLink = row.querySelector("a[href*='rider/']");
-          if (riderLink) {
-            const href = riderLink.getAttribute("href") || "";
-            classSlug = href.replace(/^.*rider\//, "").trim() || null;
-          }
-          for (const cell of cells) {
-            const cls = cell.className || "";
-            const text = cell.textContent?.trim() || "";
-            if (cls.includes("bibs")) classBib = parseInt(text) || 0;
-            if (cls.includes("pnt") && !cls.includes("uci")) classPts = parseInt(text) || 0;
-          }
-          if ((classBib > 0 || classSlug) && classPts > 0) {
-            const existing = results.find(r =>
-              (classSlug && r.pcs_slug === classSlug) || (classBib > 0 && r.bib_number === classBib)
-            );
-            if (existing) existing[field] = classPts;
-          }
-        }
-      }
-
-      extractClassificationPoints(findTabTable("POINTS"), "points");
-      extractClassificationPoints(findTabTable("KOM"), "mountain_points");
-
-      function extractBonifications(bonisTable: any) {
-        if (!bonisTable) return;
-        for (const row of bonisTable.querySelectorAll("tbody tr")) {
-          const cells = row.querySelectorAll("td");
-          let bBib = 0, bPts = 0, bSlug: string | null = null;
-          const riderLink = row.querySelector("a[href*='rider/']");
-          if (riderLink) {
-            const href = riderLink.getAttribute("href") || "";
-            bSlug = href.replace(/^.*rider\//, "").trim() || null;
-          }
-          for (const cell of cells) {
-            const cls = cell.className || "";
-            const text = cell.textContent?.trim() || "";
-            if (cls.includes("bibs")) bBib = parseInt(text) || 0;
-            if ((cls.includes("bonis") || cls.includes("pnt")) && !cls.includes("uci")) {
-              const n = parseInt(text.replace(/[^\d]/g, "")) || 0;
-              if (n > bPts) bPts = n;
-            }
-          }
-          if ((bBib > 0 || bSlug) && bPts > 0) {
-            const existing = results.find(r =>
-              (bSlug && r.pcs_slug === bSlug) || (bBib > 0 && r.bib_number === bBib)
-            );
-            if (existing) existing.bonification_seconds = bPts;
-          }
-        }
-      }
-      extractBonifications(findTabTable("BONIS") || findTabTable("BONIFICATION"));
 
       if (results.length === 0) {
         syncResults.push({ stage_id: stage.id, error: "Geen renners gevonden in tabel" });
         continue;
       }
 
+      // PCS-renners koppelen aan interne rider_id (admin_save_results verwacht rider_id,
+      // niet slug/bib). Zelfde matching als helpers/buildPcsPayload in de frontend:
+      // op pcs_slug eerst, dan bibnummer; gepickte renners krijgen voorrang bij dubbele match.
+      let compRiders = ridersByComp.get(stage.competition_id);
+      if (!compRiders) {
+        const { data: rd } = await supabase
+          .from("riders")
+          .select("id, pcs_slug, bib_number")
+          .eq("competition_id", stage.competition_id);
+        compRiders = rd || [];
+        ridersByComp.set(stage.competition_id, compRiders);
+      }
+      const { data: picks } = await supabase
+        .from("picks").select("rider_id").eq("stage_id", stage.id);
+      const pickedIds = new Set((picks || []).map((p: any) => p.rider_id));
+
+      const matchRider = (r: any) => {
+        if (r.pcs_slug) {
+          const hit = compRiders.find((rd: any) => rd.pcs_slug === r.pcs_slug && pickedIds.has(rd.id));
+          if (hit) return hit;
+          const fb = compRiders.find((rd: any) => rd.pcs_slug === r.pcs_slug);
+          if (fb) return fb;
+        }
+        if (r.bib_number) {
+          const hit = compRiders.find((rd: any) => rd.bib_number === r.bib_number && pickedIds.has(rd.id));
+          if (hit) return hit;
+          return compRiders.find((rd: any) => rd.bib_number === r.bib_number);
+        }
+        return undefined;
+      };
+
+      let unmatched = 0;
+      const payload: any[] = [];
+      for (const r of results) {
+        const rider = matchRider(r);
+        if (rider) {
+          payload.push({ rider_id: rider.id, time_seconds: r.time_seconds, finish_position: r.finish_position, points: r.points, mountain_points: r.mountain_points, bonification_seconds: r.bonification_seconds || 0, dnf: r.dnf });
+        } else { unmatched++; }
+      }
+
+      if (payload.length === 0) {
+        syncResults.push({ stage_id: stage.id, error: `Geen renners gekoppeld (${unmatched} onbekend)` });
+        continue;
+      }
+
       // Sla resultaten op via admin_save_results
       const { data: saveData, error: saveError } = await supabase.rpc("admin_save_results", {
         p_stage_id: stage.id,
-        p_results: results,
+        p_results: payload,
       });
 
       if (saveError) {
         syncResults.push({ stage_id: stage.id, error: saveError.message });
       } else {
-        syncResults.push({ stage_id: stage.id, stage_number: stage.stage_number, count: results.length, ...saveData });
+        syncResults.push({ stage_id: stage.id, stage_number: stage.stage_number, count: payload.length, unmatched, ...saveData });
       }
     } catch (e) {
-      syncResults.push({ stage_id: stage.id, error: e.message });
+      syncResults.push({ stage_id: stage.id, error: (e as Error).message });
     }
   }
 
