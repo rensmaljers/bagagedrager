@@ -8,7 +8,9 @@ import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.46/deno-dom-wasm.ts
 function parseTime(timeStr: string): number {
   // Strip decimalen (honderdsten/duizendsten) voor parsing — bijv. "32:52.170" → "32:52"
   const noDecimals = timeStr.replace(/[,\.]\d+$/, "");
-  const clean = noDecimals.replace(/[^0-9:]/g, "").trim();
+  // ITT/proloog "26.37,99": resterende punt is min/sec-scheiding → normaliseer naar ":"
+  const normalized = noDecimals.replace(/\./g, ":");
+  const clean = normalized.replace(/[^0-9:]/g, "").trim();
   if (!clean) return 0;
   const parts = clean.split(":").map(Number);
   if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
@@ -127,8 +129,13 @@ Deno.serve(async (req: Request) => {
           if (cls.includes("bibs")) {
             bib = parseInt(text) || 0;
           } else if (cls.includes("time") && cls.includes("ar")) {
-            const fontEl = cell.querySelector("font");
-            const timeText = fontEl?.textContent?.trim() || text;
+            // Wegrit: <font>tijd</font><span class="hide">tijd</span> (duplicaat).
+            // ITT: tekstnode "26.37" + <font>",99"</font> + lege hide-span.
+            // Pak volle celtekst minus hide-duplicaat (zie _shared/pcs-parse.ts).
+            const hideText = cell.querySelector("span.hide")?.textContent?.trim() || "";
+            const timeText = hideText && text.endsWith(hideText)
+              ? text.slice(0, text.length - hideText.length).trim()
+              : text;
             if (/\b(dnf|dns|otl|dsq)\b/i.test(timeText)) {
               dnf = true;
             } else {

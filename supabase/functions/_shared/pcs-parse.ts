@@ -17,8 +17,11 @@ export function parseTime(timeStr: string): number {
   // PCS time formats: "3:53:11", "53:11", "11"
   // Proloog/TT: "3:35,12" of "0:06.12" — honderdsten strippen voor parsing
   // TTT: "32:52.170" — milliseconden (3 cijfers) ook strippen
+  // ITT/proloog: "26.37,99" = 26min 37s — punt scheidt min/sec, komma = honderdsten
   const noHundredths = timeStr.replace(/[,\.]\d{1,3}$/, "");
-  const clean = noHundredths.replace(/[^0-9:]/g, "").trim();
+  // Resterende punt is een eenheid-scheidingsteken (ITT "M.SS" / "H.MM.SS") → normaliseer naar ":"
+  const normalized = noHundredths.replace(/\./g, ":");
+  const clean = normalized.replace(/[^0-9:]/g, "").trim();
   if (!clean) return 0;
   const parts = clean.split(":").map(Number);
   if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
@@ -130,9 +133,18 @@ export function parseTableResults(table: any): { results: StageResult[]; winnerT
       if (cls.includes("bibs")) {
         bib = parseInt(text) || 0;
       } else if (cls.includes("time") && cls.includes("ar")) {
-        // Time cell contains <font>H:MM:SS</font>
-        const fontEl = cell.querySelector("font");
-        const timeText = fontEl?.textContent?.trim() || text;
+        // Time cell structuur verschilt per koerstype:
+        // - Wegrit:  <font>3:34:46</font><span class="hide">3:34:46</span>  (font = volledige tijd, hide = duplicaat/gap)
+        // - ITT/TT:  26.37<font class="fs10">,99</font><span class="hide"></span>  (tekstnode = tijd, font = honderdsten, hide = leeg)
+        // Pak de hide-span als die gevuld is (canonieke waarde/gap), anders de volledige
+        // zichtbare celtekst (tekstnode + font) ontdaan van het hide-duplicaat.
+        // PCS dupliceert de zichtbare tijd in de hide-span ("3:34:463:34:46"); strip dat
+        // duplicaat van het eind af. Bij ITT is de hide-span leeg en blijft "26.37,99" staan.
+        const hideEl = cell.querySelector("span.hide");
+        const hideText = hideEl?.textContent?.trim() || "";
+        const timeText = hideText && text.endsWith(hideText)
+          ? text.slice(0, text.length - hideText.length).trim()
+          : text;
         if (/\b(dnf|dns|otl|dsq)\b/i.test(timeText)) {
           dnf = true;
         } else {

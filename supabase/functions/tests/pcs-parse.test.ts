@@ -18,6 +18,10 @@ Deno.test("parseTime: alle PCS-tijdformaten", () => {
   assertEquals(parseTime("0:06.12"), 6);
   // TTT met milliseconden (3 cijfers)
   assertEquals(parseTime("32:52.170"), 32 * 60 + 52);
+  // ITT/proloog: punt scheidt min/sec, komma = honderdsten ("26.37,99" = 26min37s)
+  assertEquals(parseTime("26.37,99"), 26 * 60 + 37);
+  assertEquals(parseTime("0.06,68"), 6);
+  assertEquals(parseTime("0.00,04"), 0);
   // Leeg / zelfde-tijd-markers
   assertEquals(parseTime(""), 0);
   assertEquals(parseTime(",,"), 0);
@@ -139,6 +143,50 @@ Deno.test("TTT: pakt niet de GC-tabel als fallback", () => {
   const results = parseStagePage(parseDoc(TTT_STAGE));
   // GC-tabel toont One op 10:01:01 — TTT-uitslag moet de teamtijd geven
   assertEquals(results[0].time_seconds, 32 * 60 + 52);
+});
+
+// ---- Individuele tijdrit (ITT/proloog) ----
+// PCS-cel: tekstnode = tijd ("26.37"), <font> = honderdsten (",99"), hide-span leeg.
+// Winnaar toont absolute tijd; rest toont achterstand (eveneens in M.SS,hh).
+const ITT_STAGE = `
+<ul class="restabs">
+  <li><a data-id="1">STAGE</a></li>
+  <li><a data-id="2">GC</a></li>
+</ul>
+<div class="resTab" data-id="1"><table class="results"><tbody>
+  <tr><td class="bibs">1</td><td>x</td><td><a href="rider/itt-winner">Winner</a></td><td class="ar cu600"></td><td class="time ar">26.37<font class="fs10">,99</font><span class="hide"></span></td></tr>
+  <tr><td class="bibs">2</td><td>x</td><td><a href="rider/itt-second">Second</a></td><td class="ar cu600"></td><td class="time ar">0.06<font class="fs10">,68</font><span class="hide"></span></td></tr>
+  <tr><td class="bibs">3</td><td>x</td><td><a href="rider/itt-third">Third</a></td><td class="ar cu600"></td><td class="time ar">0.10<font class="fs10">,79</font><span class="hide"></span></td></tr>
+</tbody></table></div>
+<div class="resTab" data-id="2"><table class="results"><tbody>
+  <tr><td class="bibs">3</td><td>x</td><td><a href="rider/itt-third">Third</a></td><td class="time ar">10:01:01</td></tr>
+</tbody></table></div>
+`;
+
+Deno.test("ITT: M.SS,hh-tijdformaat met font-honderdsten en lege hide-span", () => {
+  const results = parseStagePage(parseDoc(ITT_STAGE));
+  assertEquals(results.length, 3);
+  const winnerTime = 26 * 60 + 37;
+  assertEquals(results[0].time_seconds, winnerTime);
+  assertEquals(results[0].finish_position, 1);
+  assertEquals(results[1].time_seconds, winnerTime + 6);   // +0.06,68
+  assertEquals(results[2].time_seconds, winnerTime + 10);  // +0.10,79
+});
+
+// Wegrit-cel dupliceert de zichtbare tijd in de hide-span — duplicaat moet eraf.
+const ROAD_HIDE_STAGE = `
+<ul class="restabs"><li><a data-id="1">STAGE</a></li></ul>
+<div class="resTab" data-id="1"><table class="results"><tbody>
+  <tr><td class="bibs">1</td><td>x</td><td><a href="rider/road-winner">Winner</a></td><td class="ar cu600"></td><td class="time ar"><font>3:34:46</font><span class="hide">3:34:46</span></td></tr>
+  <tr><td class="bibs">2</td><td>x</td><td><a href="rider/road-second">Second</a></td><td class="ar cu600"></td><td class="time ar"><font>2:14</font><span class="hide">2:14</span></td></tr>
+</tbody></table></div>
+`;
+
+Deno.test("wegrit: hide-span-duplicaat verdubbelt de tijd niet", () => {
+  const results = parseStagePage(parseDoc(ROAD_HIDE_STAGE));
+  const winnerTime = 3 * 3600 + 34 * 60 + 46;
+  assertEquals(results[0].time_seconds, winnerTime);
+  assertEquals(results[1].time_seconds, winnerTime + 2 * 60 + 14);
 });
 
 // ---- Foutscenario's ----
