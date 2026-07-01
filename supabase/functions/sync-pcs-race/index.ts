@@ -297,36 +297,33 @@ Deno.serve(async (req) => {
 
       const pcsSlugs = new Set(pcsRiders.filter(r => r.pcs_slug).map(r => r.pcs_slug));
 
-      // Renners toevoegen of bijwerken — match uitsluitend op pcs_slug (bibnummers wisselen per koers)
+      // Renners toevoegen of bijwerken — match op pcs_slug. Bibnummers van PCS zijn vóór de koers
+      // placeholders ("-" → volgnummer uit DOM-volgorde); die volgorde wisselt per sync en botst dan
+      // op UNIQUE(competition_id, bib_number), waardoor inserts/updates stil sneuvelen. Daarom NOOIT
+      // de bib uit de parse overnemen: bestaande renners houden hun bib, nieuwe krijgen max+1.
       let added = 0, updated = 0;
+      let maxBib = Math.max(0, ...(dbRiders || []).map(d => d.bib_number || 0));
       for (const r of pcsRiders) {
-        if (r.pcs_slug) {
-          const existing = dbRiders?.find(d => d.pcs_slug === r.pcs_slug);
-          if (existing) {
-            // Bijwerken: naam, team en bibnummer kunnen gewijzigd zijn
-            await adminClient.from("riders").update({ name: r.name, team: r.team, bib_number: r.bib_number }).eq("id", existing.id);
-            updated++;
-          } else {
-            try {
-              const enriched = await enrichFromExisting(adminClient, r.pcs_slug);
-              await adminClient.from("riders").insert({ ...enriched, ...r, competition_id });
-              log.push(`➕ ${r.name} toegevoegd`);
-              added++;
-            } catch (e) {
-              log.push(`⚠️ ${r.name}: ${(e as Error).message}`);
-            }
-          }
+        const existing = r.pcs_slug
+          ? dbRiders?.find(d => d.pcs_slug === r.pcs_slug)
+          : dbRiders?.find(d => d.bib_number === r.bib_number);
+        if (existing) {
+          // Bijwerken: naam/team kunnen gewijzigd zijn — bib behouden (intern placeholder)
+          await adminClient.from("riders")
+            .update({ name: r.name, team: r.team, pcs_slug: r.pcs_slug ?? existing.pcs_slug })
+            .eq("id", existing.id);
+          updated++;
         } else {
-          // Geen slug: bib als laatste redmiddel
-          const exists = dbRiders?.some(d => d.bib_number === r.bib_number);
-          if (!exists) {
-            try {
-              await adminClient.from("riders").insert({ ...r, competition_id });
-              log.push(`➕ ${r.name} toegevoegd (geen slug)`);
-              added++;
-            } catch (e) {
-              log.push(`⚠️ ${r.name}: ${(e as Error).message}`);
-            }
+          try {
+            const enriched = await enrichFromExisting(adminClient, r.pcs_slug);
+            const nextBib = ++maxBib;
+            await adminClient.from("riders").insert({ ...enriched, ...r, bib_number: nextBib, competition_id });
+            // In-memory snapshot bijwerken zodat dubbele startlijst-vermeldingen niet twee keer inserten
+            dbRiders?.push({ id: -1, pcs_slug: r.pcs_slug, bib_number: nextBib, name: r.name });
+            log.push(`➕ ${r.name} toegevoegd`);
+            added++;
+          } catch (e) {
+            log.push(`⚠️ ${r.name}: ${(e as Error).message}`);
           }
         }
       }
