@@ -243,6 +243,14 @@ code, pre { color: var(--text); }
 
 /* --- Competitie-selector --- */
 .comp-selector { display: flex; align-items: center; }
+.comp-logo {
+  height: 26px;
+  width: auto;
+  max-width: 64px;
+  object-fit: contain;
+  margin-right: 8px;
+  border-radius: 4px;
+}
 .comp-selector select {
   border-color: var(--border);
   font-weight: 600;
@@ -1296,6 +1304,21 @@ code, pre { color: var(--text); }
   transition: max-height 0.3s var(--ease);
 }
 .stage-profile-img.expanded { max-height: 80vh; cursor: zoom-out; }
+
+/* Toggle Profiel/Kaart (officiële ASO-visuals) */
+.stage-visual-tabs { display: flex; gap: 6px; margin-top: 0.5rem; }
+.stage-visual-tab {
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  padding: 2px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.stage-visual-tab:hover { color: var(--text); }
+.stage-visual-tab.active { background: var(--accent-dim); border-color: var(--accent); color: var(--text); }
 
 /* --- Pick: bevestigingsbalk --- */
 .pick-bar {

@@ -97,6 +97,17 @@ export function updateSyncInfo() {
 export function applyCompColor() {
   const comp = state.competitions.find(c => c.id === state.activeCompId);
   const color = comp?.color || '#facc15';
+  // Optioneel ronde-logo in de navbar (sfeer per ronde)
+  const logo = $('comp-logo') as HTMLImageElement | null;
+  if (logo) {
+    if (comp?.logo_url) {
+      logo.src = comp.logo_url;
+      logo.style.display = '';
+    } else {
+      logo.style.display = 'none';
+      logo.removeAttribute('src');
+    }
+  }
   document.documentElement.style.setProperty('--comp-color', color);
   // Apply to comp-select
   const sel = $('comp-select');

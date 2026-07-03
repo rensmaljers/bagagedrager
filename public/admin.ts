@@ -263,6 +263,11 @@ async function loadAdminCompetitions() {
                onchange="updateCompField(${c.id}, 'country_flag', this.value)">
       </td>
       <td>
+        <input type="url" class="form-control form-control-sm" value="${escapeHtml(c.logo_url || '')}"
+               placeholder="Logo URL" style="min-width:110px; font-size:0.75rem;"
+               onchange="updateCompField(${c.id}, 'logo_url', this.value)">
+      </td>
+      <td>
         <input type="url" class="form-control form-control-sm" value="${escapeHtml(c.pcs_url || '')}"
                placeholder="PCS URL" style="min-width:140px; font-size:0.75rem;"
                onchange="updateCompPcsUrl(${c.id}, this.value)">
@@ -287,7 +292,7 @@ async function loadAdminCompetitions() {
         <button class="btn btn-sm btn-outline-danger" onclick="deleteComp(${c.id})">Verwijder</button>
       </td>
     </tr>
-  `).join('') || '<tr><td colspan="8" class="text-muted">Geen rondes</td></tr>';
+  `).join('') || '<tr><td colspan="11" class="text-muted">Geen rondes</td></tr>';
 }
 
 window.updateCompField = async function(compId, field, value) {
@@ -295,7 +300,7 @@ window.updateCompField = async function(compId, field, value) {
     await supaPatch('competitions', `id=eq.${compId}`, { [field]: value || null });
     const comp = state.competitions.find(c => c.id === compId);
     if (comp) comp[field] = value;
-    if (field === 'color' || field === 'country_flag') {
+    if (field === 'color' || field === 'country_flag' || field === 'logo_url') {
       updateCompBanner();
       applyCompColor();
     }

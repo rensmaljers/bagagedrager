@@ -83,13 +83,37 @@ export function renderPickStage() {
       : '';
   }
 
-  // Profielplaatje tonen
+  // Etappe-visuals: officiële ASO-afbeeldingen (profiel + kaart) hebben voorrang,
+  // PCS-profiel is fallback. Met kaart erbij: toggle-chips Profiel/Kaart.
   const profileContainer = $('pick-stage-profile');
   if (profileContainer) {
-    profileContainer.innerHTML = stage.profile_image_url
-      ? `<img src="${escapeHtml(stage.profile_image_url)}" alt="Etappeprofiel" class="stage-profile-img" onclick="this.classList.toggle('expanded')" onerror="this.parentElement.style.display='none'">`
-      : '';
-    profileContainer.style.display = '';
+    const profileSrc = stage.official_profile_image_url || stage.profile_image_url;
+    const mapSrc = stage.route_map_url;
+    // onerror: officieel profiel → val terug op PCS; anders afbeelding weg
+    const profileFallback = stage.official_profile_image_url && stage.profile_image_url
+      ? `data-fb="${escapeHtml(stage.profile_image_url)}"` : '';
+    const imgTag = (src, kind, hidden, extra = '') =>
+      `<img src="${escapeHtml(src)}" alt="${kind === 'map' ? 'Routekaart' : 'Etappeprofiel'}" class="stage-profile-img" data-kind="${kind}" ${hidden ? 'hidden' : ''} ${extra} onclick="this.classList.toggle('expanded')" onerror="if(this.dataset.fb){this.src=this.dataset.fb;delete this.dataset.fb}else{this.hidden=true}">`;
+    let html = '';
+    if (profileSrc && mapSrc) {
+      html = `<div class="stage-visual-tabs">
+          <button type="button" class="stage-visual-tab active" data-kind="profile">Profiel</button>
+          <button type="button" class="stage-visual-tab" data-kind="map">Kaart</button>
+        </div>` + imgTag(profileSrc, 'profile', false, profileFallback) + imgTag(mapSrc, 'map', true);
+    } else if (profileSrc) {
+      html = imgTag(profileSrc, 'profile', false, profileFallback);
+    } else if (mapSrc) {
+      html = imgTag(mapSrc, 'map', false);
+    }
+    profileContainer.innerHTML = html;
+    profileContainer.querySelectorAll('.stage-visual-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        profileContainer.querySelectorAll('.stage-visual-tab').forEach(b => b.classList.toggle('active', b === btn));
+        profileContainer.querySelectorAll('.stage-profile-img').forEach(im => {
+          (im as HTMLImageElement).hidden = (im as HTMLElement).dataset.kind !== (btn as HTMLElement).dataset.kind;
+        });
+      });
+    });
   }
   $('pick-locked-msg').style.display = isLocked ? 'block' : 'none';
 

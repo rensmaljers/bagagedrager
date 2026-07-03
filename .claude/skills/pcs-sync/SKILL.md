@@ -79,6 +79,7 @@ Vóór de koers toont PCS `-` als bib; de parser verzint dan een volgnummer uit 
 - **Foto's** komen apart via `sync-pcs-photos` (te traag voor één request; 200ms rate-limit per renner).
 - **Specialties** vernieuwt de cron `cron-refresh-specialties` wekelijks (ma 3:00 UTC).
 - PCS-tijden zijn CET/CEST — `cetOffsetForDate` bepaalt de UTC-offset; hou die logica in stand bij starttijd-wijzigingen.
+- **PCS her-shardt afbeeldings-URLs** (`/images/profiles/xx/yy/…`) soms massaal (juli 2026: 20/21 TdF-profielen dood). auto-sync ververst `profile_image_url` daarom uit de toch al gefetchte stagepagina. De officiële ASO-visuals (`stages.official_profile_image_url` + `route_map_url`, migratie 065, handmatig van letour.fr) blijven buiten elke sync — nooit overschrijven.
 
 ## Debuggen
 
