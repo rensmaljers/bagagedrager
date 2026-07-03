@@ -30,7 +30,7 @@ function checkDeadlineNotifications() {
   for (const s of compStages) {
     if (s.locked) continue;
     const deadline = new Date(s.start_time || s.deadline);
-    const diff = deadline - now;
+    const diff = deadline.getTime() - now.getTime();
     // Notify 30 min before (between 29-31 min window to avoid duplicates)
     if (diff > 0 && diff <= 31 * 60000 && diff > 29 * 60000) {
       const hasPick = state.myPicks.some(p => p.stage_id === s.id);
@@ -145,5 +145,5 @@ async function subscribeNotifications() {
 
 // Knop koppelen (wordt aangeroepen als account tab laadt)
 document.addEventListener('click', e => {
-  if (e.target.id === 'btn-notifications') subscribeNotifications();
+  if ((e.target as HTMLElement)?.id === 'btn-notifications') subscribeNotifications();
 });

@@ -34,9 +34,16 @@
     appState.session = newSession;
   });
 
-  // Service worker vroeg registreren zodat push notificaties werken ook zonder account tab
+  // Service worker vroeg registreren: push + offline app-shell (zie public/sw.js).
+  // Bij een nieuwe versie (controllerchange ná een bestaande controller) melden we
+  // dat een verversing de nieuwste versie laadt — geen auto-reload midden in een pick.
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js').catch(() => {});
+    let hadController = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (hadController) toast('App bijgewerkt — ververs de pagina voor de nieuwste versie', 'info', 7000);
+      hadController = true;
+    });
   }
 
   // --- INIT ---
@@ -171,23 +178,19 @@
     appState._realtimeChannel = supabase
       .channel('game-updates')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'stage_results' }, async () => {
+        // Gericht: caches nullen — views met een $effect op de cache herladen
+        // zichzelf zonder remount (zoekveld/scroll blijven staan).
         appState._cache.standings = null;
         appState._cache.participants = null;
-        // Herlaad DNF-renners zodat grid direct klopt
+        // Herlaad DNF-renners zodat grid direct klopt (reactief in Pick)
         await loadDnfRiderIds();
-        if (ui.activeTab === 'dashboard') {
-          ui.refreshTick++; // remount Dashboard (vervangt loadStandings())
-          toast('Resultaten bijgewerkt', 'info', 2500);
-        }
-        if (ui.activeTab === 'pick') ui.refreshTick++; // remount Pick (vervangt renderPickStage())
+        if (ui.activeTab === 'dashboard') toast('Resultaten bijgewerkt', 'info', 2500);
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'picks' }, async () => {
         appState._cache.participants = null;
         appState._cache.standings = null;
-        // Herlaad eigen picks zodat "al gebruikt" direct klopt
+        // Herlaad eigen picks zodat "al gebruikt" direct klopt (reactief in Pick)
         appState.myPicks = await supaRest('picks', { filters: `user_id=eq.${appState.session.user.id}&order=stage_id` });
-        if (ui.activeTab === 'pick') ui.refreshTick++;
-        if (ui.activeTab === 'participants') ui.refreshTick++;
       })
       .subscribe();
   }

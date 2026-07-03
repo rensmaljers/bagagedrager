@@ -117,7 +117,7 @@ export function applyCompColor() {
   }
   // Apply to active nav tab underline
   document.querySelectorAll('#main-tabs .nav-link.active').forEach(n => {
-    n.style.borderBottomColor = color;
+    (n as HTMLElement).style.borderBottomColor = color;
   });
   // Apply to stage timeline dots (open state)
   document.documentElement.style.setProperty('--comp-accent', color);
