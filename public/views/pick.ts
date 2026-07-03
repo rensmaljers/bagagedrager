@@ -223,7 +223,7 @@ async function updateOthersPicks(stageId, isLocked) {
       supaRest('picks', { filters: `stage_id=eq.${stageId}`, select: 'user_id,rider_id,is_random' }),
       supaRest('competition_participants', { filters: `competition_id=eq.${state.activeCompId}`, select: 'user_id' }),
     ]);
-    const profileById = new Map((state._cache.allProfiles || []).map(p => [p.id, p]));
+    const profileById = new Map<string, any>((state._cache.allProfiles || []).map((p: any) => [p.id, p]));
     const pickedIds = new Set((rawPicks || []).map(p => p.user_id));
     const aiPicks = (rawPicks || [])
       .filter(p => profileById.get(p.user_id)?.is_ai)
