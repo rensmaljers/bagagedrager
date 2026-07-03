@@ -214,19 +214,33 @@ async function updateOthersPicks(stageId, isLocked) {
   let stagePicks;
   let adminPreview = false;
   if (!isLocked) {
-    // Admin-voorvertoning vóór de deadline: rechtstreeks uit de picks-tabel
-    // (RLS geeft admins leesrecht; de view stage_picks_public filtert bewust
-    // op deadline en is hier dus onbruikbaar). Namen/renners lokaal koppelen.
+    // Admin-voorvertoning vóór de deadline: alléén AI-picks (met renner) en
+    // wie nog geen keuze heeft — menselijke keuzes blijven verborgen (fair play).
+    // Picks rechtstreeks uit de tabel (RLS geeft admins leesrecht; de view
+    // stage_picks_public filtert bewust op deadline).
     adminPreview = true;
-    const rawPicks = await supaRest('picks', { filters: `stage_id=eq.${stageId}`, select: 'user_id,rider_id,is_random' });
-    if (!rawPicks?.length) { container.style.display = 'none'; return; }
-    const nameById = new Map((state._cache.allProfiles || []).map(p => [p.id, p.display_name]));
-    stagePicks = rawPicks.map(p => ({
-      ...p,
-      display_name: nameById.get(p.user_id) || '?',
-      rider_name: state._riderMap[p.rider_id]?.name || '?',
-      rider_team: state._riderMap[p.rider_id]?.team || '',
-    })).sort((a, b) => a.display_name.localeCompare(b.display_name));
+    const [rawPicks, participants] = await Promise.all([
+      supaRest('picks', { filters: `stage_id=eq.${stageId}`, select: 'user_id,rider_id,is_random' }),
+      supaRest('competition_participants', { filters: `competition_id=eq.${state.activeCompId}`, select: 'user_id' }),
+    ]);
+    const profileById = new Map((state._cache.allProfiles || []).map(p => [p.id, p]));
+    const pickedIds = new Set((rawPicks || []).map(p => p.user_id));
+    const aiPicks = (rawPicks || [])
+      .filter(p => profileById.get(p.user_id)?.is_ai)
+      .map(p => ({
+        ...p,
+        display_name: profileById.get(p.user_id)?.display_name || '?',
+        rider_name: state._riderMap[p.rider_id]?.name || '?',
+        rider_team: state._riderMap[p.rider_id]?.team || '',
+      }));
+    const missing = (participants || [])
+      .filter(p => !pickedIds.has(p.user_id))
+      .map(p => ({
+        user_id: p.user_id,
+        display_name: profileById.get(p.user_id)?.display_name || '?',
+        rider_name: null, rider_team: '', is_random: false,
+      }));
+    stagePicks = [...aiPicks, ...missing].sort((a, b) => a.display_name.localeCompare(b.display_name));
   } else if (state._cache.participantsCompId === state.activeCompId && state._cache.participants) {
     stagePicks = state._cache.participants.filter(p => p.stage_id === stageId);
   } else {
@@ -237,11 +251,14 @@ async function updateOthersPicks(stageId, isLocked) {
 
   if (!stagePicks.length) { container.style.display = 'none'; return; }
   container.style.display = 'block';
-  body.innerHTML = (adminPreview ? `<div class="others-pick-row" style="color:var(--text-muted);font-size:0.72rem;">Admin-voorvertoning — spelers zien dit pas na de deadline</div>` : '') + stagePicks.map(p => {
+  body.innerHTML = (adminPreview ? `<div class="others-pick-row" style="color:var(--text-muted);font-size:0.72rem;">Admin-voorvertoning — AI-picks en wie nog geen keuze heeft</div>` : '') + stagePicks.map(p => {
     const isMe = p.user_id === state.session.user.id;
+    const pickCell = p.rider_name
+      ? `${riderDisplay(p.rider_name, riderPhoto(p.rider_id))} ${teamBadge(p.rider_team)}${p.is_random ? ' <span class="badge bg-info" style="font-size:0.6rem;">🎡</span>' : ''}`
+      : `<span style="color:var(--red);font-size:0.78rem;">nog geen keuze</span>`;
     return `<div class="others-pick-row${isMe ? ' fw-bold' : ''}">
       <span>${escapeHtml(p.display_name)}</span>
-      <span>${riderDisplay(p.rider_name, riderPhoto(p.rider_id))} ${teamBadge(p.rider_team)}${p.is_random ? ' <span class="badge bg-info" style="font-size:0.6rem;">🎡</span>' : ''}</span>
+      <span>${pickCell}</span>
     </div>`;
   }).join('');
 }
