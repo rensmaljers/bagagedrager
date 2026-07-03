@@ -25,7 +25,7 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   // Gehashte assets: cache-first (immutable)
-  if (url.origin === self.location.origin && url.pathname.startsWith('/assets/')) {
+  if (url.origin === self.location.origin && (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/fonts/'))) {
     event.respondWith((async () => {
       const cache = await caches.open(ASSET_CACHE);
       const hit = await cache.match(event.request);

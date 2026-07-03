@@ -16,7 +16,6 @@
   <meta property="og:type" content="website">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%23f5c518'/%3E%3Cpath d='M8 20l4-10h8l4 10M10 15h12M12 10l4 4 4-4' stroke='%23111' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-  <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
   <link rel="preconnect" href="https://hdkvirtytljnuawcmoui.supabase.co" crossorigin>
   <script>
     (function(){var s=localStorage.getItem('bagagedrager_theme');var d=s||(window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',d);})();
@@ -33,10 +32,15 @@
   <!-- Async CSS: blokkeert first paint niet — kritieke styles staan hierboven inline.
        media="print" + onload-swap is de standaard async-CSS-truc; noscript als fallback.
        Bootstrap is verwijderd: style.css (sectie 1b) implementeert de gebruikte klassen zelf. -->
-  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@1&f[]=clash-display@500,600,700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-  <noscript>
-    <link href="https://api.fontshare.com/v2/css?f[]=satoshi@1&f[]=clash-display@500,600,700&display=swap" rel="stylesheet">
-  </noscript>
+  <!-- Fonts self-hosted (Fontshare/ITF-licentie): geen CDN-roundtrip, werkt offline -->
+  <link rel="preload" href="/fonts/satoshi-variable.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/clash-display-600.woff2" as="font" type="font/woff2" crossorigin>
+  <style>
+    @font-face{font-family:'Satoshi';src:url('/fonts/satoshi-variable.woff2') format('woff2');font-weight:300 900;font-display:swap;font-style:normal;}
+    @font-face{font-family:'Clash Display';src:url('/fonts/clash-display-500.woff2') format('woff2');font-weight:500;font-display:swap;font-style:normal;}
+    @font-face{font-family:'Clash Display';src:url('/fonts/clash-display-600.woff2') format('woff2');font-weight:600;font-display:swap;font-style:normal;}
+    @font-face{font-family:'Clash Display';src:url('/fonts/clash-display-700.woff2') format('woff2');font-weight:700;font-display:swap;font-style:normal;}
+  </style>
 </head>
 <body>
 <!-- Svelte 5-app: alle UI leeft in src/App.svelte en src/views/*.
