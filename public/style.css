@@ -315,12 +315,22 @@ code, pre { color: var(--text); }
   gap: 0.4rem;
 }
 .nav-pills .nav-link:hover { color: var(--text); }
+.nav-pills .nav-link { position: relative; z-index: 0; }
 .nav-pills .nav-link.active {
-  background: var(--bg-elevated);
-  color: var(--text);
-  box-shadow: inset 0 0 0 1px var(--border-strong);
+  background: transparent;
+  color: var(--jaune-ink);
+  font-weight: 600;
 }
-.nav-pills .nav-link.active .icon { color: var(--comp-color, var(--accent)); }
+/* Actieve tab draagt de gele trui: schuin vlak achter de content.
+   Skew-offset (~3px bij 34px hoogte) valt binnen de 4px container-padding. */
+.nav-pills .nav-link.active::before {
+  content: ""; position: absolute; inset: 0;
+  background: var(--jaune);
+  border-radius: 6px;
+  transform: skewX(-10deg);
+  z-index: -1;
+}
+.nav-pills .nav-link.active .icon { color: var(--jaune-ink); }
 .nav-pills .nav-link:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px var(--accent-dim);
@@ -1125,25 +1135,28 @@ code, pre { color: var(--text); }
 .my-status-stats {
   display: flex;
   flex-wrap: wrap;
+  gap: 0.9rem;
 }
-.my-status-stat { padding-right: 2.25rem; }
-.my-status-stat + .my-status-stat {
-  border-left: 1px solid var(--border);
-  padding-left: 2.25rem;
+/* Schuine trui-panelen: elk klassement draagt zijn kleur als rand + tint */
+.my-status-stat {
+  flex: 1;
+  min-width: 150px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--jcol, var(--border-strong));
+  background: color-mix(in srgb, var(--jcol, var(--text-muted)) 6%, var(--bg-elevated));
+  border-radius: 6px;
+  padding: 0.85rem 1.2rem 0.7rem;
+  transform: skewX(-10deg);
 }
-/* Truikleur-stip per klassement bij het label */
+.my-status-stat > * { transform: skewX(10deg); }
 .my-status-stat.jersey-gc       { --jcol: var(--jaune); }
 .my-status-stat.jersey-points   { --jcol: var(--vert); }
 .my-status-stat.jersey-mountain { --jcol: var(--pois); }
 .my-status-stat.jersey-game     { --jcol: var(--wit-edge); }
-.my-status-stat[class*="jersey-"] .my-status-stat-label::before {
-  content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 2px;
-  background: var(--jcol); margin-right: 6px; vertical-align: 0;
-}
-.my-status-stat.jersey-mountain .my-status-stat-label::before {
-  background: var(--wit);
-  background-image: radial-gradient(var(--pois) 38%, transparent 40%);
-  background-size: 4px 4px;
+/* Berg-paneel draagt de bolletjes */
+.my-status-stat.jersey-mountain {
+  background-image: radial-gradient(circle at 4px 4px, color-mix(in srgb, var(--pois) 18%, transparent) 2px, transparent 2.4px);
+  background-size: 16px 16px;
 }
 .my-status-value {
   font-size: 2.25rem;
@@ -1699,13 +1712,9 @@ tbody:not(.expanded) .standings-extra { display: none; }
   .my-status-stats {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 1rem 1.25rem;
+    gap: 0.6rem;
   }
-  .my-status-stat { padding-right: 0; }
-  .my-status-stat + .my-status-stat {
-    border-left: none;
-    padding-left: 0;
-  }
+  .my-status-stat { min-width: 0; padding: 0.7rem 0.9rem 0.55rem; }
   .my-status-value { font-size: 1.85rem; }
   .my-status-next { flex-direction: column; align-items: flex-start; gap: 0.6rem; }
 
