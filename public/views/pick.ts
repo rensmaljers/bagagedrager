@@ -67,9 +67,31 @@ export function renderPickStage() {
   ].filter(Boolean).join(' · ');
   $('pick-deadline').textContent = stageDetails;
 
-  // Extra race-info badges
+  // Stats-strip in letour-stijl: Afstand / Type / Hoogtemeters
+  const STAGE_TYPES = {
+    flat: { label: 'Vlak', icon: 'bike' },
+    sprint: { label: 'Sprint', icon: 'zap' },
+    hills: { label: 'Heuvels', icon: 'chart' },
+    mountain: { label: 'Bergrit', icon: 'mountain' },
+    tt: { label: 'Tijdrit', icon: 'clock' },
+  };
+  const typeInfo = STAGE_TYPES[stage.stage_type];
+  const stats = [
+    stage.distance_km ? { icon: 'flag', label: 'Afstand', value: `${stage.distance_km} km` } : null,
+    typeInfo ? { icon: typeInfo.icon, label: 'Type', value: typeInfo.label } : null,
+    stage.vertical_meters ? { icon: 'mountain', label: 'Hoogtemeters', value: `${stage.vertical_meters} m` } : null,
+  ].filter(Boolean);
+  const statsEl = $('pick-stage-stats');
+  if (statsEl) {
+    statsEl.innerHTML = stats.length ? `<div class="stage-stats">` + stats.map(s => `
+      <div class="stage-stat">
+        <span class="stage-stat-icon">${icon(s.icon, '', 18)}</span>
+        <span class="stage-stat-body"><span class="stage-stat-label">${s.label}</span><span class="stage-stat-value tnum">${s.value}</span></span>
+      </div>`).join('') + `</div>` : '';
+  }
+
+  // Extra race-info badges (hoogtemeters zit al in de stats-strip)
   const infoBadges = [
-    stage.vertical_meters ? `↗ ${stage.vertical_meters}m` : null,
     stage.profile_score ? `Profiel: ${stage.profile_score}` : null,
     stage.classification || null,
     stage.parcours_type || null,

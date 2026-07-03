@@ -1309,6 +1309,19 @@ code, pre { color: var(--text); }
 }
 .stage-profile-img.expanded { max-height: 80vh; cursor: zoom-out; }
 
+/* Stats-strip in letour-stijl (Afstand / Type / Hoogtemeters) */
+.stage-stats { display: flex; gap: 1.25rem; margin-top: 0.6rem; flex-wrap: wrap; }
+.stage-stat { display: flex; align-items: center; gap: 8px; }
+.stage-stat-icon {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 8px;
+  background: var(--accent-bg); color: var(--accent);
+  border: 1px solid var(--border);
+}
+.stage-stat-body { display: flex; flex-direction: column; line-height: 1.15; }
+.stage-stat-label { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.stage-stat-value { font-family: var(--font-display); font-weight: 600; font-size: 0.95rem; color: var(--text); }
+
 /* Toggle Profiel/Kaart (officiële ASO-visuals) */
 .stage-visual-tabs { display: flex; gap: 6px; margin-top: 0.5rem; }
 .stage-visual-tab {
