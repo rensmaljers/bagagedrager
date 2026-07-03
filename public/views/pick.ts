@@ -83,35 +83,43 @@ export function renderPickStage() {
       : '';
   }
 
-  // Etappe-visuals: officiële ASO-afbeeldingen (profiel + kaart) hebben voorrang,
-  // PCS-profiel is fallback. Met kaart erbij: toggle-chips Profiel/Kaart.
+  // Etappe-visuals: officiële ASO-afbeeldingen (profiel + kaart + interactieve
+  // route) hebben voorrang, PCS-profiel is fallback. Meerdere visuals → toggle-chips.
   const profileContainer = $('pick-stage-profile');
   if (profileContainer) {
     const profileSrc = stage.official_profile_image_url || stage.profile_image_url;
-    const mapSrc = stage.route_map_url;
     // onerror: officieel profiel → val terug op PCS; anders afbeelding weg
     const profileFallback = stage.official_profile_image_url && stage.profile_image_url
       ? `data-fb="${escapeHtml(stage.profile_image_url)}"` : '';
-    const imgTag = (src, kind, hidden, extra = '') =>
-      `<img src="${escapeHtml(src)}" alt="${kind === 'map' ? 'Routekaart' : 'Etappeprofiel'}" class="stage-profile-img" data-kind="${kind}" ${hidden ? 'hidden' : ''} ${extra} onclick="this.classList.toggle('expanded')" onerror="if(this.dataset.fb){this.src=this.dataset.fb;delete this.dataset.fb}else{this.hidden=true}">`;
-    let html = '';
-    if (profileSrc && mapSrc) {
-      html = `<div class="stage-visual-tabs">
-          <button type="button" class="stage-visual-tab active" data-kind="profile">Profiel</button>
-          <button type="button" class="stage-visual-tab" data-kind="map">Kaart</button>
-        </div>` + imgTag(profileSrc, 'profile', false, profileFallback) + imgTag(mapSrc, 'map', true);
-    } else if (profileSrc) {
-      html = imgTag(profileSrc, 'profile', false, profileFallback);
-    } else if (mapSrc) {
-      html = imgTag(mapSrc, 'map', false);
-    }
-    profileContainer.innerHTML = html;
+    const imgTag = (src, kind, hidden, alt, extra = '') =>
+      `<img src="${escapeHtml(src)}" alt="${alt}" class="stage-profile-img" data-kind="${kind}" ${hidden ? 'hidden' : ''} ${extra} onclick="this.classList.toggle('expanded')" onerror="if(this.dataset.fb){this.src=this.dataset.fb;delete this.dataset.fb}else{this.hidden=true}">`;
+
+    const visuals = [];
+    if (profileSrc) visuals.push({ kind: 'profile', label: 'Profiel', html: (hidden) => imgTag(profileSrc, 'profile', hidden, 'Etappeprofiel', profileFallback) });
+    if (stage.route_map_url) visuals.push({ kind: 'map', label: 'Kaart', html: (hidden) => imgTag(stage.route_map_url, 'map', hidden, 'Routekaart') });
+    // Interactieve kaart lazy: iframe-src pas zetten bij eerste activatie
+    if (stage.interactive_map_url) visuals.push({ kind: 'route', label: 'Interactief', html: (hidden) =>
+      `<div class="stage-route-frame" data-kind="route" ${hidden ? 'hidden' : ''}><iframe data-src="${escapeHtml(stage.interactive_map_url)}" title="Interactieve routekaart" loading="lazy" allowfullscreen allow="geolocation"></iframe></div>` });
+
+    const tabs = visuals.length > 1
+      ? `<div class="stage-visual-tabs">` + visuals.map((v, i) =>
+          `<button type="button" class="stage-visual-tab ${i === 0 ? 'active' : ''}" data-kind="${v.kind}">${v.label}</button>`).join('') + `</div>`
+      : '';
+    profileContainer.innerHTML = tabs + visuals.map((v, i) => v.html(i !== 0)).join('');
+
+    const activateFrame = (kind) => {
+      if (kind !== 'route') return;
+      const frame = profileContainer.querySelector('.stage-route-frame iframe') as HTMLIFrameElement | null;
+      if (frame && !frame.src && frame.dataset.src) frame.src = frame.dataset.src;
+    };
     profileContainer.querySelectorAll('.stage-visual-tab').forEach(btn => {
       btn.addEventListener('click', () => {
+        const kind = (btn as HTMLElement).dataset.kind;
         profileContainer.querySelectorAll('.stage-visual-tab').forEach(b => b.classList.toggle('active', b === btn));
-        profileContainer.querySelectorAll('.stage-profile-img').forEach(im => {
-          (im as HTMLImageElement).hidden = (im as HTMLElement).dataset.kind !== (btn as HTMLElement).dataset.kind;
+        profileContainer.querySelectorAll('[data-kind]').forEach(el => {
+          if (!el.classList.contains('stage-visual-tab')) (el as HTMLElement).hidden = (el as HTMLElement).dataset.kind !== kind;
         });
+        activateFrame(kind);
       });
     });
   }
