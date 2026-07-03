@@ -77,10 +77,32 @@ export function renderPickStage() {
     ttt: { label: 'Ploegentijdrit', icon: 'users' },
   };
   const typeInfo = STAGE_TYPES[stage.stage_type];
+
+  // Verwachte aankomst (officieel, letour) + geschatte tijdslimiet.
+  // Tijdslimiet = aankomst + rittijd × percentage (vereenvoudigd UCI/ASO-reglement
+  // per rittype; werkelijke coëfficiënt hangt af van het winnaarsgemiddelde).
+  // Alleen voor wegritten: bij (ploegen)tijdritten beslaat start→eind de hele
+  // sessie van alle teams en is de aankomsttijd al de laatste finisher.
+  const TIME_LIMIT_PCT = { flat: 0.07, sprint: 0.07, hills: 0.11, mountain: 0.15 };
+  let arrivalStat = null, limitStat = null;
+  const endTs = stage.estimated_end_time ? new Date(stage.estimated_end_time).getTime() : 0;
+  const startTs = stage.start_time ? new Date(stage.start_time).getTime() : 0;
+  if (endTs && startTs && endTs > startTs) {
+    const fmtTime = (ts) => new Date(ts).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+    arrivalStat = { icon: 'clock', label: 'Aankomst (verw.)', value: `± ${fmtTime(endTs)}` };
+    const pct = TIME_LIMIT_PCT[stage.stage_type];
+    if (pct) {
+      const limitTs = endTs + (endTs - startTs) * pct;
+      limitStat = { icon: 'lock', label: 'Tijdslimiet', value: `± ${fmtTime(limitTs)}` };
+    }
+  }
+
   const stats = [
     stage.distance_km ? { icon: 'flag', label: 'Afstand', value: `${stage.distance_km} km` } : null,
     typeInfo ? { icon: typeInfo.icon, label: 'Type', value: typeInfo.label } : null,
     stage.vertical_meters ? { icon: 'mountain', label: 'Hoogtemeters', value: `${stage.vertical_meters} m` } : null,
+    arrivalStat,
+    limitStat,
   ].filter(Boolean);
   const statsEl = $('pick-stage-stats');
   if (statsEl) {
