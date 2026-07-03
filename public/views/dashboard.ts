@@ -107,16 +107,22 @@ export async function loadStandings() {
     return ` <button class="btn btn-ghost" style="padding:0.1rem 0.4rem;font-size:0.6rem;border-radius:4px;" onclick="openH2H('${escapeHtml(name).replace(/'/g, "\\'")}','${classMode}')">vs</button>`;
   }
 
-  // Render standings with rivalry
-  function renderClassification(tableId, sorted, valueFn, formatFn, isTime, heroLabel?: string, rankDelta?: Map<string, number>, classMode?: string) {
+  // Render standings with rivalry. compact: zijkolom-kaarten tonen top 5 (+ eigen rij)
+  // met een uitklap-knop, zodat de rechterkolom op desktop niet ellenlang wordt.
+  const COMPACT_TOP = 5;
+  function renderClassification(tableId, sorted, valueFn, formatFn, isTime, heroLabel?: string, rankDelta?: Map<string, number>, classMode?: string, compact = false) {
     const myIdx = sorted.findIndex(s => s.display_name === myName);
     // Truikleur per klassement — de leider "draagt de trui" (strijdlust is geen trui)
     const jerseyClass = ({ gc: 'jersey-gc', points: 'jersey-points', mountain: 'jersey-mountain', game: 'jersey-game' } as Record<string, string>)[classMode || 'game'] || '';
+    const collapsible = compact && sorted.length > COMPACT_TOP + 1;
     const rows = sorted.map((s, i) => {
       const isMe = s.display_name === myName;
       const isLeader = i === 0 && sorted.length > 0;
       const meStyle = isMe ? ' style="background:var(--accent-bg);"' : '';
-      const trClass = isLeader ? ` class="leader-row${jerseyClass ? ' wears ' + jerseyClass : ''}"` : '';
+      const extraClass = collapsible && i >= COMPACT_TOP && !isMe ? 'standings-extra' : '';
+      const trClass = isLeader
+        ? ` class="leader-row${jerseyClass ? ' wears ' + jerseyClass : ''}"`
+        : (extraClass ? ` class="${extraClass}"` : '');
       const truiChip = isLeader && jerseyClass ? ` <span class="trui-chip">trui</span>` : '';
       const delta = rankDelta?.get(s.user_id);
       const deltaHtml = delta != null && delta !== 0
@@ -124,7 +130,10 @@ export async function loadStandings() {
         : '';
       return `<tr${meStyle}${trClass}><td class="tnum">${rankBadge(i)}${deltaHtml}</td><td><div class="d-flex align-items-center gap-2">${avatarHtml(s.display_name, state._avatarMap[s.display_name], 'sm')}${escapeHtml(s.display_name)}${truiChip}${h2hBtn(s.display_name, classMode || 'game')}</div></td><td class="text-end tnum">${formatFn(s, i)}</td></tr>`;
     }).join('');
-    $(tableId).innerHTML = rows || emptyRow;
+    const expandRow = collapsible
+      ? `<tr class="standings-expand-row"><td colspan="3"><button type="button" class="standings-expand-btn" onclick="const tb=this.closest('tbody');tb.classList.toggle('expanded');this.textContent=tb.classList.contains('expanded')?'Toon top ${COMPACT_TOP}':'Toon alle ${sorted.length} spelers';">Toon alle ${sorted.length} spelers</button></td></tr>`
+      : '';
+    $(tableId).innerHTML = (rows + expandRow) || emptyRow;
 
     // Leader hero section
     const heroEl = document.getElementById(tableId.replace('-table', '-hero'));
@@ -186,12 +195,12 @@ export async function loadStandings() {
     const pts = [...standings].sort((a, b) => b.total_points - a.total_points);
     const ptsDeltas = computeRankDeltas(pts, s => s.total_points, p => p.effective_points ?? 0, false);
     renderClassification('points-table', pts, s => s.total_points, (s) => s.total_points, false,
-      pts.length > 0 ? pts[0].total_points + ' pts' : null, ptsDeltas, 'points');
+      pts.length > 0 ? pts[0].total_points + ' pts' : null, ptsDeltas, 'points', true);
 
     const mt = [...standings].sort((a, b) => b.total_mountain_points - a.total_mountain_points);
     const mtDeltas = computeRankDeltas(mt, s => s.total_mountain_points, p => p.effective_mountain_points ?? 0, false);
     renderClassification('mountain-table', mt, s => s.total_mountain_points, (s) => s.total_mountain_points, false,
-      mt.length > 0 ? mt[0].total_mountain_points + ' pts' : null, mtDeltas, 'mountain');
+      mt.length > 0 ? mt[0].total_mountain_points + ' pts' : null, mtDeltas, 'mountain', true);
 
     // Status-strip: AK, Punten, Berg
     const myGcIdx = gc.findIndex(s => s.display_name === myName);
@@ -224,7 +233,7 @@ export async function loadStandings() {
   const cvDeltas = computeRankDeltas(cv, s => s.total_combativity_points || 0,
     p => (p.finish_position === 1 && !p.dnf) ? 1 : 0, false);
   renderClassification('combativity-table', cv, s => s.total_combativity_points || 0, (s) => s.total_combativity_points || 0, false,
-    cv.length > 0 ? (cv[0].total_combativity_points || 0) + ' pts' : null, cvDeltas, 'combativity');
+    cv.length > 0 ? (cv[0].total_combativity_points || 0) + ' pts' : null, cvDeltas, 'combativity', true);
 
   const gp = [...standings].sort((a, b) => b.total_game_points - a.total_game_points);
   const gpDeltas = computeRankDeltas(gp, s => s.total_game_points, p => p.effective_game_points ?? 0, false);

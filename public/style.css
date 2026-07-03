@@ -1309,8 +1309,23 @@ code, pre { color: var(--text); }
 }
 .stage-profile-img.expanded { max-height: 80vh; cursor: zoom-out; }
 
+/* Zijkolom-klassementen: ingeklapt tot top 5 (+ eigen rij) */
+tbody:not(.expanded) .standings-extra { display: none; }
+.standings-expand-row td { padding: 0 !important; }
+.standings-expand-btn {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  padding: 0.45rem;
+  cursor: pointer;
+  transition: color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.standings-expand-btn:hover { color: var(--text); background: var(--hover-overlay); }
+
 /* Stats-strip in letour-stijl (Afstand / Type / Hoogtemeters) */
-.stage-stats { display: flex; gap: 1.25rem; margin-top: 0.6rem; flex-wrap: wrap; }
+.stage-stats { display: flex; gap: 1.75rem; margin: 1rem 0 0.75rem; flex-wrap: wrap; }
 .stage-stat { display: flex; align-items: center; gap: 8px; }
 .stage-stat-icon {
   display: flex; align-items: center; justify-content: center;
@@ -1413,6 +1428,22 @@ code, pre { color: var(--text); }
 }
 .pick-bar .btn { padding: 0.5rem 1.5rem; font-size: 0.9rem; }
 .pick-bar.unconfirmed { border-top-color: var(--red); }
+
+/* Desktop: zwevende pill i.p.v. full-width strip */
+@media (min-width: 992px) {
+  .pick-bar {
+    max-width: 680px;
+    margin: 1rem auto 0;
+    bottom: 1.25rem;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    padding: 0.85rem 1.5rem;
+  }
+  .pick-bar.unconfirmed {
+    border-color: color-mix(in srgb, var(--red) 55%, var(--border-strong));
+    box-shadow: var(--shadow-lg), 0 0 24px -8px var(--red-dim);
+  }
+}
 
 /* --- Competitie-banner --- */
 .comp-banner {

@@ -92,7 +92,7 @@ export function renderPickStage() {
 
   // Extra race-info badges (hoogtemeters zit al in de stats-strip)
   const infoBadges = [
-    stage.profile_score ? `Profiel: ${stage.profile_score}` : null,
+    stage.profile_score ? `<span title="PCS ProfileScore: hoe zwaar het parcours weegt (hoger = zwaarder)">Zwaarte: ${stage.profile_score}</span>` : null,
     stage.classification || null,
     stage.parcours_type || null,
     stage.avg_speed_winner && stage.avg_speed_winner !== '-' ? `Gem: ${stage.avg_speed_winner} km/u` : null,
