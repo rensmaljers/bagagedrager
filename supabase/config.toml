@@ -35,3 +35,5 @@ verify_jwt = false
 
 [functions.test-email]
 verify_jwt = false
+[functions.auto-notify-results]
+verify_jwt = false

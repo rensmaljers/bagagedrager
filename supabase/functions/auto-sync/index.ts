@@ -95,7 +95,10 @@ Deno.serve(async (req: Request) => {
       // pagina die we toch al fetchen — vóór de parse, zodat dit ook op
       // startlijst-dagen (guard-fout) gebeurt.
       const profMatches = [...html.matchAll(/images\/profiles\/[^"']+\.(?:jpe?g|png|webp)/gi)].map((m) => m[0]);
-      const prof = profMatches.find((p) => p.includes("profile")) || profMatches[0];
+      // Op bestandsnaam filteren, niet op het hele pad — dat bevat altijd "profiles/"
+      const prof = profMatches.find((p) => /-profile/i.test(p.split("/").pop() || ""))
+        || profMatches.find((p) => /final-km/i.test(p.split("/").pop() || ""))
+        || profMatches[0];
       if (prof) {
         await supabase.from("stages")
           .update({ profile_image_url: `https://www.procyclingstats.com/${prof}` })
