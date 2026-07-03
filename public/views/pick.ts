@@ -11,7 +11,7 @@ export async function loadPickView() {
   const compStages = activeStages();
   const sel = $('stage-select');
   const now = new Date();
-  const typeLabels: Record<string, string> = { flat: '→', mountain: '▲', tt: '⏱', sprint: '⚡', hills: '~' };
+  const typeLabels: Record<string, string> = { flat: '→', mountain: '▲', tt: '⏱', ttt: '⏱', sprint: '⚡', hills: '~' };
   sel.innerHTML = compStages.map(s => {
     const locked = s.locked || now > new Date(s.deadline);
     const typeLabel = typeLabels[s.stage_type] || '';
@@ -74,6 +74,7 @@ export function renderPickStage() {
     hills: { label: 'Heuvels', icon: 'chart' },
     mountain: { label: 'Bergrit', icon: 'mountain' },
     tt: { label: 'Tijdrit', icon: 'clock' },
+    ttt: { label: 'Ploegentijdrit', icon: 'users' },
   };
   const typeInfo = STAGE_TYPES[stage.stage_type];
   const stats = [

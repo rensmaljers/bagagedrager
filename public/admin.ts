@@ -542,7 +542,7 @@ async function loadAdminStages() {
     `<option value="${c.id}">${c.name}</option>`
   ).join('');
 
-  const typeLabels = { flat: 'Vlak', mountain: 'Berg', tt: 'Tijdrit', sprint: 'Sprint' };
+  const typeLabels = { flat: 'Vlak', mountain: 'Berg', hills: 'Heuvels', tt: 'Tijdrit', ttt: 'Ploegentijdrit', sprint: 'Sprint' };
 
   $('admin-stages-table').innerHTML = state.stages.map(s => {
     const comp = state.competitions.find(c => c.id === s.competition_id);
@@ -1557,7 +1557,7 @@ $('btn-preview-stages').addEventListener('click', () => {
   const parsed = parseStageLines($('import-stages-text').value);
   const el = $('import-stages-preview');
   if (!parsed.length) { el.innerHTML = '<span class="text-danger">Geen geldige regels gevonden</span>'; return; }
-  const typeLabels = { flat: 'Vlak', mountain: 'Berg', tt: 'Tijdrit', sprint: 'Sprint' };
+  const typeLabels = { flat: 'Vlak', mountain: 'Berg', hills: 'Heuvels', tt: 'Tijdrit', ttt: 'Ploegentijdrit', sprint: 'Sprint' };
   el.innerHTML = `<strong>${parsed.length} etappes gevonden:</strong><br>` +
     parsed.map(s => `Etappe ${s.stage_number}: ${s.name} (${s.date}, ${typeLabels[s.stage_type] || s.stage_type})`).join('<br>');
 });

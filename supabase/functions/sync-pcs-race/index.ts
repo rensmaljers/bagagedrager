@@ -31,6 +31,7 @@ function cetOffsetForDate(dateISO: string): string {
 
 function mapStageType(iconClass: string, name: string): string {
   const n = name.toLowerCase();
+  if (n.includes("ttt") || n.includes("team time")) return "ttt";
   if (n.includes("itt") || n.includes("(tt)") || n.includes("time trial") || n.includes("tijdrit")) return "tt";
   if (iconClass.includes("p5") || iconClass.includes("p4")) return "mountain";
   if (iconClass.includes("p3")) return "hills";
