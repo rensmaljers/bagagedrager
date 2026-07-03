@@ -372,18 +372,23 @@ code, pre { color: var(--text); }
 .card-header.jersey-game     { --jcol: var(--wit-edge); --jglow: var(--wit-glow); }
 .card-header[class*="jersey-"] {
   position: relative;
-  background: linear-gradient(90deg, var(--jglow), transparent 38%);
 }
 .card-header[class*="jersey-"]::before {
   content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
   background: var(--jcol);
 }
+/* Schuin truikleur-vlak (geen gradient): koers-dynamiek als vaste vorm */
+.card-header[class*="jersey-"]::after {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 38%;
+  background: var(--jglow);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 22px) 100%, 0 100%);
+  pointer-events: none;
+}
+.card-header[class*="jersey-"] h5 { position: relative; z-index: 1; }
 /* Signatuur: de bolletjestrui is letterlijk zichtbaar in de berg-header */
-.card-header.jersey-mountain {
-  background-image:
-    radial-gradient(circle at 4px 4px, color-mix(in srgb, var(--pois) 22%, transparent) 2.2px, transparent 2.6px),
-    linear-gradient(90deg, var(--jglow), transparent 38%);
-  background-size: 18px 18px, auto;
+.card-header.jersey-mountain::after {
+  background-image: radial-gradient(circle at 4px 4px, color-mix(in srgb, var(--pois) 26%, transparent) 2.2px, transparent 2.6px);
+  background-size: 18px 18px;
 }
 .card-header[class*="jersey-"] h5 { color: var(--text); }
 .card-header[class*="jersey-"] .icon-jersey { color: var(--jcol); }
@@ -540,7 +545,7 @@ code, pre { color: var(--text); }
 .leader-row.jersey-points   { --jcol: var(--vert);     --jglow: var(--vert-glow); }
 .leader-row.jersey-mountain { --jcol: var(--pois);     --jglow: var(--pois-glow); }
 .leader-row.jersey-game     { --jcol: var(--wit-edge); --jglow: var(--wit-glow); }
-.leader-row.wears td { background: linear-gradient(90deg, var(--jglow), transparent 55%); }
+.leader-row.wears td { background: color-mix(in srgb, var(--jglow) 55%, transparent); }
 .leader-row.wears td:first-child {
   box-shadow: inset 3px 0 0 0 var(--jcol);
 }
@@ -976,7 +981,15 @@ code, pre { color: var(--text); }
 /* --- Dashboard: welkom-hero (nog geen pick in actieve ronde) --- */
 .welcome-card {
   border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
-  background: linear-gradient(135deg, var(--accent-bg), var(--bg-card) 60%);
+  background: var(--bg-card);
+  position: relative;
+  overflow: hidden;
+}
+.welcome-card::before {
+  content: ""; position: absolute; right: -40px; top: 0; bottom: 0; width: 32%;
+  background: var(--accent-bg);
+  clip-path: polygon(60px 0, 100% 0, 100% 100%, 0 100%);
+  pointer-events: none;
 }
 .welcome-card-inner {
   display: flex;
@@ -998,7 +1011,13 @@ code, pre { color: var(--text); }
 }
 .welcome-card-cta { flex-shrink: 0; white-space: nowrap; }
 @media (max-width: 768px) {
-  .welcome-card-inner { flex-direction: column; align-items: stretch; text-align: center; }
+  .welcome-card::before {
+  content: ""; position: absolute; right: -40px; top: 0; bottom: 0; width: 32%;
+  background: var(--accent-bg);
+  clip-path: polygon(60px 0, 100% 0, 100% 100%, 0 100%);
+  pointer-events: none;
+}
+.welcome-card-inner { flex-direction: column; align-items: stretch; text-align: center; }
   .welcome-card-sub { max-width: none; }
 }
 
@@ -1080,7 +1099,7 @@ code, pre { color: var(--text); }
 
 /* --- Dashboard: "Jouw koers" status-strip --- */
 .my-status-card {
-  background: linear-gradient(160deg, var(--bg-elevated), var(--bg-card) 70%);
+  background: var(--bg-card);
   position: relative;
 }
 /* Signatuur: finishlijn — geblokte band als onderrand van de Jouw-koers-strip */
@@ -1323,9 +1342,11 @@ code, pre { color: var(--text); }
 
 .stage-profile-img {
   width: 100%;
-  max-height: 100px;
+  max-height: 230px;
   object-fit: contain;
-  border-radius: var(--radius);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #fff; /* ASO/PCS-profielen hebben wit canvas — bewust kader */
   margin-top: 0.5rem;
   cursor: zoom-in;
   transition: max-height 0.3s var(--ease);
@@ -1360,18 +1381,51 @@ tbody:not(.expanded) .standings-extra { display: none; }
 }
 .standings-expand-btn:hover { color: var(--text); background: var(--hover-overlay); }
 
-/* Stats-strip in letour-stijl (Afstand / Type / Hoogtemeters) */
-.stage-stats { display: flex; gap: 1.75rem; margin: 1rem 0 0.75rem; flex-wrap: wrap; }
-.stage-stat { display: flex; align-items: center; gap: 8px; }
+/* Stats-strip: schuine koersbord-tegels (signatuur-schuinte) */
+.stage-stats { display: flex; gap: 0.8rem; margin: 1rem 0 0.75rem; flex-wrap: wrap; }
+.stage-stat {
+  display: flex; align-items: center; gap: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  border-radius: 6px;
+  padding: 0.45rem 1.1rem;
+  transform: skewX(-10deg);
+}
+.stage-stat > * { transform: skewX(10deg); }
 .stage-stat-icon {
   display: flex; align-items: center; justify-content: center;
-  width: 32px; height: 32px; border-radius: 8px;
-  background: var(--accent-bg); color: var(--accent);
-  border: 1px solid var(--border);
+  width: 30px; height: 30px; border-radius: 6px;
+  background: var(--accent-dim); color: var(--accent);
 }
 .stage-stat-body { display: flex; flex-direction: column; line-height: 1.15; }
 .stage-stat-label { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .stage-stat-value { font-family: var(--font-display); font-weight: 600; font-size: 0.95rem; color: var(--text); }
+
+/* --- Etappe-hero (pick-pagina) --- */
+.stage-hero-nav {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.55rem 0.85rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+.stage-hero-nav select { flex: 1; min-width: 0; }
+.stage-hero-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
+.stage-eyebrow { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.stage-eyebrow-chip {
+  display: inline-block;
+  background: var(--jaune); color: var(--jaune-ink);
+  font-family: var(--font-display); font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.7rem;
+  padding: 0.18rem 0.75rem; border-radius: 3px;
+  transform: skewX(-12deg);
+}
+.stage-eyebrow-chip > span { display: inline-block; transform: skewX(12deg); }
+.stage-hero-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em;
+  margin: 0.4rem 0 0.1rem;
+}
+.stage-hero-sub { color: var(--text-muted); font-size: 0.82rem; }
 
 /* Toggle Profiel/Kaart (officiële ASO-visuals) */
 .stage-visual-tabs { display: flex; gap: 6px; margin-top: 0.5rem; }

@@ -396,61 +396,60 @@
 </script>
 
 <div class="tab-section active" id="section-pick">
+  <!-- Etappe-hero: nav-balk boven, koersbord-titel, schuine stat-tegels, visual volle breedte -->
   <div class="card mb-3">
+    <div class="stage-hero-nav">
+      <button id="btn-prev-stage" class="btn btn-sm btn-outline-secondary stage-nav-btn" title="Vorige etappe" disabled={stageIdx <= 0} onclick={() => navigateStage(-1)}>&lsaquo;</button>
+      <select id="stage-select" class="form-select form-select-sm" bind:value={selectedStageId} onchange={() => selectStage(selectedStageId)}>
+        {#each compStages as s}
+          {@const optLocked = s.locked || new Date() > new Date(s.deadline)}
+          <option value={s.id}>{optLocked ? '🔒 ' : ''}{typeLabels[s.stage_type] || ''} {s.stage_number === 0 ? 'Proloog' : `Etappe ${s.stage_number}`}: {s.name}</option>
+        {/each}
+      </select>
+      <button id="btn-next-stage" class="btn btn-sm btn-outline-secondary stage-nav-btn" title="Volgende etappe" disabled={stageIdx === -1 || stageIdx === compStages.length - 1} onclick={() => navigateStage(1)}>&rsaquo;</button>
+    </div>
     <div class="card-body">
-      <div class="d-flex justify-content-between align-items-center">
-        <div>
-          <h4 id="pick-stage-name" style="font-size:1.1rem; font-weight:700;">
-            {#if stage}
-              {pickStageLabel}: {stage.name}{#if pcsStageUrl} <a href={pcsStageUrl} target="_blank" rel="noopener" class="pcs-link" title="Bekijk op PCS">PCS ↗</a>{/if}
-            {:else}
-              Kies een etappe
-            {/if}
-          </h4>
-          <span id="pick-deadline" class="text-muted" style="font-size:0.8rem;">{stageDetails}</span>
-          <div id="pick-stage-stats">
-            {#if stageStats.length}
-              <div class="stage-stats">
-                {#each stageStats as s}
-                  <div class="stage-stat">
-                    <span class="stage-stat-icon">{@html icon(s.icon, '', 18)}</span>
-                    <span class="stage-stat-body"><span class="stage-stat-label">{s.label}{#if s.tip} <span class="info-tooltip" data-tip={s.tip}>&#9432;</span>{/if}</span><span class="stage-stat-value tnum">{s.value}</span></span>
-                  </div>
-                {/each}
-              </div>
-            {/if}
-          </div>
-          <div id="pick-stage-info" style="margin-top:0.35rem;">
+      <div class="stage-hero-head">
+        <div style="min-width:0;">
+          <div class="stage-eyebrow">
+            <span class="stage-eyebrow-chip"><span>{stage ? pickStageLabel : 'Kies een etappe'}</span></span>
             {#each infoBadges as b}<span class="stage-info-badge">{@html b}</span>{/each}
           </div>
-          <div id="pick-stage-profile">
-            {#if visuals.length > 1}
-              <div class="stage-visual-tabs">
-                {#each visuals as v}
-                  <button type="button" class="stage-visual-tab {effectiveVisualKind === v.kind ? 'active' : ''}" data-kind={v.kind} onclick={() => selectVisual(v.kind)}>{v.label}</button>
-                {/each}
+          <h4 id="pick-stage-name" class="stage-hero-title">{stage ? stage.name : ''}</h4>
+          <span id="pick-deadline" class="stage-hero-sub">{stageDetails}</span>
+        </div>
+        {#if pcsStageUrl}
+          <a href={pcsStageUrl} target="_blank" rel="noopener" class="pcs-link" title="Bekijk op PCS" style="flex-shrink:0;">PCS ↗</a>
+        {/if}
+      </div>
+      <div id="pick-stage-stats">
+        {#if stageStats.length}
+          <div class="stage-stats">
+            {#each stageStats as s}
+              <div class="stage-stat">
+                <span class="stage-stat-icon">{@html icon(s.icon, '', 18)}</span>
+                <span class="stage-stat-body"><span class="stage-stat-label">{s.label}{#if s.tip} <span class="info-tooltip" data-tip={s.tip}>&#9432;</span>{/if}</span><span class="stage-stat-value tnum">{s.value}</span></span>
               </div>
-            {/if}
-            {#each visuals as v (`${stage?.id}-${v.kind}`)}
-              {#if v.kind === 'route'}
-                <!-- Interactieve kaart lazy: iframe-src pas zetten bij eerste activatie -->
-                <div class="stage-route-frame" data-kind="route" hidden={effectiveVisualKind !== 'route'}><iframe src={routeActivated ? v.src : undefined} data-src={v.src} title="Interactieve routekaart" loading="lazy" allowfullscreen allow="geolocation"></iframe></div>
-              {:else}
-                <img src={v.src} alt={v.kind === 'map' ? 'Routekaart' : 'Etappeprofiel'} class="stage-profile-img {expandedVisuals[v.kind] ? 'expanded' : ''}" data-kind={v.kind} data-fb={v.fb} hidden={effectiveVisualKind !== v.kind} onclick={() => toggleExpanded(v.kind)} onerror={visualImgError}>
-              {/if}
             {/each}
           </div>
-        </div>
-        <div class="d-flex align-items-center gap-2">
-          <button id="btn-prev-stage" class="btn btn-sm btn-outline-secondary stage-nav-btn" title="Vorige etappe" disabled={stageIdx <= 0} onclick={() => navigateStage(-1)}>&lsaquo;</button>
-          <select id="stage-select" class="form-select form-select-sm" style="width:auto;" bind:value={selectedStageId} onchange={() => selectStage(selectedStageId)}>
-            {#each compStages as s}
-              {@const optLocked = s.locked || new Date() > new Date(s.deadline)}
-              <option value={s.id}>{optLocked ? '🔒 ' : ''}{typeLabels[s.stage_type] || ''} {s.stage_number === 0 ? 'Proloog' : `Etappe ${s.stage_number}`}: {s.name}</option>
+        {/if}
+      </div>
+      <div id="pick-stage-profile">
+        {#if visuals.length > 1}
+          <div class="stage-visual-tabs">
+            {#each visuals as v}
+              <button type="button" class="stage-visual-tab {effectiveVisualKind === v.kind ? 'active' : ''}" data-kind={v.kind} onclick={() => selectVisual(v.kind)}>{v.label}</button>
             {/each}
-          </select>
-          <button id="btn-next-stage" class="btn btn-sm btn-outline-secondary stage-nav-btn" title="Volgende etappe" disabled={stageIdx === -1 || stageIdx === compStages.length - 1} onclick={() => navigateStage(1)}>&rsaquo;</button>
-        </div>
+          </div>
+        {/if}
+        {#each visuals as v (`${stage?.id}-${v.kind}`)}
+          {#if v.kind === 'route'}
+            <!-- Interactieve kaart lazy: iframe-src pas zetten bij eerste activatie -->
+            <div class="stage-route-frame" data-kind="route" hidden={effectiveVisualKind !== 'route'}><iframe src={routeActivated ? v.src : undefined} data-src={v.src} title="Interactieve routekaart" loading="lazy" allowfullscreen allow="geolocation"></iframe></div>
+          {:else}
+            <img src={v.src} alt={v.kind === 'map' ? 'Routekaart' : 'Etappeprofiel'} class="stage-profile-img {expandedVisuals[v.kind] ? 'expanded' : ''}" data-kind={v.kind} data-fb={v.fb} hidden={effectiveVisualKind !== v.kind} onclick={() => toggleExpanded(v.kind)} onerror={visualImgError}>
+          {/if}
+        {/each}
       </div>
     </div>
   </div>
