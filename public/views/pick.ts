@@ -208,11 +208,26 @@ function updateRiderAvailability(usedInOtherStages) {
 async function updateOthersPicks(stageId, isLocked) {
   const container = $('others-picks');
   const body = $('others-picks-body');
-  if (!isLocked) { container.style.display = 'none'; return; }
+  const isAdmin = !!state.profile?.is_admin;
+  if (!isLocked && !isAdmin) { container.style.display = 'none'; return; }
 
-  // Fetch picks for this stage from cache or API
   let stagePicks;
-  if (state._cache.participantsCompId === state.activeCompId && state._cache.participants) {
+  let adminPreview = false;
+  if (!isLocked) {
+    // Admin-voorvertoning vóór de deadline: rechtstreeks uit de picks-tabel
+    // (RLS geeft admins leesrecht; de view stage_picks_public filtert bewust
+    // op deadline en is hier dus onbruikbaar). Namen/renners lokaal koppelen.
+    adminPreview = true;
+    const rawPicks = await supaRest('picks', { filters: `stage_id=eq.${stageId}`, select: 'user_id,rider_id,is_random' });
+    if (!rawPicks?.length) { container.style.display = 'none'; return; }
+    const nameById = new Map((state._cache.allProfiles || []).map(p => [p.id, p.display_name]));
+    stagePicks = rawPicks.map(p => ({
+      ...p,
+      display_name: nameById.get(p.user_id) || '?',
+      rider_name: state._riderMap[p.rider_id]?.name || '?',
+      rider_team: state._riderMap[p.rider_id]?.team || '',
+    })).sort((a, b) => a.display_name.localeCompare(b.display_name));
+  } else if (state._cache.participantsCompId === state.activeCompId && state._cache.participants) {
     stagePicks = state._cache.participants.filter(p => p.stage_id === stageId);
   } else {
     stagePicks = await supaRest('stage_picks_public', {
@@ -222,7 +237,7 @@ async function updateOthersPicks(stageId, isLocked) {
 
   if (!stagePicks.length) { container.style.display = 'none'; return; }
   container.style.display = 'block';
-  body.innerHTML = stagePicks.map(p => {
+  body.innerHTML = (adminPreview ? `<div class="others-pick-row" style="color:var(--text-muted);font-size:0.72rem;">Admin-voorvertoning — spelers zien dit pas na de deadline</div>` : '') + stagePicks.map(p => {
     const isMe = p.user_id === state.session.user.id;
     return `<div class="others-pick-row${isMe ? ' fw-bold' : ''}">
       <span>${escapeHtml(p.display_name)}</span>
@@ -377,7 +392,7 @@ function renderRiderGrid(usedInOtherStages, fullyLocked) {
                      data-rider-id="${r.id}" ${fullyLocked || blocked ? '' : `onclick="selectRider(${r.id})"`}>
                   <div class="card-body py-2 px-3">
                     <div class="d-flex align-items-center gap-2">
-                      ${r.photo_url && r.photo_url !== 'none' ? `<img src="${escapeHtml(r.photo_url)}" class="rider-photo" alt="" onerror="this.style.display='none'">` : ''}
+                      ${r.photo_url && r.photo_url !== 'none' ? `<img src="${escapeHtml(r.photo_url)}" class="rider-photo" alt="" loading="lazy" decoding="async" onerror="this.style.display='none'">` : ''}
                       <div class="flex-grow-1 min-width-0">
                         <div class="d-flex justify-content-between align-items-start">
                           <div class="fw-bold d-flex align-items-center gap-1" style="font-size:0.88rem;"><span class="text-truncate">${escapeHtml(r.name)}</span>${r.pcs_slug ? `<a href="https://www.procyclingstats.com/rider/${escapeHtml(r.pcs_slug)}" target="_blank" rel="noopener" class="rider-pcs-icon ms-auto" title="Bekijk op PCS" onclick="event.stopPropagation()">↗</a>` : ''}</div>

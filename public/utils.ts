@@ -39,7 +39,7 @@ export function formatDeadline(dt: string): string {
 // --- RIDER / AVATAR DISPLAY ---
 export function riderDisplay(name: string, photoUrl: string, extra = ''): string {
   const hasPhoto = photoUrl && photoUrl !== 'none';
-  const photo = hasPhoto ? `<img src="${escapeHtml(photoUrl)}" class="rider-photo" alt="" onerror="this.style.display='none'">` : '';
+  const photo = hasPhoto ? `<img src="${escapeHtml(photoUrl)}" class="rider-photo" alt="" loading="lazy" decoding="async" onerror="this.style.display='none'">` : '';
   return `<span class="d-inline-flex align-items-center gap-1">${photo}${escapeHtml(name || '?')}${extra}</span>`;
 }
 
@@ -47,7 +47,7 @@ export function avatarHtml(name: string, avatarUrl: string, size: string): strin
   const cls = size === 'sm' ? 'avatar avatar-sm' : size === 'lg' ? 'avatar avatar-lg' : 'avatar';
   const initials = (name || '?').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
   if (avatarUrl) {
-    return `<span class="${cls}"><img src="${escapeHtml(avatarUrl)}" alt="" onerror="this.parentElement.innerHTML='${initials}'"></span>`;
+    return `<span class="${cls}"><img src="${escapeHtml(avatarUrl)}" alt="" loading="lazy" decoding="async" onerror="this.parentElement.innerHTML='${initials}'"></span>`;
   }
   return `<span class="${cls}">${initials}</span>`;
 }

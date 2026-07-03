@@ -125,18 +125,9 @@ Deno.serve(async (req) => {
         const heightMatch = html.match(/Height\s*(?:<[^>]*>)*\s*([\d.]+)\s*m/i);
         if (heightMatch) update.height_m = parseFloat(heightMatch[1]);
 
-        // Specialiteiten — PCS gebruikt career-points-{discipline} met w{0-100} breedte als score
-        const specMap: Record<string, string> = {
-          'career-points-one-day-races': 'specialty_one_day',
-          'career-points-gc':            'specialty_gc',
-          'career-points-time-trial':    'specialty_tt',
-          'career-points-sprint':        'specialty_sprint',
-          'career-points-climbers':      'specialty_climber',
-        };
-        for (const [pattern, field] of Object.entries(specMap)) {
-          const specMatch = html.match(new RegExp(pattern + '[\\s\\S]{0,300}?<div class="w(\\d+)'));
-          if (specMatch) update[field] = parseInt(specMatch[1]);
-        }
+        // Specialiteiten NIET hier parsen — dat doet cron-refresh-specialties
+        // (correcte per-li-parser met absolute punten). De oude parse hier had
+        // een shift-bug en zou verse data overschrijven.
 
         // Schrijf naar global_riders (trigger verspreidt photo_url naar alle competities)
         const { photo_url, ...nonPhotoUpdate } = update;

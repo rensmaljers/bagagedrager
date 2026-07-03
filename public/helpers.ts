@@ -18,7 +18,7 @@ export function teamBadge(teamName) {
   const t = TEAMS[teamName];
   const safe = escapeHtml(teamName || '');
   const shirtUrl = state.teamShirts[teamName];
-  const shirtImg = shirtUrl ? `<img src="${shirtUrl}" class="team-shirt" alt="" onerror="this.style.display='none'">` : '';
+  const shirtImg = shirtUrl ? `<img src="${shirtUrl}" class="team-shirt" alt="" loading="lazy" decoding="async" onerror="this.style.display='none'">` : '';
 
   if (!t) {
     if (shirtImg) return `<span class="team-badge">${shirtImg}<span class="team-abbr">${safe}</span></span>`;
