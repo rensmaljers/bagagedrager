@@ -6,9 +6,13 @@
     "dev": "vite",
     "build": "vite build && cp public/sw.js dist/sw.js && cp public/manifest.json dist/manifest.json",
     "typecheck": "tsc --noEmit",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "check": "svelte-check --threshold error"
   },
   "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.1.2",
+    "svelte": "^5.56.4",
+    "svelte-check": "^4.7.1",
     "typescript": "^6.0.3",
     "vite": "^8.0.3"
   },
