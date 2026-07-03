@@ -37,3 +37,6 @@ verify_jwt = false
 verify_jwt = false
 [functions.auto-notify-results]
 verify_jwt = false
+
+[functions.cron-refresh-specialties]
+verify_jwt = false

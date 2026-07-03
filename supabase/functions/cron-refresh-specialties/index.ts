@@ -6,21 +6,31 @@ const PCS_HEADERS = {
   "Accept-Language": "en-US,en;q=0.5",
 };
 
-// PCS gebruikt career-points-{discipline} URLs met w{0-100} breedte als score
+// PCS "Points per specialty"-blok: per <li> eerst de balk (w{N}), dan de
+// absolute careerpunten (xvalue), dan het label met discipline-link.
+// We slaan de ABSOLUTE punten op — vergelijkbaar tussen renners, in
+// tegenstelling tot de per-renner-genormaliseerde balkbreedte.
+// Let op: de oude parser keek per label vooruit naar de eerstvolgende w{N},
+// maar die hoort bij de VOLGENDE discipline — alle waarden zaten één plek
+// verschoven (Pogačar: sprint=100, tt=4). Vandaar deze per-li-aanpak.
 const SPEC_MAP: Record<string, string> = {
   'career-points-one-day-races': 'specialty_one_day',
   'career-points-gc':            'specialty_gc',
   'career-points-time-trial':    'specialty_tt',
   'career-points-sprint':        'specialty_sprint',
   'career-points-climbers':      'specialty_climber',
+  'results/hills':               'specialty_hills',
 };
 
 function parseSpecialties(html: string): Record<string, number> {
   const result: Record<string, number> = {};
-  for (const [pattern, field] of Object.entries(SPEC_MAP)) {
-    // Label staat in de ene <li>, breedte-score in de volgende <li>
-    const m = html.match(new RegExp(pattern + '[\\s\\S]{0,300}?<div class="w(\\d+)'));
-    if (m) result[field] = parseInt(m[1]);
+  // Let op: ruwe PCS-HTML heeft soms een spatie vóór de sluit-`>` (class="…" >)
+  const re = /<div class="xvalue ac"\s*>\s*([\d.,]+)\s*<\/div>\s*<div class="xtitle"\s*>\s*<a\s+href="[^"]*?(career-points-one-day-races|career-points-gc|career-points-time-trial|career-points-sprint|career-points-climbers|results\/hills)"/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) {
+    const field = SPEC_MAP[m[2]];
+    const points = parseInt(m[1].replace(/[.,]/g, ""));
+    if (field && !isNaN(points)) result[field] = points;
   }
   return result;
 }
@@ -57,6 +67,20 @@ Deno.serve(async (req) => {
 
   // Dedupliceer slugs
   const slugs = [...new Set(rows.map(r => r.pcs_slug as string))];
+
+  // Debug: laat zien wat de eerste fetch+parse oplevert (geen updates)
+  const isDebug = new URL(req.url).searchParams.get("debug") === "1";
+  if (isDebug) {
+    const url = `https://www.procyclingstats.com/rider/${slugs[0]}`;
+    const res = await fetch(url, { headers: PCS_HEADERS });
+    const html = res.ok ? await res.text() : "";
+    const bi = html.indexOf("career-points-climbers");
+    return new Response(JSON.stringify({
+      slug: slugs[0], status: res.status, htmlLength: html.length,
+      hasBlock: html.includes("xvalue ac"), parsed: parseSpecialties(html),
+      ctx: bi >= 0 ? html.slice(Math.max(0, bi - 350), bi + 60) : null,
+    }), { headers: { "Content-Type": "application/json" } });
+  }
 
   // Tel hoeveel er nog over zijn na deze batch
   const { count: totalCount } = await adminClient

@@ -93,7 +93,10 @@ export function renderPickStage() {
     const pct = TIME_LIMIT_PCT[stage.stage_type];
     if (pct) {
       const limitTs = endTs + (endTs - startTs) * pct;
-      limitStat = { icon: 'lock', label: 'Tijdslimiet', value: `± ${fmtTime(limitTs)}` };
+      limitStat = {
+        icon: 'lock', label: 'Tijdslimiet', value: `± ${fmtTime(limitTs)}`,
+        tip: `Eigen schatting: verwachte aankomst + rittijd × ${Math.round(pct * 100)}% (vlak 7%, heuvels 11%, berg 15%).\nDe officiële ASO-coëfficiënt hangt af van het winnaarsgemiddelde — bij bergritten varieert die van 10% tot 18%.`,
+      };
     }
   }
 
@@ -109,7 +112,7 @@ export function renderPickStage() {
     statsEl.innerHTML = stats.length ? `<div class="stage-stats">` + stats.map(s => `
       <div class="stage-stat">
         <span class="stage-stat-icon">${icon(s.icon, '', 18)}</span>
-        <span class="stage-stat-body"><span class="stage-stat-label">${s.label}</span><span class="stage-stat-value tnum">${s.value}</span></span>
+        <span class="stage-stat-body"><span class="stage-stat-label">${s.label}${s.tip ? ` <span class="info-tooltip" data-tip="${escapeHtml(s.tip)}">&#9432;</span>` : ''}</span><span class="stage-stat-value tnum">${s.value}</span></span>
       </div>`).join('') + `</div>` : '';
   }
 
@@ -320,6 +323,27 @@ function renderRiderGrid(usedInOtherStages, fullyLocked) {
     (!hideUsed || (!usedInOtherStages.has(r.id) && !state.dnfRiderIds.has(r.id)))
   );
 
+  // Pick-hulp: match tussen rittype en renner-specialty (PCS careerpunten per
+  // discipline, wekelijks ververst). Score = punten t.o.v. de beste van de
+  // startlijst — chip bij ≥25%, sterk (accent) bij ≥60%.
+  const stage = state.stages.find(s => s.id === stageId);
+  const SPEC_BY_TYPE = {
+    mountain: { field: 'specialty_climber', label: 'Klim' },
+    hills: { field: 'specialty_hills', label: 'Heuvel' },
+    sprint: { field: 'specialty_sprint', label: 'Sprint' },
+    flat: { field: 'specialty_sprint', label: 'Sprint' },
+    tt: { field: 'specialty_tt', label: 'Tijdrit' },
+    ttt: { field: 'specialty_tt', label: 'Tijdrit' },
+  };
+  const spec = SPEC_BY_TYPE[stage?.stage_type];
+  const specMax = spec ? Math.max(0, ...stageFilteredRiders.map(r => r[spec.field] || 0)) : 0;
+  const matchPct = (r) => (spec && specMax > 0) ? Math.round(((r[spec.field] || 0) / specMax) * 100) : 0;
+  const matchChip = (r) => {
+    const pct = matchPct(r);
+    if (pct < 25) return '';
+    return `<span class="match-chip ${pct >= 60 ? 'strong' : ''}" title="${spec.label}-score: ${pct}% van de beste van de startlijst (PCS-punten per specialiteit)">${spec.label} ${pct}</span>`;
+  };
+
   // Group riders by team
   const grouped = {};
   for (const r of filtered) {
@@ -327,6 +351,10 @@ function renderRiderGrid(usedInOtherStages, fullyLocked) {
     grouped[r.team].push(r);
   }
   const teamNames = Object.keys(grouped).sort();
+  // Binnen elk team: beste match eerst
+  if (spec && specMax > 0) {
+    for (const t of teamNames) grouped[t].sort((a, b) => (b[spec.field] || 0) - (a[spec.field] || 0));
+  }
 
   // Bevestigde keuze voor deze etappe blijft zichtbaar, ook als een andere renner geselecteerd is
   const currentPickRiderId = state.myPicks.find(p => p.stage_id === stageId)?.rider_id ?? null;
@@ -355,7 +383,8 @@ function renderRiderGrid(usedInOtherStages, fullyLocked) {
                           <div class="fw-bold d-flex align-items-center gap-1" style="font-size:0.88rem;"><span class="text-truncate">${escapeHtml(r.name)}</span>${r.pcs_slug ? `<a href="https://www.procyclingstats.com/rider/${escapeHtml(r.pcs_slug)}" target="_blank" rel="noopener" class="rider-pcs-icon ms-auto" title="Bekijk op PCS" onclick="event.stopPropagation()">↗</a>` : ''}</div>
                           <span class="bib-badge">${r.bib_number}</span>
                         </div>
-                        ${r.nationality ? `<div class="rider-specs">${[
+                        ${r.nationality || matchChip(r) ? `<div class="rider-specs">${[
+                          matchChip(r) || null,
                           r.nationality || null,
                           r.weight_kg ? `${r.weight_kg}kg` : null,
                         ].filter(Boolean).join(' ')}</div>` : ''}

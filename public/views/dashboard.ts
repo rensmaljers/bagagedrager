@@ -405,8 +405,12 @@ async function renderPotCard(standings: any[]) {
   const paidCount = paidIds.size;
   const totalPot = paidCount * activeComp.entry_fee;
 
-  // Alleen betalende spelers komen in aanmerking voor prijzen
-  const paid = standings.filter(s => paidIds.has(s.user_id));
+  // Alleen betalende spelers komen in aanmerking voor prijzen.
+  // Vóór de eerste uitslag staat iedereen op 0 — dan zou de hele groep als
+  // "gedeeld winnaar" verschijnen. Toon dan wel de pot en de bedragen, maar
+  // nog geen spelers.
+  const hasResults = activeStages().some(s => s.locked) && standings.some(s => (s.stages_played || 0) > 0);
+  const paid = hasResults ? standings.filter(s => paidIds.has(s.user_id)) : [];
   const gc  = [...paid].sort((a, b) => a.total_time - b.total_time);
   const pts = [...paid].sort((a, b) => b.total_points - a.total_points);
   const mtn = [...paid].sort((a, b) => b.total_mountain_points - a.total_mountain_points);

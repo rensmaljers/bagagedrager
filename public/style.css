@@ -1309,6 +1309,19 @@ code, pre { color: var(--text); }
 }
 .stage-profile-img.expanded { max-height: 80vh; cursor: zoom-out; }
 
+/* Pick-hulp: specialty-match-chip op de rennerkaart */
+.match-chip {
+  display: inline-block;
+  font-size: 0.66rem;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--badge-muted-bg);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.match-chip.strong { background: var(--accent-dim); color: var(--accent); }
+
 /* Zijkolom-klassementen: ingeklapt tot top 5 (+ eigen rij) */
 tbody:not(.expanded) .standings-extra { display: none; }
 .standings-expand-row td { padding: 0 !important; }
