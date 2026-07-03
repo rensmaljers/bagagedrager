@@ -52,6 +52,28 @@ public/style.css       — ongewijzigd; geïmporteerd in main.ts. Componenten ge
 - [x] `npm run check` (svelte-check): src/ schoon; 56 errors = bestaande
       baseline in legacy public/ (verdwijnt bij merge-cleanup)
 
+### Meegenomen bovenop de kale port (zelfde branch)
+
+- **Rebranding "koersbord"**: Clash Display als merkdrager (navbar, sectielabels,
+  tabs, knoppen), hairline-kaarten i.p.v. schaduwen, kouder zwart, luchtiger
+  tabellen. Schuin-systeem als vormentaal (skew/clip-path, geen gradients):
+  trui-panelen in de Jouw-koers-strip (berg met bolletjes), schuine stat-tegels,
+  gele schuine actieve tab, schuine pick-bar, finishlijn-band. Etappe-hero op de
+  pick-pagina volledig geherstructureerd (nav-balk boven, eyebrow-chip, titel in
+  Clash, visual volle breedte).
+- **Login-fixes**: echt <form> (Enter + wachtwoordmanagers), initApp-fouten
+  zichtbaar i.p.v. stil hangen op het auth-scherm.
+- **Typed Supabase**: database.types.ts (hergenereren na elke migratie!),
+  createClient<Database>, Row<'tabel'>-helper.
+- **PWA**: offline app-shell in sw.js (cache-first /assets/, network-first
+  navigaties), update-toast via controllerchange, manifest met 192/512-iconen
+  (Android-installability) + maskable.
+- **Realtime zonder remounts**: caches nullen volstaat; views zijn cache-reactief.
+- **Build-gate**: svelte-check over src/ draait vóór elke build (0-baseline,
+  tsconfig.check.json; strict staat nog uit — incrementeel aanzetten).
+- **Bootstrap-exit**: CDN-Bootstrap vervangen door eigen compacte CSS op de
+  design-tokens (zie sectie 1b in style.css).
+
 ### Valkuilen die tijdens de bouw gevonden zijn
 
 - **Oud `vite.config.js` schaduwde `vite.config.ts`** (Vite pakt .js eerst) —
