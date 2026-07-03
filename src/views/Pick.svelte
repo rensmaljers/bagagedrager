@@ -478,7 +478,7 @@
             <span>{p.display_name}</span>
             <span>
               {#if p.rider_name}
-                {@html riderDisplay(p.rider_name, riderPhoto(p.rider_id))} {@html teamBadge(p.rider_team)}{#if p.is_random} <span class="badge bg-info" style="font-size:0.6rem;">🎡</span>{/if}
+                {@html riderDisplay(p.rider_name, riderPhoto(p.rider_id), p.rider_id)} {@html teamBadge(p.rider_team)}{#if p.is_random} <span class="badge bg-info" style="font-size:0.6rem;">🎡</span>{/if}
               {:else}
                 <span style="color:var(--red);font-size:0.78rem;">nog geen keuze</span>
               {/if}
@@ -577,7 +577,7 @@
         <div class="pick-bar-info">
           <span id="pick-bar-rider" class="pick-bar-rider">
             {#if selectedRider}
-              {@html riderDisplay(selectedRider.name, selectedRider.photo_url)} #{selectedRider.bib_number} — {pickBarStatus}
+              {@html riderDisplay(selectedRider.name, selectedRider.photo_url, selectedRider.id)} #{selectedRider.bib_number} — {pickBarStatus}
             {/if}
           </span>
           <!-- Bij wijziging: op een eigen regel welke bevestigde keuze vervangen wordt -->

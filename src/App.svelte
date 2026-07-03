@@ -217,6 +217,8 @@
   import History from './views/History.svelte';
   import Peloton from './views/Peloton.svelte';
   import Account from './views/Account.svelte';
+  import PlayerModal from './views/PlayerModal.svelte';
+  import RiderModal from './views/RiderModal.svelte';
 
   // initApp draaien zodra er een sessie is (boot én login/signup via Auth.svelte)
   let appStarted = false;
@@ -357,9 +359,28 @@
       if (el && el.style.display !== 'none') el.style.display = 'none';
     }
   }
+
+  // --- RENNER-KLIK DELEGATIE ---
+  // riderDisplay(...) rendert overal via {@html}; echte event handlers kunnen daar
+  // niet in. Eén document-brede click/Enter-delegatie op .rider-click opent de modal.
+  function riderClickTarget(e: Event): number | null {
+    const el = (e.target as HTMLElement)?.closest?.('.rider-click');
+    if (!el) return null;
+    const id = Number(el.getAttribute('data-rider-id'));
+    return id || null;
+  }
+  function onDocClick(e: MouseEvent) {
+    const id = riderClickTarget(e);
+    if (id) ui.riderModalId = id;
+  }
+  function onDocKeydown(e: KeyboardEvent) {
+    if (e.key !== 'Enter') return;
+    const id = riderClickTarget(e);
+    if (id) { e.preventDefault(); ui.riderModalId = id; }
+  }
 </script>
 
-<svelte:document onmouseover={onDocMouseover} onmousemove={onDocMousemove} onmouseout={onDocMouseout} />
+<svelte:document onmouseover={onDocMouseover} onmousemove={onDocMousemove} onmouseout={onDocMouseout} onclick={onDocClick} onkeydown={onDocKeydown} />
 <svelte:window onkeydown={onWindowKeydown} />
 
 <!-- Toast container -->
@@ -477,6 +498,10 @@
     </div>
   </div>
 {/if}
+
+<!-- Speler- & renner-detailmodals (app-breed; renderen alleen als ui.*ModalId gezet is) -->
+<PlayerModal />
+<RiderModal />
 
 <!-- Foto hover preview -->
 <div id="photo-preview" style="position:fixed;z-index:9999;pointer-events:none;border-radius:10px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.5);"

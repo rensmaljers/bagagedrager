@@ -2112,3 +2112,104 @@ tbody:not(.expanded) .standings-extra { display: none; }
     font-size: 0.7rem;
   }
 }
+
+/* --- Speler- & renner-modals --- */
+/* Klikbare spelers/renners: subtiele hover-onderstreping, geen link-blauw */
+.player-click,
+.rider-click { cursor: pointer; }
+.player-click:hover, .player-click:focus-visible,
+.rider-click:hover, .rider-click:focus-visible {
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--text) 45%, transparent);
+  text-underline-offset: 3px;
+}
+
+.detail-modal { max-width: 480px; }
+
+/* Kop (speler én renner) */
+.pm-head { display: flex; align-items: center; gap: 0.9rem; margin-bottom: 0.4rem; }
+.pm-name {
+  font-family: var(--font-display);
+  font-weight: 600; font-size: 1.25rem; letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+.pm-meta { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.3rem; }
+.pm-hero { font-size: 0.72rem; color: var(--text-muted); }
+.pm-motto { font-size: 0.75rem; color: var(--text-muted); font-style: italic; margin-top: 0.3rem; }
+.pm-section-label {
+  font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.1em;
+  font-weight: 600; color: var(--text-muted);
+  margin: 1.15rem 0 0.6rem;
+}
+.pm-empty { font-size: 0.78rem; color: var(--text-muted); }
+
+/* Posities: trui-tegels (hergebruik .my-status-stat), compacter in de modal */
+.pm-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem 0.9rem; padding: 0 0.4rem; }
+.pm-stats .my-status-stat { flex: none; min-width: 0; padding: 0.6rem 0.95rem 0.5rem; }
+.pm-stats .my-status-value { font-size: 1.5rem; }
+
+/* Pick-/gekozen-door-rijen */
+.pm-pick-row {
+  display: grid; grid-template-columns: 2.6rem 1fr auto;
+  align-items: center; gap: 0.6rem;
+  padding: 0.42rem 0.15rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.82rem;
+}
+.pm-pick-row:last-child { border-bottom: none; }
+.pm-pick-stage {
+  font-family: var(--font-display); font-weight: 600;
+  font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.pm-pick-pts { font-weight: 700; font-variant-numeric: tabular-nums; }
+.pm-actions { margin-top: 1.25rem; display: flex; justify-content: flex-end; }
+
+/* Renner-modal */
+.rm-head { display: flex; gap: 1rem; align-items: flex-start; margin-bottom: 0.4rem; }
+.rm-photo {
+  width: 84px; height: 84px;
+  object-fit: cover; object-position: top;
+  border-radius: 8px; border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.rm-facts {
+  display: flex; flex-wrap: wrap; gap: 0.35rem 1rem;
+  font-size: 0.78rem; color: var(--text-muted);
+  margin-top: 0.4rem;
+  font-variant-numeric: tabular-nums;
+}
+.rm-my-use { font-size: 0.78rem; color: var(--green); font-weight: 600; margin-bottom: 0.45rem; }
+.rm-spec-note { text-transform: none; letter-spacing: 0; font-weight: 500; opacity: 0.75; }
+
+/* Specialty-profiel: schuine balkjes (signatuur-schuinte), genormaliseerd per renner */
+.spec-row {
+  display: grid; grid-template-columns: 4.2rem 1fr 3.4rem;
+  align-items: center; gap: 0.6rem;
+  margin-bottom: 0.45rem;
+}
+.spec-label {
+  font-size: 0.66rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+.spec-track {
+  display: block; height: 9px;
+  background: var(--badge-muted-bg);
+  border-radius: 2px;
+  transform: skewX(-10deg);
+  overflow: hidden;
+}
+.spec-fill {
+  display: block; height: 100%;
+  background: color-mix(in srgb, var(--text-muted) 55%, transparent);
+  transition: width 0.3s var(--ease);
+}
+.spec-fill.top { background: var(--accent); }
+.spec-val { text-align: right; font-size: 0.74rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 480px) {
+  .pm-stats { grid-template-columns: 1fr; padding: 0 0.3rem; }
+  .detail-modal { padding: 1.1rem; }
+}

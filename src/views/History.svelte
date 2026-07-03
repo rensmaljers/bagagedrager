@@ -203,7 +203,7 @@
     {#if stats}
       <div class="col-4"><div class="card"><div class="card-body py-2 px-3 text-center">
         <div class="text-muted" style="font-size:0.7rem;">Favoriete renner</div>
-        <div style="font-size:0.85rem; font-weight:700; margin:2px 0;">{#if stats.favRider}{@html riderDisplay(stats.favRider.name, stats.favRider.photo_url)}{:else}—{/if}</div>
+        <div style="font-size:0.85rem; font-weight:700; margin:2px 0;">{#if stats.favRider}{@html riderDisplay(stats.favRider.name, stats.favRider.photo_url, stats.favRider.id)}{:else}—{/if}</div>
         <div style="font-size:0.7rem; color:var(--text-muted);">{stats.favCount}× gekozen</div>
       </div></div></div>
       <div class="col-4"><div class="card"><div class="card-body py-2 px-3 text-center">
@@ -252,7 +252,7 @@
                   <div>{row.stageLabel}</div>
                   {#if row.winnerName}<div style="font-size:0.65rem;color:var(--text-muted);">{@html icon('trophy', '', 11)} {row.winnerName}</div>{/if}
                 </td>
-                <td>{@html riderDisplay(row.rider?.name, row.rider?.photo_url)} <span class="team-badge-sm">{@html row.rider ? teamBadge(row.rider.team) : ''}</span></td>
+                <td>{@html riderDisplay(row.rider?.name, row.rider?.photo_url, row.rider?.id)} <span class="team-badge-sm">{@html row.rider ? teamBadge(row.rider.team) : ''}</span></td>
                 <td class="time text-end">{row.timeCell}</td>
                 {#if !isClassic}<td class="text-end mob-hide">{row.bonif ? '-' + row.bonif + 's' : '-'}</td>{/if}
                 <td class="text-end mob-hide">{row.result ? (row.pick.is_late ? '0' : row.result.points) : '-'}</td>

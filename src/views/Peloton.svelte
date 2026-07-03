@@ -2,7 +2,7 @@
   // Geport uit public/views/peloton.ts — gedrag 1-op-1.
   // Dekt het hele Uitslagen-tabblad: uitslagen per etappe (loadParticipants)
   // + "Het Peloton"-ledenlijst (loadPeloton), zoals #section-participants in index.html.
-  import { state as appState } from '../lib/state.svelte';
+  import { state as appState, ui } from '../lib/state.svelte';
   import { formatTime, formatGap, riderDisplay, toast } from '../lib/utils';
   import { icon } from '../lib/icons';
   import { supaPatch, supaRest } from '../lib/api';
@@ -169,16 +169,16 @@
                 {#each group.picks as p}
                   {#if isClassic}
                     <tr>
-                      <td>{p.display_name}</td>
-                      <td>{@html riderDisplay(p.rider_name, riderPhoto(p.rider_id))} <span class="team-badge-sm">{@html teamBadge(p.rider_team)}</span>{#if p.showPickersBadge}{' '}<span class="badge bg-secondary" style="font-size:0.6rem;">{p.num_pickers}x → {p.sharingPct}%</span>{/if}</td>
+                      <td><span class="player-click" role="button" tabindex="0" onclick={() => (ui.playerModalId = p.user_id)} onkeydown={(e) => { if (e.key === 'Enter') ui.playerModalId = p.user_id; }}>{p.display_name}</span></td>
+                      <td>{@html riderDisplay(p.rider_name, riderPhoto(p.rider_id), p.rider_id)} <span class="team-badge-sm">{@html teamBadge(p.rider_team)}</span>{#if p.showPickersBadge}{' '}<span class="badge bg-secondary" style="font-size:0.6rem;">{p.num_pickers}x → {p.sharingPct}%</span>{/if}</td>
                       <td class="text-end">{p.finish_position || '-'}</td>
                       <td class="text-end">{p.effective_game_points != null ? p.effective_game_points : '-'}</td>
                       <td>{#if p.is_late}<span class="badge bg-warning">Te laat</span>{/if}{#if p.is_random}<span class="badge bg-info">🎡 Rad</span>{/if}{#if p.dnf}<span class="badge bg-danger">DNF</span>{/if}</td>
                     </tr>
                   {:else}
                     <tr>
-                      <td>{p.display_name}</td>
-                      <td>{p.rider_name} <span class="team-badge-sm">{@html teamBadge(p.rider_team)}</span>{#if p.showPickersBadge}{' '}<span class="badge bg-secondary" style="font-size:0.6rem;">{p.num_pickers}x → {p.sharingPct}%</span>{/if}</td>
+                      <td><span class="player-click" role="button" tabindex="0" onclick={() => (ui.playerModalId = p.user_id)} onkeydown={(e) => { if (e.key === 'Enter') ui.playerModalId = p.user_id; }}>{p.display_name}</span></td>
+                      <td>{@html riderDisplay(p.rider_name, null, p.rider_id)} <span class="team-badge-sm">{@html teamBadge(p.rider_team)}</span>{#if p.showPickersBadge}{' '}<span class="badge bg-secondary" style="font-size:0.6rem;">{p.num_pickers}x → {p.sharingPct}%</span>{/if}</td>
                       <td class="time text-end">{p.timeCell}</td>
                       <td class="text-end">{p.bonifCell}</td>
                       <td class="text-end">{p.ptsCell}</td>
@@ -218,7 +218,7 @@
               <tr>
                 <td>
                   <div class="d-flex align-items-center gap-2">
-                    <span>{p.display_name}</span>
+                    <span class="player-click" role="button" tabindex="0" onclick={() => (ui.playerModalId = p.id)} onkeydown={(e) => { if (e.key === 'Enter') ui.playerModalId = p.id; }}>{p.display_name}</span>
                     <span class="badge {p.role.badge} d-md-none" style="font-size:0.65rem;">{@html p.role.icon} {p.role.name}</span>
                   </div>
                   {#if p.favorite_team || p.cycling_hero}

@@ -37,10 +37,13 @@ export function formatDeadline(dt: string): string {
 }
 
 // --- RIDER / AVATAR DISPLAY ---
-export function riderDisplay(name: string, photoUrl: string, extra = ''): string {
+// riderId (optioneel): maakt de renner klikbaar (.rider-click) — App.svelte heeft
+// een document-brede click/Enter-delegatie die dan de renner-detailmodal opent.
+export function riderDisplay(name: string, photoUrl: string | null, riderId?: number | null, extra = ''): string {
   const hasPhoto = photoUrl && photoUrl !== 'none';
   const photo = hasPhoto ? `<img src="${escapeHtml(photoUrl)}" class="rider-photo" alt="" loading="lazy" decoding="async" onerror="this.style.display='none'">` : '';
-  return `<span class="d-inline-flex align-items-center gap-1">${photo}${escapeHtml(name || '?')}${extra}</span>`;
+  const clickAttrs = riderId != null ? ` rider-click" role="button" tabindex="0" data-rider-id="${riderId}` : '';
+  return `<span class="d-inline-flex align-items-center gap-1${clickAttrs}">${photo}${escapeHtml(name || '?')}${extra}</span>`;
 }
 
 export function avatarHtml(name: string, avatarUrl: string, size: string): string {

@@ -102,6 +102,14 @@
     return () => window.removeEventListener('keydown', onKey);
   });
 
+  // H2H-verzoek van buitenaf (PlayerModal zet ui.h2hRequest en springt naar dit tabblad)
+  $effect(() => {
+    const req = ui.h2hRequest;
+    if (!req) return;
+    ui.h2hRequest = null;
+    openH2H(req.name, req.mode || 'game');
+  });
+
   const rankBadge = (i: number) => i < 3
     ? `<span class="rank-badge rank-badge-${i + 1}">${i + 1}</span>`
     : `<span class="rank-badge">${i + 1}</span>`;
@@ -676,7 +684,7 @@
           <tr
             style={row.isMe ? 'background:var(--accent-bg);' : undefined}
             class={row.isLeader ? `leader-row${t.jerseyClass ? ' wears ' + t.jerseyClass : ''}` : (row.extra ? 'standings-extra' : undefined)}
-          ><td class="tnum">{@html rankBadge(i)}{@html row.deltaHtml}</td><td><div class="d-flex align-items-center gap-2">{@html avatarHtml(row.name, appState._avatarMap[row.name], 'sm')}{row.name}{#if row.showTrui}<span class="trui-chip">trui</span>{/if}{#if row.showH2h}<button class="btn btn-ghost" style="padding:0.1rem 0.4rem;font-size:0.6rem;border-radius:4px;" onclick={() => openH2H(row.name, t.mode)}>vs</button>{/if}</div></td><td class="text-end tnum">{@html row.valueHtml}</td></tr>
+          ><td class="tnum">{@html rankBadge(i)}{@html row.deltaHtml}</td><td><div class="d-flex align-items-center gap-2"><span class="player-click d-inline-flex align-items-center gap-2" role="button" tabindex="0" onclick={() => (ui.playerModalId = row.user_id)} onkeydown={(e) => { if (e.key === 'Enter') ui.playerModalId = row.user_id; }}>{@html avatarHtml(row.name, appState._avatarMap[row.name], 'sm')}{row.name}</span>{#if row.showTrui}<span class="trui-chip">trui</span>{/if}{#if row.showH2h}<button class="btn btn-ghost" style="padding:0.1rem 0.4rem;font-size:0.6rem;border-radius:4px;" onclick={() => openH2H(row.name, t.mode)}>vs</button>{/if}</div></td><td class="text-end tnum">{@html row.valueHtml}</td></tr>
         {/each}
         {#if t.collapsible}
           <tr class="standings-expand-row"><td colspan="3"><button type="button" class="standings-expand-btn" onclick={() => expanded[key] = !expanded[key]}>{expanded[key] ? `Toon top ${COMPACT_TOP}` : `Toon alle ${t.count} spelers`}</button></td></tr>
@@ -827,7 +835,7 @@
                   {#each row.winners as s, idx}
                     <tr style={s.user_id === appState.session?.user?.id ? 'background:var(--accent-bg);' : undefined}>
                       <td style="font-size:0.85rem;">{#if idx === 0}{row.label}{#if row.isTie}&nbsp;<span class="badge bg-secondary ms-1" style="font-size:0.6rem;vertical-align:middle;">gedeeld</span>{/if}{/if}</td>
-                      <td>{s.display_name}</td>
+                      <td><span class="player-click" role="button" tabindex="0" onclick={() => (ui.playerModalId = s.user_id)} onkeydown={(e) => { if (e.key === 'Enter') ui.playerModalId = s.user_id; }}>{s.display_name}</span></td>
                       <td class="text-end" style="font-weight:700;">€{row.amountEach}</td>
                       <td class="text-end" style="color:var(--text-muted);font-size:0.75rem;">{#if idx === 0}{row.pctDisplay}{/if}</td>
                     </tr>

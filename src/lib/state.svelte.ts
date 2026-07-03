@@ -36,4 +36,7 @@ export const ui: any = $state({
   authScreen: true,            // login/signup zichtbaar
   loading: true,               // eerste boot
   toast: null as { msg: string; type: string } | null,
+  playerModalId: null as string | null,   // user_id → speler-detailmodal open
+  riderModalId: null as number | null,    // rider id → renner-detailmodal open
+  h2hRequest: null as { name: string; mode: string } | null, // Dashboard opent H2H zodra gemount
 });
