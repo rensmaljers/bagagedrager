@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "vite",
-    "build": "npm run check && vite build && cp public/sw.js public/manifest.json public/icon-192.png public/icon-512.png public/apple-touch-icon.png dist/ && cp -r public/fonts dist/fonts",
+    "build": "npm run check && vite build && cp public/sw.js public/manifest.json public/icon-192.png public/icon-512.png public/apple-touch-icon.png dist/",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.check.json --threshold error"
