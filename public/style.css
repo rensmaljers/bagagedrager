@@ -378,6 +378,13 @@ code, pre { color: var(--text); }
   content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
   background: var(--jcol);
 }
+/* Signatuur: de bolletjestrui is letterlijk zichtbaar in de berg-header */
+.card-header.jersey-mountain {
+  background-image:
+    radial-gradient(circle at 4px 4px, color-mix(in srgb, var(--pois) 22%, transparent) 2.2px, transparent 2.6px),
+    linear-gradient(90deg, var(--jglow), transparent 38%);
+  background-size: 18px 18px, auto;
+}
 .card-header[class*="jersey-"] h5 { color: var(--text); }
 .card-header[class*="jersey-"] .icon-jersey { color: var(--jcol); }
 
@@ -394,7 +401,8 @@ code, pre { color: var(--text); }
 }
 .btn:active:not(:disabled) { transform: scale(0.98); }
 .btn-accent {
-  background: var(--comp-color, var(--accent));
+  background: var(--comp-color, var(--jaune));
+  color: var(--jaune-ink);
   color: var(--accent-text);
   border: none;
   box-shadow: var(--shadow-sm);
@@ -1001,11 +1009,11 @@ code, pre { color: var(--text); }
   gap: 1.5rem;
 }
 /* Hoofdklassement: ruimere, editorial rijen */
-.standings-main-card .table td { padding: 0.65rem 1.25rem; font-size: 0.88rem; }
+.standings-main-card .table td { padding: 0.9rem 1.25rem; font-size: 0.9rem; }
 .standings-main-card .table thead th { padding-left: 1.25rem; padding-right: 1.25rem; }
 .standings-main-card .leader-hero-score { font-size: 1.55rem; }
 /* Zijkolom: compact, kolomkoppen overbodig (badge + naam + getal spreekt) */
-#standings-side .table td { padding: 0.45rem 1.25rem; }
+#standings-side .table td { padding: 0.62rem 1.25rem; }
 #standings-side .table thead { display: none; }
 #standings-side .leader-hero-score { font-size: 1.15rem; }
 #standings-row table { table-layout: fixed; width: 100%; }
@@ -1021,7 +1029,7 @@ code, pre { color: var(--text); }
   display: none;
   align-items: center;
   justify-content: space-between;
-  padding: 0.9rem 1.25rem;
+  padding: 1.15rem 1.25rem;
   border-bottom: 1px solid var(--border);
   gap: 0.75rem;
 }
@@ -1038,10 +1046,11 @@ code, pre { color: var(--text); }
   gap: 0.75rem;
 }
 .leader-hero-name {
-  font-size: 0.95rem;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: 1.08rem;
+  font-weight: 600;
   color: var(--text);
-  letter-spacing: -0.015em;
+  letter-spacing: -0.01em;
 }
 .leader-hero-sub {
   font-size: 0.6rem;
@@ -1072,8 +1081,20 @@ code, pre { color: var(--text); }
 /* --- Dashboard: "Jouw koers" status-strip --- */
 .my-status-card {
   background: linear-gradient(160deg, var(--bg-elevated), var(--bg-card) 70%);
+  position: relative;
 }
-.my-status-card .card-body { padding: 1.35rem 1.5rem 1.15rem; }
+/* Signatuur: finishlijn — geblokte band als onderrand van de Jouw-koers-strip */
+.my-status-card::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 4px;
+  background: repeating-linear-gradient(45deg,
+    color-mix(in srgb, var(--text) 55%, transparent) 0 5px,
+    transparent 5px 10px);
+  opacity: 0.35;
+}
+.my-status-card .card-body { padding: 1.6rem 1.75rem 1.4rem; }
 .my-status-label {
   font-size: 0.66rem;
   text-transform: uppercase;
