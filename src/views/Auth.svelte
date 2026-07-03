@@ -20,13 +20,17 @@
     errorMsg = msg;
   }
 
+  let busy = $state(false);
+
   async function handleLogin() {
     const em = email.trim();
     if (!em || !password) { showError('Vul je e-mailadres en wachtwoord in.'); return; }
+    busy = true;
     try {
       appState.session = await login(em, password);
       // App.svelte draait initApp() zodra appState.session gezet is
     } catch (e: any) { showError(e.message); }
+    finally { busy = false; }
   }
 
   async function handleSignup() {
@@ -82,19 +86,20 @@
         </svg>
         <h1 class="mb-1">Bagagedrager</h1>
         <p class="text-muted auth-subtitle mb-4">Kies je renner, verdien de trui.<br>Het wielerspel voor echte ploegleiders.</p>
-        <div id="auth-form">
+        <!-- form + submit: Enter in een veld logt ook in, en de browser/wachtwoordmanager herkent het als loginformulier -->
+        <form id="auth-form" onsubmit={(e) => { e.preventDefault(); handleLogin(); }}>
           <div class="mb-3">
-            <input type="email" id="auth-email" class="form-control" placeholder="Email" bind:value={email} />
+            <input type="email" id="auth-email" class="form-control" placeholder="Email" autocomplete="username" bind:value={email} />
           </div>
           <div class="mb-3">
-            <input type="password" id="auth-password" class="form-control" placeholder="Wachtwoord" bind:value={password} />
+            <input type="password" id="auth-password" class="form-control" placeholder="Wachtwoord" autocomplete="current-password" bind:value={password} />
           </div>
-          <button id="btn-login" class="btn btn-accent w-100 mb-2" onclick={handleLogin}>Inloggen</button>
-          <button id="btn-signup" class="btn btn-ghost w-100 mb-2" onclick={handleSignup}>Aanmelden</button>
+          <button id="btn-login" type="submit" class="btn btn-accent w-100 mb-2" disabled={busy}>{busy ? 'Bezig…' : 'Inloggen'}</button>
+          <button id="btn-signup" type="button" class="btn btn-ghost w-100 mb-2" onclick={handleSignup} disabled={busy}>Aanmelden</button>
           <a href="#" id="btn-forgot-password" style="font-size:0.8rem; color:var(--text-muted);" onclick={handleForgotPassword}>Wachtwoord vergeten?</a>
           <div id="auth-error" class="text-danger mt-3" style="font-size:0.85rem;" style:display={errorMsg ? 'block' : 'none'}>{errorMsg}</div>
           <div id="auth-success" class="text-success mt-3" style="font-size:0.85rem;" style:display={successMsg ? 'block' : 'none'}>{successMsg}</div>
-        </div>
+        </form>
         <div class="auth-road"></div>
       </div>
     </div>

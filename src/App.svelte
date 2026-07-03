@@ -220,7 +220,17 @@
   $effect(() => {
     if (appState.session && !appStarted) {
       appStarted = true;
-      untrack(() => { initApp(); });
+      // initApp-fouten mogen niet geluidloos verdwijnen: de sessie is dan al
+      // opgeslagen (refresh "werkt") maar het scherm blijft op login hangen.
+      untrack(() => {
+        initApp().catch((e) => {
+          console.error('initApp faalde:', e);
+          appStarted = false;
+          ui.loading = false;
+          ui.authScreen = true;
+          toast(`Inloggen lukte, maar de app kon niet laden: ${e?.message || e}. Probeer opnieuw.`, 'error', 8000);
+        });
+      });
     } else if (!appState.session) {
       appStarted = false;
     }
