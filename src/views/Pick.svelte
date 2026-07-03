@@ -582,7 +582,7 @@
           <span id="pick-bar-countdown" class={countdownClass}>{countdownText}</span>
         </div>
         <div class="pick-bar-actions">
-          <button id="btn-submit-pick" class="btn btn-accent" disabled={submitDisabled} onclick={submitPick}>Bevestigen</button>
+          <button id="btn-submit-pick" class="btn btn-accent" disabled={submitDisabled} onclick={submitPick}><span>Bevestigen</span></button>
           <span id="pick-status" class={pickStatus.cls} style="font-size:0.8rem;">{pickStatus.text}</span>
         </div>
       </div>

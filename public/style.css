@@ -1518,11 +1518,21 @@ tbody:not(.expanded) .standings-extra { display: none; }
   text-overflow: ellipsis;
 }
 .pick-bar-countdown {
-  font-size: 0.75rem;
+  display: inline-block;
+  font-size: 0.72rem;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
+  background: var(--badge-muted-bg);
+  /* Schuine chip zonder de tekst mee te kantelen: vorm via clip-path */
+  clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  padding: 0.12rem 1rem;
+  margin-top: 0.3rem;
+  width: fit-content;
 }
-.pick-bar-countdown.urgent { color: var(--red); font-weight: 700; }
+.pick-bar-countdown.urgent {
+  color: var(--red); font-weight: 700;
+  background: var(--red-dim);
+}
 .pick-bar-actions {
   display: flex;
   align-items: center;
@@ -1530,7 +1540,17 @@ tbody:not(.expanded) .standings-extra { display: none; }
   flex-shrink: 0;
 }
 .pick-bar .btn { padding: 0.5rem 1.5rem; font-size: 0.9rem; }
-.pick-bar.unconfirmed { border-top-color: var(--red); }
+.pick-bar .btn-accent { transform: skewX(-10deg); border-radius: 6px; }
+.pick-bar .btn-accent > span { display: inline-block; transform: skewX(10deg); }
+.pick-bar.unconfirmed { border-top-color: var(--red); overflow: hidden; }
+.pick-bar.unconfirmed::before {
+  content: ""; position: absolute; left: -14px; top: 0; bottom: 0; width: 34px;
+  background: var(--red-dim);
+  border-right: 3px solid var(--red);
+  transform: skewX(-10deg);
+  pointer-events: none;
+}
+.pick-bar { position: sticky; }
 
 /* Desktop: zwevende pill i.p.v. full-width strip */
 @media (min-width: 992px) {
@@ -1540,8 +1560,10 @@ tbody:not(.expanded) .standings-extra { display: none; }
     bottom: 1.25rem;
     border: 1px solid var(--border-strong);
     border-radius: var(--radius-lg);
-    padding: 0.85rem 1.5rem;
+    padding: 0.85rem 1.9rem;
+    transform: skewX(-6deg);
   }
+  .pick-bar-inner { transform: skewX(6deg); }
   .pick-bar.unconfirmed {
     border-color: color-mix(in srgb, var(--red) 55%, var(--border-strong));
     box-shadow: var(--shadow-lg), 0 0 24px -8px var(--red-dim);
