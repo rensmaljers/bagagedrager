@@ -90,6 +90,18 @@ Deno.serve(async (req: Request) => {
         continue;
       }
 
+      // Profiel-afbeelding verversen: PCS her-shardt afbeeldings-URLs soms
+      // (juli 2026: 20/21 TdF-profielen dood). De actuele URL staat op de
+      // pagina die we toch al fetchen — vóór de parse, zodat dit ook op
+      // startlijst-dagen (guard-fout) gebeurt.
+      const profMatches = [...html.matchAll(/images\/profiles\/[^"']+\.(?:jpe?g|png|webp)/gi)].map((m) => m[0]);
+      const prof = profMatches.find((p) => p.includes("profile")) || profMatches[0];
+      if (prof) {
+        await supabase.from("stages")
+          .update({ profile_image_url: `https://www.procyclingstats.com/${prof}` })
+          .eq("id", stage.id);
+      }
+
       // Gedeelde, geteste parser (STAGE/TTT/ITT-formaten + startlijst-guard).
       // Gooit een fout als de pagina nog de startlijst toont (geen tijden) → dan
       // niks opslaan en de etappe niet locken.

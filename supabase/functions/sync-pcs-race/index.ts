@@ -220,6 +220,12 @@ function parseStartlist(doc: any) {
   return { riders, shirts };
 }
 
+// Tenues centraal opslaan zodat álle spelers ze zien (niet alleen de admin-browser)
+async function saveShirts(adminClient: any, shirts: Record<string, string>) {
+  const rows = Object.entries(shirts).map(([team_name, shirt_url]) => ({ team_name, shirt_url, updated_at: new Date().toISOString() }));
+  if (rows.length) await adminClient.from("team_shirts").upsert(rows, { onConflict: "team_name" });
+}
+
 // Haal bestaande rider-details op uit global_riders (één record per renner)
 // Geeft ook global_rider_id terug zodat de FK gezet kan worden
 async function enrichFromExisting(adminClient: any, pcs_slug: string | null): Promise<Record<string, any>> {
@@ -289,8 +295,9 @@ Deno.serve(async (req) => {
 
       log.push("🚴 Startlijst ophalen van PCS...");
       const startDoc = await fetchPCS(baseUrl + "/startlist");
-      const { riders: pcsRiders } = parseStartlist(startDoc);
+      const { riders: pcsRiders, shirts: slShirts } = parseStartlist(startDoc);
       log.push(`✅ ${pcsRiders.length} renners op PCS startlijst`);
+      await saveShirts(adminClient, slShirts);
 
       const { data: dbRiders } = await adminClient
         .from("riders").select("id,pcs_slug,bib_number,name").eq("competition_id", competition_id);
@@ -486,6 +493,7 @@ Deno.serve(async (req) => {
         const startDoc = await fetchPCS(stageBaseUrl + "/startlist");
         const result = parseStartlist(startDoc);
         shirts = result.shirts;
+        await saveShirts(adminClient, shirts);
         log.push(`✅ ${result.riders.length} renners + ${Object.keys(shirts).length} team shirts gevonden`);
 
         // Riders mergen op pcs_slug (bestaande updaten, nieuwe toevoegen)
@@ -707,6 +715,7 @@ Deno.serve(async (req) => {
       const result = parseStartlist(startDoc);
       riders = result.riders;
       shirts = result.shirts;
+      await saveShirts(adminClient, shirts);
       log.push(`✅ ${riders.length} renners + ${Object.keys(shirts).length} team shirts gevonden`);
     } catch (e) {
       log.push(`⚠️ Startlijst: ${e.message}`);

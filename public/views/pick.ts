@@ -87,8 +87,9 @@ export function renderPickStage() {
   const profileContainer = $('pick-stage-profile');
   if (profileContainer) {
     profileContainer.innerHTML = stage.profile_image_url
-      ? `<img src="${escapeHtml(stage.profile_image_url)}" alt="Etappeprofiel" class="stage-profile-img" onclick="this.classList.toggle('expanded')">`
+      ? `<img src="${escapeHtml(stage.profile_image_url)}" alt="Etappeprofiel" class="stage-profile-img" onclick="this.classList.toggle('expanded')" onerror="this.parentElement.style.display='none'">`
       : '';
+    profileContainer.style.display = '';
   }
   $('pick-locked-msg').style.display = isLocked ? 'block' : 'none';
 

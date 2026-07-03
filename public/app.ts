@@ -307,7 +307,7 @@ export async function initApp() {
   // Gebruik opgeslagen compId om riders mee te batchen in de eerste round-trip
   const savedCompId = parseInt(localStorage.getItem('bagagedrager_comp')) || null;
 
-  const [profiles, comps, allStages, picks, allProfiles, preloadedRiders, preloadedStandings] = await Promise.all([
+  const [profiles, comps, allStages, picks, allProfiles, preloadedRiders, preloadedStandings, teamShirts] = await Promise.all([
     supaRest('profiles', { filters: `id=eq.${state.session.user.id}` }),
     supaRest('competitions', { filters: 'order=year.desc,name' }),
     supaRest('stages', { filters: 'order=stage_number' }),
@@ -315,6 +315,7 @@ export async function initApp() {
     supaRest('profiles'),
     savedCompId ? supaRest('riders', { filters: `competition_id=eq.${savedCompId}&order=bib_number` }) : Promise.resolve(null),
     savedCompId ? supaRest('general_classification', { filters: `competition_id=eq.${savedCompId}` }) : Promise.resolve(null),
+    supaRest('team_shirts').catch(() => []),
   ]);
 
   state.profile = profiles[0];
@@ -323,6 +324,12 @@ export async function initApp() {
   state.myPicks = picks;
   state._cache.allProfiles = allProfiles;
   allProfiles.forEach(p => { state._avatarMap[p.display_name] = p.avatar_url; });
+
+  // Tenues uit de DB — localStorage is alleen nog cache/fallback
+  if (teamShirts?.length) {
+    teamShirts.forEach(s => { state.teamShirts[s.team_name] = s.shirt_url; });
+    localStorage.setItem('bagagedrager_shirts', JSON.stringify(state.teamShirts));
+  }
 
   $('user-name').textContent = state.profile?.display_name || state.session.user.email;
   $('app-loading').style.display = 'none';
