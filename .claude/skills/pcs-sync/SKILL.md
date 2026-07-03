@@ -1,6 +1,6 @@
 ---
 name: pcs-sync
-description: Hoe etappe-resultaten van ProCyclingStats (PCS) worden gescraped en opgeslagen — de parser (_shared/pcs-parse.ts), het verschil tussen sync-pcs-results / auto-sync / admin-flow, renner-matching naar rider_id, en de PCS-HTML-valkuilen (TTT, ITT, bonificaties, startlijst). Gebruik dit bij elke wijziging aan scraping, sync-functies of als resultaten/tijden niet of verkeerd binnenkomen.
+description: Hoe etappe-resultaten én startlijsten/race-data van ProCyclingStats (PCS) worden gescraped en opgeslagen — de parser (_shared/pcs-parse.ts), het verschil tussen sync-pcs-results / auto-sync / admin-flow, de race-import (sync-pcs-race met bib-regels), renner-matching naar rider_id, en de PCS-HTML-valkuilen (TTT, ITT, bonificaties, startlijst). Gebruik dit bij elke wijziging aan scraping, sync-functies, startlijst-import of als resultaten/tijden/renners niet of verkeerd binnenkomen.
 ---
 
 # PCS-sync pijplijn
@@ -55,6 +55,30 @@ Renners staan per competitie in `riders` (`id, pcs_slug, bib_number, competition
 - **Startlijst-guard**: vóór de etappe gereden is toont PCS de startlijst (renners, geen tijden). `parseStagePage` gooit dan een fout ("Geen tijden gevonden — startlijst"). De sync-paden moeten die fout afvangen en **niets opslaan / de etappe niet locken**.
 
 Wijzigt PCS de HTML? Test eerst live (Playwright/Deno-fetch), leg de nieuwe structuur vast in een test in `pcs-parse.test.ts`, en pas dan de parser aan.
+
+## Race-import: `sync-pcs-race` (etappes + startlijst)
+
+Aparte edge function (browser-aangeroepen door admin, eigen inline parsers — níet `pcs-parse.ts`, dat is alleen voor uitslagen). Drie modes via de request-body:
+
+1. **Volledige race-sync** (`{pcs_url, competition_id}`): parset `/stages` (of de overzichtspagina bij `is_one_day`), haalt per etappe profiel-afbeelding + starttijd op, parset `/startlist`, upsert `stages` en `riders`. Bestaande etappes behouden `locked`; `start_time`/`deadline` worden alleen overschreven als PCS een echte tijd geeft.
+2. **Startlijst-only** (`{..., startlist_only: true}`): alleen renners bijwerken, etappes/race-info onaangeraakt.
+3. **Per-etappe** (`{..., stage_id}`): voor de klassiekers-bundel — race-info + startlijst van de etappe-eigen `stages.pcs_url`, en vult `stage_riders` (delete + insert per etappe).
+
+### Bib-regels (de valkuil van juli 2026)
+
+Vóór de koers toont PCS `-` als bib; de parser verzint dan een volgnummer uit DOM-volgorde. Die volgorde wisselt per sync → bij re-sync botsen bibs op `UNIQUE(competition_id, bib_number)` en sneuvelen inserts **stil** (Tour: 180 opgehaald, 136 in DB). Daarom:
+
+- **Neem nooit de bib uit de parse over** bij een update: bestaande renners houden hun bib (intern placeholder).
+- Nieuwe renners krijgen `max(bib_number) + 1`.
+- Match altijd eerst op `pcs_slug`; bib-match alleen als fallback én alleen als het DB-record zelf géén `pcs_slug` heeft (anders overschrijf je een andere renner, met verkeerde foto's via `global_rider_id` tot gevolg).
+- Startlist-only verwijdert renners die van de lijst zijn — alleen op `pcs_slug`-basis, nooit op bib, en nooit als de renner picks heeft.
+
+### Verrijking & bijzaken
+
+- Nieuwe renners worden verrijkt uit `global_riders` (foto, nationaliteit, specialties) via `pcs_slug`; ontbrekend global-record wordt ge-upsert zodat `global_rider_id` altijd gezet is.
+- **Foto's** komen apart via `sync-pcs-photos` (te traag voor één request; 200ms rate-limit per renner).
+- **Specialties** vernieuwt de cron `cron-refresh-specialties` wekelijks (ma 3:00 UTC).
+- PCS-tijden zijn CET/CEST — `cetOffsetForDate` bepaalt de UTC-offset; hou die logica in stand bij starttijd-wijzigingen.
 
 ## Debuggen
 

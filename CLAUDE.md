@@ -36,17 +36,17 @@ Fantasy cycling game ("wielerspel") where players pick one rider per stage and c
 - `npm run typecheck` heeft een baseline van ~56 bestaande errors (niet afgedwongen) — niet laten groeien.
 
 ## Scoring system (4 classifications)
-1. **Algemeen Klassement (GC)** — Sum of time gaps to stage winner, minus `bonification_seconds` from `stage_results`. DNF/late = worst time gap of any picked rider who finished that stage; finisht géén enkele gekozen renner, dan slechtste tijdverschil van het hele veld (migratie 059). No sharing penalty.
+1. **Algemeen Klassement (GC)** — Sum of time gaps to stage winner, minus `bonification_seconds` from `stage_results`. DNF/DNS/late = slechtste tijdverschil van het **hele veld** op die etappe (de hekkensluiter, migratie 063). No sharing penalty.
 2. **Puntenklassement (Points)** — Sum of sprint points from PCS Points Classification. No sharing penalty.
 3. **Bergklassement (Mountain)** — Sum of KOM points from PCS Mountain/KOM Classification. No sharing penalty.
 4. **Spelklassement (Game)** — Points based on finish position (1st=100, 2nd=80, ..., 20th=5) with sharing multiplier penalty when multiple players pick the same rider.
 
-De klassementen zitten in de views `general_classification` en `stage_picks_public` (beide laatst volledig gedefinieerd in migratie 059). Views draaien als owner en omzeilen RLS — bewust, zodat klassementen compleet blijven.
+De klassementen zitten in de views `general_classification` en `stage_picks_public` (beide laatst volledig gedefinieerd in migratie 063). Views draaien als owner en omzeilen RLS — bewust, zodat klassementen compleet blijven.
 
 ## Game rules
 - Pick 1 rider per stage before the start time (deadline = start_time)
 - Each rider can only be used once per competition
-- Late/no pick → "Rad van Fortuin" assigns a random unused rider; GC penalty = worst time of picked riders
+- Late/no pick → "Rad van Fortuin" assigns a random unused rider; GC penalty = slechtste tijdverschil van het hele veld (migratie 063)
 - DNF/DNS/OTL = same GC penalty as late; 0 points in all other classifications
 - Bonification seconds stored per rider in `stage_results.bonification_seconds` (scraped from PCS or entered manually by admin). NOT derived from finish position.
 - Klassiekers: één competitie met meerdere "etappes" (koersen) en per-etappe startlijsten in `stage_riders`
@@ -66,7 +66,7 @@ Cron-jobs (pg_cron + pg_net, zie `cron.job`):
 
 Conventies:
 - **Cron-functies** eisen `x-cron-secret`-header; secret staat in `_app_config` (DB), op te vragen via `get_cron_secret()` RPC. Cron-jobs sturen hem mee.
-- **Browser-aangeroepen functies** (sync-pcs-*, test-push, submit-pick) hebben CORS-headers + OPTIONS-handler nodig én `verify_jwt = false` (in `supabase/config.toml` + deploy met `--no-verify-jwt`), want de preflight kan geen JWT dragen. Auth gebeurt ín de functie (sessie + `profiles.is_admin`).
+- **Browser-aangeroepen functies** (sync-pcs-*, test-push, test-email) hebben CORS-headers + OPTIONS-handler nodig én `verify_jwt = false` (in `supabase/config.toml` + deploy met `--no-verify-jwt`), want de preflight kan geen JWT dragen. Auth gebeurt ín de functie (sessie + `profiles.is_admin`).
 - **Deno crypto-valkuil**: VAPID private key importeren als JWK (d + x/y uit de public key) — minimale PKCS8 importeert wel maar `sign()` faalt met `InvalidEncoding` in de Supabase-runtime.
 - Gedeelde code in `_shared/`; importeer nooit uit een andere functie-map (top-level `Deno.serve` van die functie kaapt dan alle requests).
 - SECURITY DEFINER functies krijgen `SET search_path = public` (migratie 060).
