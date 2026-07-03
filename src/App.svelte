@@ -350,15 +350,23 @@
   function overlayBackdropClose(e: MouseEvent) {
     if (e.target === e.currentTarget) (e.currentTarget as HTMLElement).style.display = 'none';
   }
+  // Escape sluit een open overlay (display wordt legacy via JS getoggeld, dus altijd luisteren)
+  function onWindowKeydown(e: KeyboardEvent) {
+    if (e.key !== 'Escape') return;
+    for (const el of [h2hOverlay, adminPicksOverlay]) {
+      if (el && el.style.display !== 'none') el.style.display = 'none';
+    }
+  }
 </script>
 
 <svelte:document onmouseover={onDocMouseover} onmousemove={onDocMousemove} onmouseout={onDocMouseout} />
+<svelte:window onkeydown={onWindowKeydown} />
 
 <!-- Toast container -->
 <div id="toast-container" class="toast-container"></div>
 
 <!-- Admin: edit user picks modal -->
-<div id="admin-picks-overlay" class="h2h-overlay" style="display:none;" bind:this={adminPicksOverlay} onclick={overlayBackdropClose}>
+<div id="admin-picks-overlay" class="h2h-overlay" style="display:none;" role="presentation" bind:this={adminPicksOverlay} onclick={overlayBackdropClose}>
   <div class="h2h-modal">
     <div class="h2h-header">
       <h3 id="admin-picks-title">Keuzes bewerken</h3>
@@ -369,7 +377,7 @@
 </div>
 
 <!-- Head-to-head modal -->
-<div id="h2h-overlay" class="h2h-overlay" style="display:none;" bind:this={h2hOverlay} onclick={overlayBackdropClose}>
+<div id="h2h-overlay" class="h2h-overlay" style="display:none;" role="presentation" bind:this={h2hOverlay} onclick={overlayBackdropClose}>
   <div class="h2h-modal">
     <div class="h2h-header">
       <h3>Head-to-Head</h3>
@@ -425,23 +433,23 @@
     <div class="container">
       <ul class="nav nav-pills mb-3" id="main-tabs">
         <li class="nav-item">
-          <a class="nav-link" class:active={ui.activeTab === 'dashboard'} style:border-bottom-color={ui.activeTab === 'dashboard' ? compColor : null} href="#" onclick={(e) => tabClick(e, 'dashboard')} title="Klassement"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg><span class="nav-label"> Klassement</span></a>
+          <a class="nav-link" class:active={ui.activeTab === 'dashboard'} style:border-bottom-color={ui.activeTab === 'dashboard' ? compColor : null} href="#dashboard" onclick={(e) => tabClick(e, 'dashboard')} title="Klassement"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><line x1="18" x2="18" y1="20" y2="10"/><line x1="12" x2="12" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="14"/></svg><span class="nav-label"> Klassement</span></a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" class:active={ui.activeTab === 'pick'} style:border-bottom-color={ui.activeTab === 'pick' ? compColor : null} href="#" onclick={(e) => tabClick(e, 'pick')} title="Keuze"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><circle cx="5.5" cy="17" r="3.5"/><circle cx="18.5" cy="17" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17 8.5 10l3-2.5L14 11h4"/></svg><span class="nav-label"> Keuze</span></a>
+          <a class="nav-link" class:active={ui.activeTab === 'pick'} style:border-bottom-color={ui.activeTab === 'pick' ? compColor : null} href="#pick" onclick={(e) => tabClick(e, 'pick')} title="Keuze"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><circle cx="5.5" cy="17" r="3.5"/><circle cx="18.5" cy="17" r="3.5"/><circle cx="15" cy="5" r="1"/><path d="M12 17 8.5 10l3-2.5L14 11h4"/></svg><span class="nav-label"> Keuze</span></a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" class:active={ui.activeTab === 'history'} style:border-bottom-color={ui.activeTab === 'history' ? compColor : null} href="#" onclick={(e) => tabClick(e, 'history')} title="Jouw keuzes"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><path d="M12 8v4l3 3"/><path d="M3.05 11a9 9 0 1 0 .5-3"/><path d="M3 3v5h5"/></svg><span class="nav-label"> Mijn keuzes</span></a>
+          <a class="nav-link" class:active={ui.activeTab === 'history'} style:border-bottom-color={ui.activeTab === 'history' ? compColor : null} href="#history" onclick={(e) => tabClick(e, 'history')} title="Jouw keuzes"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><path d="M12 8v4l3 3"/><path d="M3.05 11a9 9 0 1 0 .5-3"/><path d="M3 3v5h5"/></svg><span class="nav-label"> Mijn keuzes</span></a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" class:active={ui.activeTab === 'participants'} style:border-bottom-color={ui.activeTab === 'participants' ? compColor : null} href="#" onclick={(e) => tabClick(e, 'participants')} title="Uitslagen"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="nav-label"> Uitslagen</span></a>
+          <a class="nav-link" class:active={ui.activeTab === 'participants'} style:border-bottom-color={ui.activeTab === 'participants' ? compColor : null} href="#participants" onclick={(e) => tabClick(e, 'participants')} title="Uitslagen"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="nav-label"> Uitslagen</span></a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" class:active={ui.activeTab === 'account'} style:border-bottom-color={ui.activeTab === 'account' ? compColor : null} href="#" onclick={(e) => tabClick(e, 'account')} title="Account"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg><span class="nav-label"> Account</span></a>
+          <a class="nav-link" class:active={ui.activeTab === 'account'} style:border-bottom-color={ui.activeTab === 'account' ? compColor : null} href="#account" onclick={(e) => tabClick(e, 'account')} title="Account"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg><span class="nav-label"> Account</span></a>
         </li>
         {#if appState.profile?.is_admin}
           <li class="nav-item" id="admin-tab">
-            <a class="nav-link" class:active={ui.activeTab === 'admin'} style:border-bottom-color={ui.activeTab === 'admin' ? compColor : null} href="#" onclick={(e) => tabClick(e, 'admin')} title="Admin"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg><span class="nav-label"> Admin</span></a>
+            <a class="nav-link" class:active={ui.activeTab === 'admin'} style:border-bottom-color={ui.activeTab === 'admin' ? compColor : null} href="#admin" onclick={(e) => tabClick(e, 'admin')} title="Admin"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg><span class="nav-label"> Admin</span></a>
           </li>
         {/if}
       </ul>

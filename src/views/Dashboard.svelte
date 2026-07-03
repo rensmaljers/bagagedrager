@@ -94,6 +94,14 @@
   let h2hOpen = $state(false);
   let h2hHtml = $state('');
 
+  // Escape sluit de H2H-modal zolang die open is
+  $effect(() => {
+    if (!h2hOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') h2hOpen = false; };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
   const rankBadge = (i: number) => i < 3
     ? `<span class="rank-badge rank-badge-${i + 1}">${i + 1}</span>`
     : `<span class="rank-badge">${i + 1}</span>`;
@@ -836,8 +844,7 @@
 
 <!-- Head-to-head modal -->
 {#if h2hOpen}
-  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-  <div id="h2h-overlay" class="h2h-overlay" style="display:flex;" onclick={(e) => { if (e.target === e.currentTarget) h2hOpen = false; }}>
+  <div id="h2h-overlay" class="h2h-overlay" style="display:flex;" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) h2hOpen = false; }}>
     <div class="h2h-modal">
       <div class="h2h-header">
         <h3>Head-to-Head</h3>

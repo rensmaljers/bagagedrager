@@ -183,6 +183,14 @@
     rows: [] as any[], ridersSorted: [] as any[], usedRiderIds: new Set<number>(),
   });
 
+  // Escape sluit de picks-modal zolang die open is
+  $effect(() => {
+    if (!picksModal.open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') picksModal.open = false; };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
   async function openAdminPicks(userId: string, displayName: string) {
     picksModal.open = true;
     picksModal.userId = userId;
@@ -1484,7 +1492,7 @@
   <ul class="nav nav-tabs mb-3" id="admin-tabs">
     {#each subTabs as t (t.id)}
       <li class="nav-item">
-        <a class="nav-link" class:active={adminSub === t.id} href="#" data-admin={t.id}
+        <a class="nav-link" class:active={adminSub === t.id} href={'#' + t.id} data-admin={t.id}
            onclick={(e) => { e.preventDefault(); adminSub = t.id; }}>{t.label}</a>
       </li>
     {/each}
@@ -2080,7 +2088,7 @@
 
 <!-- Admin: keuzes van andere spelers bewerken (modal, was #admin-picks-overlay in index.html) -->
 {#if picksModal.open}
-  <div id="admin-picks-overlay" class="h2h-overlay" style="display:flex;"
+  <div id="admin-picks-overlay" class="h2h-overlay" style="display:flex;" role="presentation"
        onclick={(e) => { if (e.target === e.currentTarget) picksModal.open = false; }}>
     <div class="h2h-modal">
       <div class="h2h-header">

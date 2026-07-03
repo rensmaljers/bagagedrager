@@ -447,7 +447,10 @@
             <!-- Interactieve kaart lazy: iframe-src pas zetten bij eerste activatie -->
             <div class="stage-route-frame" data-kind="route" hidden={effectiveVisualKind !== 'route'}><iframe src={routeActivated ? v.src : undefined} data-src={v.src} title="Interactieve routekaart" loading="lazy" allowfullscreen allow="geolocation"></iframe></div>
           {:else}
-            <img src={v.src} alt={v.kind === 'map' ? 'Routekaart' : 'Etappeprofiel'} class="stage-profile-img {expandedVisuals[v.kind] ? 'expanded' : ''}" data-kind={v.kind} data-fb={v.fb} hidden={effectiveVisualKind !== v.kind} onclick={() => toggleExpanded(v.kind)} onerror={visualImgError}>
+            <!-- role=button mag niet op <img>; style-loze div-wrapper draagt de interactie -->
+            <div role="button" tabindex="0" hidden={effectiveVisualKind !== v.kind} aria-label={expandedVisuals[v.kind] ? 'Afbeelding verkleinen' : 'Afbeelding vergroten'} onclick={() => toggleExpanded(v.kind)} onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleExpanded(v.kind); } }}>
+              <img src={v.src} alt={v.kind === 'map' ? 'Routekaart' : 'Etappeprofiel'} class="stage-profile-img {expandedVisuals[v.kind] ? 'expanded' : ''}" data-kind={v.kind} data-fb={v.fb} onerror={visualImgError}>
+            </div>
           {/if}
         {/each}
       </div>
@@ -531,7 +534,9 @@
             {@const isCurrent = r.id === currentPickRiderId}
             <div class="col-6 col-md-4 col-lg-4">
               <div class="card pick-card {selected ? 'selected' : ''} {isCurrent && !selected ? 'current-pick' : ''} {used ? 'used' : ''} {dnf ? 'used dnf-rider' : ''}"
-                   data-rider-id={r.id} onclick={isLocked || blocked ? undefined : () => selectRider(r.id)}>
+                   data-rider-id={r.id} role="button" tabindex="0" aria-disabled={isLocked || blocked}
+                   onclick={isLocked || blocked ? undefined : () => selectRider(r.id)}
+                   onkeydown={isLocked || blocked ? undefined : (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectRider(r.id); } }}>
                 <div class="card-body py-2 px-3">
                   <div class="d-flex align-items-center gap-2">
                     {#if r.photo_url && r.photo_url !== 'none'}

@@ -96,7 +96,7 @@
           </div>
           <button id="btn-login" type="submit" class="btn btn-accent w-100 mb-2" disabled={busy}>{busy ? 'Bezig…' : 'Inloggen'}</button>
           <button id="btn-signup" type="button" class="btn btn-ghost w-100 mb-2" onclick={handleSignup} disabled={busy}>Aanmelden</button>
-          <a href="#" id="btn-forgot-password" style="font-size:0.8rem; color:var(--text-muted);" onclick={handleForgotPassword}>Wachtwoord vergeten?</a>
+          <a href="#wachtwoord-vergeten" id="btn-forgot-password" style="font-size:0.8rem; color:var(--text-muted);" onclick={handleForgotPassword}>Wachtwoord vergeten?</a>
           <div id="auth-error" class="text-danger mt-3" style="font-size:0.85rem;" style:display={errorMsg ? 'block' : 'none'}>{errorMsg}</div>
           <div id="auth-success" class="text-success mt-3" style="font-size:0.85rem;" style:display={successMsg ? 'block' : 'none'}>{successMsg}</div>
         </form>
