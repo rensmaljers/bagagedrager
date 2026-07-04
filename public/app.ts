@@ -244,14 +244,24 @@ document.querySelectorAll('[data-admin]').forEach(a => {
 });
 
 // --- AUTH HANDLERS ---
-$('btn-login').addEventListener('click', async () => {
+// Submit op het form: Enter in een veld werkt, en de knop toont busy-state
+// zodat "de knop doet niets" niet meer kan (fouten blijven zichtbaar via showError)
+$('auth-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
   const email = $('auth-email').value.trim();
   const password = $('auth-password').value;
   if (!email || !password) { showError('Vul je e-mailadres en wachtwoord in.'); return; }
+  const btn = $('btn-login');
+  btn.disabled = true;
+  btn.textContent = 'Bezig…';
   try {
     state.session = await login(email, password);
     await initApp();
-  } catch (e) { showError(e.message); }
+  } catch (e2) { showError(e2.message); }
+  finally {
+    btn.disabled = false;
+    btn.textContent = 'Inloggen';
+  }
 });
 
 $('btn-signup').addEventListener('click', async () => {

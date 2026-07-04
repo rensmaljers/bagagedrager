@@ -260,6 +260,7 @@ export async function loadStandings() {
   });
 
   renderMyStatus(statusEntries);
+  renderPotBanner();
   renderWelcomeCard();
 
   // Pot kaart — asynchroon renderen (blokkeert standings niet)
@@ -313,6 +314,64 @@ function renderMyStatus(entries: { label: string; value: string; sub?: string; d
       </div>
     </div>`;
 }
+
+// Inleg-banner: betaalverzoek voor de prijzenpot van de Tour 2026. Zichtbaar
+// vanaf de start van etappe 1 tot de speler hem wegklikt (localStorage).
+const POT_BANNER_KEY = 'bagagedrager_pot_tdf2026_dismissed';
+const POT_BETAALLINK = 'https://betaalverzoek.rabobank.nl/betaalverzoek/?id=aS3cgsxLTTGy-w-qM-B95A';
+
+async function renderPotBanner() {
+  const wrap = $('pot-banner-wrap');
+  if (!wrap) return;
+
+  const comp = state.competitions.find(c => c.id === state.activeCompId);
+  const isTour2026 = comp?.name?.includes('Tour de France 2026');
+  const dismissed = localStorage.getItem(POT_BANNER_KEY) === '1';
+  // Pas tonen vanaf de startdag van etappe 1
+  const stage1 = activeStages().find(s => s.stage_number === 1);
+  const started = stage1 && new Date() >= new Date(new Date(stage1.start_time).toDateString());
+
+  if (!isTour2026 || dismissed || !started) {
+    wrap.style.display = 'none';
+    wrap.innerHTML = '';
+    return;
+  }
+
+  // Al betaald (admin vinkt af in de Pot-tab)? Dan geen banner.
+  try {
+    const rows = await supaRest('competition_participants', {
+      select: 'has_paid',
+      filters: `competition_id=eq.${comp.id}&user_id=eq.${state.session.user.id}`,
+    });
+    if (rows?.[0]?.has_paid) {
+      wrap.style.display = 'none';
+      wrap.innerHTML = '';
+      return;
+    }
+  } catch (_) { /* status onbekend → banner gewoon tonen */ }
+
+  wrap.style.display = '';
+  wrap.innerHTML = `
+    <div class="card welcome-card">
+      <div class="card-body">
+        <div class="welcome-card-inner">
+          <div>
+            <div class="welcome-card-title">De Tour is begonnen — doe je inleg in de pot</div>
+            <div class="welcome-card-sub">Inleg voor het Bagagedragerspel TdF is €10,00. Betaal via het Rabobank-betaalverzoek — dat werkt met elke Nederlandse bank. Dank je wel!</div>
+          </div>
+          <div class="d-flex align-items-center gap-2 welcome-card-cta">
+            <a class="btn btn-accent" href="${POT_BETAALLINK}" target="_blank" rel="noopener">Betaal €10 inleg ↗</a>
+            <button class="btn btn-ghost" title="Melding verbergen" onclick="dismissPotBanner()">Later</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+// Inline onclick vereist window-registratie (module-scope is niet globaal)
+(window as any).dismissPotBanner = () => {
+  localStorage.setItem(POT_BANNER_KEY, '1');
+  renderPotBanner();
+};
 
 // Welkom-hero: deelname is impliciet (eerste pick = meedoen), dus maak dat
 // expliciet zichtbaar voor wie nog geen pick heeft in de actieve ronde.
