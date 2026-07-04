@@ -57,6 +57,16 @@ export function buildPcsStageUrl(comp, stageNumber, stage) {
   return `${base}/stage-${stageNumber}`;
 }
 
+// Nieuwslink per etappe: Google News-zoekopdracht (NL). Klassiekers/eendagskoersen
+// zoeken op de koersnaam, rondes op "<ronde> etappe N".
+export function buildStageNewsUrl(comp, stageNumber, stage) {
+  if (!comp) return null;
+  const q = (comp.is_one_day || stage?.pcs_url)
+    ? `${stage?.name || comp.name} wielrennen`
+    : `${comp.name} ${stageNumber === 0 ? 'proloog' : `etappe ${stageNumber}`}`;
+  return `https://news.google.com/search?q=${encodeURIComponent(q)}&hl=nl&gl=NL&ceid=NL:nl`;
+}
+
 export function updateCompBanner() {
   applyCompColor();
   updateSyncInfo();

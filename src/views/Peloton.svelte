@@ -6,7 +6,7 @@
   import { formatTime, formatGap, riderDisplay, toast } from '../lib/utils';
   import { icon } from '../lib/icons';
   import { supaPatch, supaRest } from '../lib/api';
-  import { activeScoringMode, buildPcsStageUrl, riderPhoto, teamBadge } from '../lib/helpers';
+  import { activeScoringMode, buildPcsStageUrl, buildStageNewsUrl, riderPhoto, teamBadge } from '../lib/helpers';
 
   // --- Uitslagen (picks van iedereen, zichtbaar na deadline) ---
   let participantsMsg: string | null = $state('Laden...');
@@ -116,6 +116,7 @@
       const partComp = appState.competitions.find((c: any) => c.id === appState.activeCompId);
       const partStage = appState.stages.find((s: any) => s.competition_id === appState.activeCompId && s.stage_number === num);
       const pcsUrl = buildPcsStageUrl(partComp, num, partStage);
+      const newsUrl = buildStageNewsUrl(partComp, num, partStage);
       const stageId = byStage[num].stage_id;
       const winner = stageWinners[stageId] || null;
       const enriched = picks.map((p: any) => {
@@ -134,7 +135,7 @@
         const bergCell = p.effective_mountain_points != null ? p.effective_mountain_points : (p.mountain_points != null ? (p.is_late ? '0' : p.mountain_points) : '-');
         return { ...p, sharingPct, showPickersBadge, timeCell, bonifCell, ptsCell, bergCell };
       });
-      return { num, pcsUrl, winner, picks: enriched };
+      return { num, pcsUrl, newsUrl, winner, picks: enriched };
     });
     isClassic = classic;
     participantsMsg = null;
@@ -154,7 +155,7 @@
       {#each stageGroups as group}
         <div class="card mb-3">
           <div class="card-header d-flex align-items-center flex-wrap">
-            <h6 class="mb-0">Etappe {group.num}{#if group.pcsUrl}{' '}<a href={group.pcsUrl} target="_blank" rel="noopener" class="pcs-link" title="Bekijk op PCS">PCS ↗</a>{/if}</h6>{#if group.winner}<span style="font-size:0.75rem; color:var(--text-muted); font-weight:400; margin-left:0.5rem;">{@html icon('trophy', '', 12)} {group.winner.name} — {formatTime(group.winner.time)}</span>{/if}
+            <h6 class="mb-0">Etappe {group.num}{#if group.pcsUrl}{' '}<a href={group.pcsUrl} target="_blank" rel="noopener" class="pcs-link" title="Bekijk op PCS">PCS ↗</a>{/if}{#if group.newsUrl}{' '}<a href={group.newsUrl} target="_blank" rel="noopener" class="pcs-link" title="Nieuws over deze etappe">Nieuws ↗</a>{/if}</h6>{#if group.winner}<span style="font-size:0.75rem; color:var(--text-muted); font-weight:400; margin-left:0.5rem;">{@html icon('trophy', '', 12)} {group.winner.name} — {formatTime(group.winner.time)}</span>{/if}
           </div>
           <div class="card-body p-0">
             <table class="table table-sm mb-0">

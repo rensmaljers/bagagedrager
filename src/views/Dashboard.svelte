@@ -206,6 +206,8 @@
     function buildTable(sorted: any[], formatFn: (s: any, i: number) => any, heroLabel?: string | null, rankDelta?: Map<string, number> | null, classMode?: string, compact = false) {
       const jerseyClass = ({ gc: 'jersey-gc', points: 'jersey-points', mountain: 'jersey-mountain', game: 'jersey-game' } as Record<string, string>)[classMode || 'game'] || '';
       const collapsible = compact && sorted.length > COMPACT_TOP + 1;
+      // Score-balkjes: aandeel t.o.v. de leider (alleen punten-klassementen, niet AK-tijden)
+      const leaderVal = classMode !== 'gc' && sorted.length ? Number(formatFn(sorted[0], 0)) : 0;
       const rows = sorted.map((s, i) => {
         const isMe = s.display_name === myName;
         const isLeader = i === 0 && sorted.length > 0;
@@ -221,6 +223,9 @@
           extra: collapsible && i >= COMPACT_TOP && !isMe,
           deltaHtml,
           valueHtml: String(formatFn(s, i)),
+          barPct: classMode !== 'gc' && leaderVal > 0 && isFinite(Number(formatFn(s, i)))
+            ? Math.max(0, Math.min(100, (Number(formatFn(s, i)) / leaderVal) * 100))
+            : null,
           showTrui: isLeader && !!jerseyClass,
           showH2h: s.display_name !== myName,
         };
@@ -684,7 +689,7 @@
           <tr
             style={row.isMe ? 'background:var(--accent-bg);' : undefined}
             class={row.isLeader ? `leader-row${t.jerseyClass ? ' wears ' + t.jerseyClass : ''}` : (row.extra ? 'standings-extra' : undefined)}
-          ><td class="tnum">{@html rankBadge(i)}{@html row.deltaHtml}</td><td><div class="d-flex align-items-center gap-2"><span class="player-click d-inline-flex align-items-center gap-2" role="button" tabindex="0" onclick={() => (ui.playerModalId = row.user_id)} onkeydown={(e) => { if (e.key === 'Enter') ui.playerModalId = row.user_id; }}>{@html avatarHtml(row.name, appState._avatarMap[row.name], 'sm')}{row.name}</span>{#if row.showTrui}<span class="trui-chip">trui</span>{/if}{#if row.showH2h}<button class="btn btn-ghost" style="padding:0.1rem 0.4rem;font-size:0.6rem;border-radius:4px;" onclick={() => openH2H(row.name, t.mode)}>vs</button>{/if}</div></td><td class="text-end tnum">{@html row.valueHtml}</td></tr>
+          ><td class="tnum">{@html rankBadge(i)}{@html row.deltaHtml}</td><td><div class="d-flex align-items-center gap-2"><span class="player-click d-inline-flex align-items-center gap-2" role="button" tabindex="0" onclick={() => (ui.playerModalId = row.user_id)} onkeydown={(e) => { if (e.key === 'Enter') ui.playerModalId = row.user_id; }}>{@html avatarHtml(row.name, appState._avatarMap[row.name], 'sm')}{row.name}</span>{#if row.showTrui}<span class="trui-chip">trui</span>{/if}{#if row.showH2h}<button class="btn btn-ghost" style="padding:0.1rem 0.4rem;font-size:0.6rem;border-radius:4px;" onclick={() => openH2H(row.name, t.mode)}>vs</button>{/if}</div></td><td class="text-end tnum">{@html row.valueHtml}{#if row.barPct != null}<span class="score-bar score-bar-{t.mode}"><span style="width:{row.barPct}%"></span></span>{/if}</td></tr>
         {/each}
         {#if t.collapsible}
           <tr class="standings-expand-row"><td colspan="3"><button type="button" class="standings-expand-btn" onclick={() => expanded[key] = !expanded[key]}>{expanded[key] ? `Toon top ${COMPACT_TOP}` : `Toon alle ${t.count} spelers`}</button></td></tr>

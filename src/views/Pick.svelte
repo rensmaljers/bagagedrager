@@ -7,7 +7,7 @@
   import { formatDeadline, riderDisplay, toast, confettiBurst } from '../lib/utils';
   import { icon } from '../lib/icons';
   import { supaRest, supaRpc } from '../lib/api';
-  import { activeStages, buildPcsStageUrl, riderPhoto, teamBadge } from '../lib/helpers';
+  import { activeStages, buildPcsStageUrl, buildStageNewsUrl, riderPhoto, teamBadge } from '../lib/helpers';
 
   const typeLabels: Record<string, string> = { flat: '→', mountain: '▲', tt: '⏱', ttt: '⏱', sprint: '⚡', hills: '~' };
   const STAGE_TYPES: Record<string, { label: string; icon: string }> = {
@@ -55,6 +55,7 @@
   const isLocked = $derived(!!stage && (stage.locked || new Date() > new Date(stage.deadline)));
   const comp = $derived(stage ? appState.competitions.find((c: any) => c.id === stage.competition_id) : null);
   const pcsStageUrl = $derived(stage ? buildPcsStageUrl(comp, stage.stage_number, stage) : null);
+  const newsUrl = $derived(stage ? buildStageNewsUrl(comp, stage.stage_number, stage) : null);
   const pickStageLabel = $derived(stage ? (stage.stage_number === 0 ? 'Proloog' : `Etappe ${stage.stage_number}`) : '');
 
   const stageDetails = $derived.by(() => {
@@ -417,10 +418,13 @@
           </div>
           <h4 id="pick-stage-name" class="stage-hero-title">{stage ? stage.name : ''}</h4>
           <span id="pick-deadline" class="stage-hero-sub">{stageDetails}</span>
+          {#if pcsStageUrl || newsUrl}
+            <div class="stage-hero-links">
+              {#if pcsStageUrl}<a href={pcsStageUrl} target="_blank" rel="noopener" class="stage-link-chip" title="Uitslag en startlijst op ProCyclingStats">PCS ↗</a>{/if}
+              {#if newsUrl}<a href={newsUrl} target="_blank" rel="noopener" class="stage-link-chip" title="Nieuws over deze etappe">Nieuws ↗</a>{/if}
+            </div>
+          {/if}
         </div>
-        {#if pcsStageUrl}
-          <a href={pcsStageUrl} target="_blank" rel="noopener" class="pcs-link" title="Bekijk op PCS" style="flex-shrink:0;">PCS ↗</a>
-        {/if}
       </div>
       <div id="pick-stage-stats">
         {#if stageStats.length}

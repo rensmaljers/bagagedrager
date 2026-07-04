@@ -478,8 +478,8 @@ h1, h2 {
 p, label, h1, h2, h3, h4, h5, h6,
 .form-label { color: var(--text); }
 td, th, li:not([class]) { color: var(--text); }
-span:not(.badge):not(.team-abbr):not(.team-dot):not([class*="text-"]):not([class*="comp-"]) { color: var(--text); }
-a:not(.nav-link):not(.btn):not([class*="comp-"]) { color: var(--accent); }
+span:not(.badge):not(.team-abbr):not(.team-dot):not([class*="text-"]):not([class*="comp-"]):not(.rank-badge) { color: var(--text); }
+a:not(.nav-link):not(.btn):not([class*="comp-"]):not(.stage-link-chip) { color: var(--accent); }
 .table-striped > tbody > tr > * { color: var(--text); }
 code, pre { color: var(--text); }
 
@@ -823,22 +823,37 @@ code, pre { color: var(--text); }
   font-weight: 600;
 }
 
-/* --- Rank badges (vervangt medaille-emoji) --- */
+/* --- Rugnummers (dossard): rangnummer als opgespeld koersplaatje --- */
 .rank-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
+  min-width: 26px;
   height: 22px;
-  border-radius: 50%;
+  padding: 0 6px;
+  border-radius: 2px;
+  background: var(--wit);
+  border: 1px solid var(--wit-edge);
+  transform: rotate(-4deg);
+  position: relative;
   font-size: 0.7rem;
-  font-weight: 700;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
-  color: var(--text-muted);
+  color: var(--wit-ink);
 }
-.rank-badge-1 { background: var(--accent-dim); color: var(--accent); }
-.rank-badge-2 { background: var(--badge-muted-bg); color: var(--text); }
-.rank-badge-3 { background: rgba(180, 83, 9, 0.16); color: #c9803a; }
+/* Speldgaatjes in de bovenhoeken */
+.rank-badge::before, .rank-badge::after {
+  content: ""; position: absolute; top: 2.5px; width: 3px; height: 3px; border-radius: 50%;
+  background: color-mix(in srgb, var(--wit-ink) 30%, transparent);
+}
+.rank-badge::before { left: 3px; }
+.rank-badge::after { right: 3px; }
+.rank-badge-1 { background: var(--accent-dim); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+.rank-badge-1::before, .rank-badge-1::after { background: color-mix(in srgb, var(--accent) 40%, transparent); }
+.rank-badge-2 { background: var(--badge-muted-bg); color: var(--text); border-color: var(--border-strong); }
+.rank-badge-2::before, .rank-badge-2::after { background: color-mix(in srgb, var(--text) 30%, transparent); }
+.rank-badge-3 { background: rgba(180, 83, 9, 0.16); color: #c9803a; border-color: color-mix(in srgb, #c9803a 45%, transparent); }
+.rank-badge-3::before, .rank-badge-3::after { background: color-mix(in srgb, #c9803a 40%, transparent); }
 .table-responsive-wrapper,
 .card-body.p-0:has(> table) {
   overflow-x: auto;
@@ -1451,6 +1466,22 @@ code, pre { color: var(--text); }
 
 .leader-row > td { background: var(--accent-bg) !important; }
 
+/* Score-balkje onder de punten: aandeel t.o.v. de leider, in de truikleur (schuin) */
+.score-bar {
+  display: block;
+  height: 3px;
+  margin: 4px 0 0 auto;
+  width: min(64px, 100%);
+  background: var(--badge-muted-bg);
+  transform: skewX(-10deg);
+  overflow: hidden;
+}
+.score-bar > span { display: block; height: 100%; background: var(--sbcol, var(--accent)); transition: width 0.4s var(--ease); }
+.score-bar-points { --sbcol: var(--vert); }
+.score-bar-mountain { --sbcol: var(--pois); }
+.score-bar-game { --sbcol: var(--purple); }
+.score-bar-combativity { --sbcol: var(--accent); }
+
 /* --- Rivaliteit --- */
 .rivalry-row { background: var(--accent-bg); font-size: 0.72rem; }
 .rivalry-row td { border-bottom: none !important; padding-top: 0 !important; }
@@ -1791,6 +1822,25 @@ tbody:not(.expanded) .standings-extra { display: none; }
   margin: 0.4rem 0 0.1rem;
 }
 .stage-hero-sub { color: var(--text-muted); font-size: 0.82rem; }
+
+/* Etappe-links (PCS, nieuws): schuine link-chips, tekst blijft recht */
+.stage-hero-links { display: flex; gap: 0.45rem; margin-top: 0.6rem; flex-wrap: wrap; }
+.stage-link-chip {
+  display: inline-block;
+  font-family: var(--font-display);
+  font-size: 0.72rem; font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  background: var(--badge-muted-bg);
+  clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+  padding: 0.28rem 0.95rem;
+  text-decoration: none;
+  transition: background var(--dur), color var(--dur);
+}
+.stage-link-chip:hover, .stage-link-chip:focus-visible {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
 
 /* Toggle Profiel/Kaart (officiële ASO-visuals) */
 .stage-visual-tabs { display: flex; gap: 6px; margin-top: 0.5rem; }
