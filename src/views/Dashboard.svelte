@@ -88,6 +88,13 @@
   let statusEntries: { label: string; value: string; sub?: string; deltaHtml?: string; jersey?: string }[] = $state([]);
   let statusNext: { stageTitle: string; name: string | null; deadline: string; riderName: string | null } | null = $state(null);
   let welcome: { compName: string; stageTitle: string; deadline: string } | null = $state(null);
+  const POT_BANNER_KEY = 'bagagedrager_pot_tdf2026_dismissed';
+  const POT_BETAALLINK = 'https://betaalverzoek.rabobank.nl/betaalverzoek/?id=aS3cgsxLTTGy-w-qM-B95A';
+  let potBanner = $state(false);
+  function dismissPotBanner() {
+    localStorage.setItem(POT_BANNER_KEY, '1');
+    potBanner = false;
+  }
   let potVM: any = $state(null);
 
   // --- H2H overlay state (reactief i.p.v. window.openH2H) ---
@@ -363,6 +370,15 @@
     } else {
       statusNext = null;
     }
+
+    // Inleg-banner: betaalverzoek voor de prijzenpot, vanaf de startdag van
+    // etappe 1 tot de speler hem wegklikt (localStorage) — port van main
+    const stage1 = activeStages().find(s => s.stage_number === 1);
+    potBanner = !!(
+      comp?.name?.includes('Tour de France 2026') &&
+      localStorage.getItem(POT_BANNER_KEY) !== '1' &&
+      stage1 && new Date() >= new Date(new Date(stage1.start_time).toDateString())
+    );
 
     // Welkom-hero: deelname is impliciet (eerste pick = meedoen) — (was renderWelcomeCard)
     const compStageIdSet = new Set(activeStages().map(s => s.id));
@@ -702,6 +718,25 @@
 <!-- Dashboard -->
 <div class="tab-section active" id="section-dashboard">
   <!-- Welkom-hero: zichtbaar zolang je nog geen pick hebt in de actieve ronde -->
+  <!-- Inleg-betaalverzoek: zichtbaar tijdens de Tour tot weggeklikt -->
+  {#if potBanner}
+    <div id="pot-banner-wrap" class="mb-4">
+      <div class="card welcome-card">
+        <div class="card-body">
+          <div class="welcome-card-inner">
+            <div>
+              <div class="welcome-card-title">De Tour is begonnen — doe je inleg in de pot</div>
+              <div class="welcome-card-sub">Inleg voor het Bagagedragerspel TdF is €10,00. Betaal via het Rabobank-betaalverzoek — dat werkt met elke Nederlandse bank. Dank je wel!</div>
+            </div>
+            <div class="d-flex align-items-center gap-2 welcome-card-cta">
+              <a class="btn btn-accent btn-skew" href={POT_BETAALLINK} target="_blank" rel="noopener"><span>Betaal €10 inleg ↗</span></a>
+              <button class="btn btn-ghost" title="Melding verbergen" onclick={dismissPotBanner}>Later</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  {/if}
   {#if welcome}
     <div id="welcome-card-wrap" class="mb-4">
       <div class="card welcome-card">
