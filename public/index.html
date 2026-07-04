@@ -98,19 +98,20 @@
         </svg>
         <h1 class="mb-1">Bagagedrager</h1>
         <p class="text-muted auth-subtitle mb-4">Kies je renner, verdien de trui.<br>Het wielerspel voor echte ploegleiders.</p>
-        <div id="auth-form">
+        <!-- Echt <form>: Enter in een veld logt ook in, en wachtwoordmanagers herkennen het loginformulier -->
+        <form id="auth-form">
           <div class="mb-3">
-            <input type="email" id="auth-email" class="form-control" placeholder="Email" />
+            <input type="email" id="auth-email" class="form-control" placeholder="Email" autocomplete="username" />
           </div>
           <div class="mb-3">
-            <input type="password" id="auth-password" class="form-control" placeholder="Wachtwoord" />
+            <input type="password" id="auth-password" class="form-control" placeholder="Wachtwoord" autocomplete="current-password" />
           </div>
-          <button id="btn-login" class="btn btn-accent w-100 mb-2">Inloggen</button>
-          <button id="btn-signup" class="btn btn-ghost w-100 mb-2">Aanmelden</button>
-          <a href="#" id="btn-forgot-password" style="font-size:0.8rem; color:var(--text-muted);">Wachtwoord vergeten?</a>
+          <button id="btn-login" type="submit" class="btn btn-accent w-100 mb-2">Inloggen</button>
+          <button id="btn-signup" type="button" class="btn btn-ghost w-100 mb-2">Aanmelden</button>
+          <a href="#wachtwoord-vergeten" id="btn-forgot-password" style="font-size:0.8rem; color:var(--text-muted);">Wachtwoord vergeten?</a>
           <div id="auth-error" class="text-danger mt-3" style="display:none; font-size:0.85rem;"></div>
           <div id="auth-success" class="text-success mt-3" style="display:none; font-size:0.85rem;"></div>
-        </div>
+        </form>
         <div class="auth-road"></div>
       </div>
     </div>

@@ -320,7 +320,7 @@ function renderMyStatus(entries: { label: string; value: string; sub?: string; d
 const POT_BANNER_KEY = 'bagagedrager_pot_tdf2026_dismissed';
 const POT_BETAALLINK = 'https://betaalverzoek.rabobank.nl/betaalverzoek/?id=aS3cgsxLTTGy-w-qM-B95A';
 
-function renderPotBanner() {
+async function renderPotBanner() {
   const wrap = $('pot-banner-wrap');
   if (!wrap) return;
 
@@ -336,6 +336,19 @@ function renderPotBanner() {
     wrap.innerHTML = '';
     return;
   }
+
+  // Al betaald (admin vinkt af in de Pot-tab)? Dan geen banner.
+  try {
+    const rows = await supaRest('competition_participants', {
+      select: 'has_paid',
+      filters: `competition_id=eq.${comp.id}&user_id=eq.${state.session.user.id}`,
+    });
+    if (rows?.[0]?.has_paid) {
+      wrap.style.display = 'none';
+      wrap.innerHTML = '';
+      return;
+    }
+  } catch (_) { /* status onbekend → banner gewoon tonen */ }
 
   wrap.style.display = '';
   wrap.innerHTML = `
