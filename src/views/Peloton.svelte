@@ -3,7 +3,7 @@
   // Dekt het hele Uitslagen-tabblad: uitslagen per etappe (loadParticipants)
   // + "Het Peloton"-ledenlijst (loadPeloton), zoals #section-participants in index.html.
   import { state as appState, ui } from '../lib/state.svelte';
-  import { formatTime, formatGap, riderDisplay, toast } from '../lib/utils';
+  import { avatarHtml, formatTime, formatGap, riderDisplay, toast } from '../lib/utils';
   import { icon } from '../lib/icons';
   import { supaPatch, supaRest } from '../lib/api';
   import { activeScoringMode, buildPcsStageUrl, buildStageNewsUrl, riderPhoto, teamBadge } from '../lib/helpers';
@@ -158,33 +158,34 @@
             <h6 class="mb-0">Etappe {group.num}{#if group.pcsUrl}{' '}<a href={group.pcsUrl} target="_blank" rel="noopener" class="pcs-link" title="Bekijk op PCS">PCS ↗</a>{/if}{#if group.newsUrl}{' '}<a href={group.newsUrl} target="_blank" rel="noopener" class="pcs-link" title="Nieuws over deze etappe">Nieuws ↗</a>{/if}</h6>{#if group.winner}<span style="font-size:0.75rem; color:var(--text-muted); font-weight:400; margin-left:0.5rem;">{@html icon('trophy', '', 12)} {group.winner.name} — {formatTime(group.winner.time)}</span>{/if}
           </div>
           <div class="card-body p-0">
-            <table class="table table-sm mb-0">
+            <table class="table table-sm mb-0 results-table">
               <thead>
                 {#if isClassic}
-                  <tr><th>Speler</th><th>Renner</th><th class="text-end">Positie</th><th class="text-end"><span class="info-tooltip" data-tip="Spelpunten op basis van positie, na deelpenalty">Spel &#9432;</span></th><th>Status</th></tr>
+                  <tr><th>Speler</th><th>Renner</th><th class="text-end col-num">Positie</th><th class="text-end col-num"><span class="info-tooltip" data-tip="Spelpunten op basis van positie, na deelpenalty">Spel &#9432;</span></th><th class="col-status">Status</th></tr>
                 {:else}
-                  <tr><th>Speler</th><th>Renner</th><th class="text-end"><span class="info-tooltip" data-tip="Tijdsverschil met etappewinnaar">Verschil &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Bonificatieseconden uit PCS (finish + tussensprints), worden van AK-tijd afgetrokken">Bonif. &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Sprintpunten uit puntenklassement">Pts &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Bergpunten (KOM)">Berg &#9432;</span></th><th>Status</th></tr>
+                  <tr><th>Speler</th><th>Renner</th><th class="text-end col-time"><span class="info-tooltip" data-tip="Tijdsverschil met etappewinnaar">Verschil &#9432;</span></th><th class="text-end col-num"><span class="info-tooltip" data-tip="Bonificatieseconden uit PCS (finish + tussensprints), worden van AK-tijd afgetrokken">Bonif. &#9432;</span></th><th class="text-end col-num"><span class="info-tooltip" data-tip="Sprintpunten uit puntenklassement">Pts &#9432;</span></th><th class="text-end col-num"><span class="info-tooltip" data-tip="Bergpunten (KOM)">Berg &#9432;</span></th><th class="col-status">Status</th></tr>
                 {/if}
               </thead>
               <tbody>
                 {#each group.picks as p}
+                  {@const isWinner = p.finish_position === 1 && !p.dnf}
                   {#if isClassic}
-                    <tr>
+                    <tr class={isWinner ? 'winner-row' : undefined}>
                       <td><span class="player-click" role="button" tabindex="0" onclick={() => (ui.playerModalId = p.user_id)} onkeydown={(e) => { if (e.key === 'Enter') ui.playerModalId = p.user_id; }}>{p.display_name}</span></td>
-                      <td>{@html riderDisplay(p.rider_name, riderPhoto(p.rider_id), p.rider_id)} <span class="team-badge-sm">{@html teamBadge(p.rider_team)}</span>{#if p.showPickersBadge}{' '}<span class="badge bg-secondary" style="font-size:0.6rem;">{p.num_pickers}x → {p.sharingPct}%</span>{/if}</td>
-                      <td class="text-end">{p.finish_position || '-'}</td>
-                      <td class="text-end">{p.effective_game_points != null ? p.effective_game_points : '-'}</td>
-                      <td>{#if p.is_late}<span class="badge bg-warning">Te laat</span>{/if}{#if p.is_random}<span class="badge bg-info">🎡 Rad</span>{/if}{#if p.dnf}<span class="badge bg-danger">DNF</span>{/if}</td>
+                      <td><div class="rider-cell">{@html riderDisplay(p.rider_name, riderPhoto(p.rider_id), p.rider_id)} <span class="team-badge-sm">{@html teamBadge(p.rider_team)}</span>{#if p.showPickersBadge}<span class="badge bg-secondary" style="font-size:0.6rem;">{p.num_pickers}x → {p.sharingPct}%</span>{/if}</div></td>
+                      <td class="text-end tnum">{p.finish_position || '-'}</td>
+                      <td class="text-end tnum">{p.effective_game_points != null ? p.effective_game_points : '-'}</td>
+                      <td class="col-status">{#if p.is_late}<span class="badge bg-warning">Te laat</span>{/if}{#if p.is_random}<span class="badge bg-info">{@html icon('wheel', '', 11)} Rad</span>{/if}{#if p.dnf}<span class="badge bg-danger">DNF</span>{/if}</td>
                     </tr>
                   {:else}
-                    <tr>
+                    <tr class={isWinner ? 'winner-row' : undefined}>
                       <td><span class="player-click" role="button" tabindex="0" onclick={() => (ui.playerModalId = p.user_id)} onkeydown={(e) => { if (e.key === 'Enter') ui.playerModalId = p.user_id; }}>{p.display_name}</span></td>
-                      <td>{@html riderDisplay(p.rider_name, null, p.rider_id)} <span class="team-badge-sm">{@html teamBadge(p.rider_team)}</span>{#if p.showPickersBadge}{' '}<span class="badge bg-secondary" style="font-size:0.6rem;">{p.num_pickers}x → {p.sharingPct}%</span>{/if}</td>
+                      <td><div class="rider-cell">{@html riderDisplay(p.rider_name, null, p.rider_id)} <span class="team-badge-sm">{@html teamBadge(p.rider_team)}</span>{#if p.showPickersBadge}<span class="badge bg-secondary" style="font-size:0.6rem;">{p.num_pickers}x → {p.sharingPct}%</span>{/if}</div></td>
                       <td class="time text-end">{p.timeCell}</td>
-                      <td class="text-end">{p.bonifCell}</td>
-                      <td class="text-end">{p.ptsCell}</td>
-                      <td class="text-end">{p.bergCell}</td>
-                      <td>{#if p.is_late}<span class="badge bg-warning">Te laat</span>{/if}{#if p.is_random}<span class="badge bg-info">🎡 Rad</span>{/if}{#if p.dnf}<span class="badge bg-danger">DNF</span>{/if}</td>
+                      <td class="text-end tnum">{p.bonifCell}</td>
+                      <td class="text-end tnum">{p.ptsCell}</td>
+                      <td class="text-end tnum">{p.bergCell}</td>
+                      <td class="col-status">{#if p.is_late}<span class="badge bg-warning">Te laat</span>{/if}{#if p.is_random}<span class="badge bg-info">{@html icon('wheel', '', 11)} Rad</span>{/if}{#if p.dnf}<span class="badge bg-danger">DNF</span>{/if}</td>
                     </tr>
                   {/if}
                 {/each}
@@ -200,15 +201,15 @@
   <div class="card mb-3">
     <div class="card-header"><h5 class="mb-0">Het Peloton</h5></div>
     <div class="card-body p-0 table-responsive-wrapper">
-      <table class="table table-sm table-striped mb-0">
+      <table class="table table-sm table-striped mb-0 results-table">
         <thead>
           <tr>
             <th>Naam</th>
             {#if isAdmin}<th id="peloton-email-col">Email</th>{/if}
-            <th class="d-none d-md-table-cell">Rol</th>
-            <th class="d-none d-md-table-cell">Lid sinds</th>
-            <th class="d-none d-md-table-cell">Laatst gezien</th>
-            {#if isAdmin}<th id="peloton-actions-col">Acties</th>{/if}
+            <th class="d-none d-md-table-cell" style="width:9rem;">Rol</th>
+            <th class="d-none d-md-table-cell" style="width:7rem;">Lid sinds</th>
+            <th class="d-none d-md-table-cell" style="width:8.5rem;">Laatst gezien</th>
+            {#if isAdmin}<th id="peloton-actions-col" style="width:7.5rem;">Acties</th>{/if}
           </tr>
         </thead>
         <tbody id="peloton-table">
@@ -219,21 +220,26 @@
               <tr>
                 <td>
                   <div class="d-flex align-items-center gap-2">
-                    <span class="player-click" role="button" tabindex="0" onclick={() => (ui.playerModalId = p.id)} onkeydown={(e) => { if (e.key === 'Enter') ui.playerModalId = p.id; }}>{p.display_name}</span>
-                    <span class="badge {p.role.badge} d-md-none" style="font-size:0.65rem;">{@html p.role.icon} {p.role.name}</span>
-                  </div>
-                  {#if p.favorite_team || p.cycling_hero}
-                    <div class="d-flex align-items-center gap-2 mt-1">
-                      {#if p.favorite_team}{@html teamBadge(p.favorite_team)}{/if}
-                      {#if p.cycling_hero}<span style="font-size:0.7rem;color:var(--text-muted);">{p.cycling_hero}</span>{/if}
+                    {@html avatarHtml(p.display_name, appState._avatarMap[p.display_name], 'sm')}
+                    <div style="min-width:0;">
+                      <div class="d-flex align-items-center gap-2">
+                        <span class="player-click" role="button" tabindex="0" onclick={() => (ui.playerModalId = p.id)} onkeydown={(e) => { if (e.key === 'Enter') ui.playerModalId = p.id; }}>{p.display_name}</span>
+                        <span class="badge {p.role.badge} d-md-none" style="font-size:0.65rem;">{@html p.role.icon} {p.role.name}</span>
+                      </div>
+                      {#if p.favorite_team || p.cycling_hero}
+                        <div class="d-flex align-items-center gap-2 mt-1">
+                          {#if p.favorite_team}{@html teamBadge(p.favorite_team)}{/if}
+                          {#if p.cycling_hero}<span style="font-size:0.7rem;color:var(--text-muted);">{p.cycling_hero}</span>{/if}
+                        </div>
+                      {/if}
+                      {#if p.motto}<div style="font-size:0.7rem;color:var(--text-muted);font-style:italic;">"{p.motto}"</div>{/if}
                     </div>
-                  {/if}
-                  {#if p.motto}<div style="font-size:0.7rem;color:var(--text-muted);font-style:italic;">"{p.motto}"</div>{/if}
+                  </div>
                 </td>
-                {#if isAdmin}<td style="font-size:0.8rem;">{p.email || '-'}</td>{/if}
+                {#if isAdmin}<td class="cell-dim">{p.email || '-'}</td>{/if}
                 <td class="d-none d-md-table-cell"><span class="badge {p.role.badge}">{@html p.role.icon} {p.role.name}</span></td>
-                <td class="d-none d-md-table-cell">{new Date(p.created_at).toLocaleDateString('nl-NL')}</td>
-                <td class="d-none d-md-table-cell" style="font-size:0.8rem;color:var(--text-muted);">{p.last_seen_at ? new Date(p.last_seen_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                <td class="d-none d-md-table-cell cell-dim">{new Date(p.created_at).toLocaleDateString('nl-NL')}</td>
+                <td class="d-none d-md-table-cell cell-dim">{p.last_seen_at ? new Date(p.last_seen_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
                 {#if isAdmin}
                   <td>
                     <button class="btn btn-sm btn-outline-{p.is_admin ? 'secondary' : 'danger'}" onclick={() => toggleAdmin(p.id, !p.is_admin)}>

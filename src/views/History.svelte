@@ -227,13 +227,13 @@
   </div>
   <div class="card">
     <div class="card-body p-0 table-responsive-wrapper">
-      <table class="table table-striped mb-0">
+      <table class="table table-striped mb-0 results-table">
         <thead>
           <tr id="history-table-header">
             {#if isClassic}
-              <th>Etappe</th><th>Renner</th><th class="text-end">Tijd</th><th class="text-end mob-hide"><span class="info-tooltip" data-tip="Sprintpunten uit het puntenklassement">Pts &#9432;</span></th><th class="text-end mob-hide"><span class="info-tooltip" data-tip="Bergpunten (KOM)">Berg &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="Spelpunten op basis van finishpositie, na deelpenalty">Spel &#9432;</span></th><th>Status</th>
+              <th>Etappe</th><th>Renner</th><th class="text-end col-time">Tijd</th><th class="text-end mob-hide col-num"><span class="info-tooltip" data-tip="Sprintpunten uit het puntenklassement">Pts &#9432;</span></th><th class="text-end mob-hide col-num"><span class="info-tooltip" data-tip="Bergpunten (KOM)">Berg &#9432;</span></th><th class="text-end col-num"><span class="info-tooltip" data-tip="Spelpunten op basis van finishpositie, na deelpenalty">Spel &#9432;</span></th><th class="col-status">Status</th>
             {:else}
-              <th>Etappe</th><th>Renner</th><th class="text-end"><span class="info-tooltip" data-tip="Tijdsverschil met etappewinnaar">Verschil &#9432;</span></th><th class="text-end mob-hide"><span class="info-tooltip" data-tip="Bonificatie: 1e −10s, 2e −6s, 3e −4s">Bonif. &#9432;</span></th><th class="text-end mob-hide"><span class="info-tooltip" data-tip="Sprintpunten uit het puntenklassement">Pts &#9432;</span></th><th class="text-end mob-hide"><span class="info-tooltip" data-tip="Bergpunten (KOM)">Berg &#9432;</span></th><th class="text-end"><span class="info-tooltip" data-tip="1 punt als je de etappewinnaar correct voorspelde">&#11088; &#9432;</span></th><th>Status</th>
+              <th>Etappe</th><th>Renner</th><th class="text-end col-time"><span class="info-tooltip" data-tip="Tijdsverschil met etappewinnaar">Verschil &#9432;</span></th><th class="text-end mob-hide col-num"><span class="info-tooltip" data-tip="Bonificatie: 1e −10s, 2e −6s, 3e −4s">Bonif. &#9432;</span></th><th class="text-end mob-hide col-num"><span class="info-tooltip" data-tip="Sprintpunten uit het puntenklassement">Pts &#9432;</span></th><th class="text-end mob-hide col-num"><span class="info-tooltip" data-tip="Bergpunten (KOM)">Berg &#9432;</span></th><th class="text-end col-num"><span class="info-tooltip" data-tip="1 punt als je de etappewinnaar correct voorspelde">{@html icon('star', '', 12)} &#9432;</span></th><th class="col-status">Status</th>
             {/if}
           </tr>
         </thead>
@@ -252,17 +252,17 @@
                   <div>{row.stageLabel}</div>
                   {#if row.winnerName}<div style="font-size:0.65rem;color:var(--text-muted);">{@html icon('trophy', '', 11)} {row.winnerName}</div>{/if}
                 </td>
-                <td>{@html riderDisplay(row.rider?.name, row.rider?.photo_url, row.rider?.id)} <span class="team-badge-sm">{@html row.rider ? teamBadge(row.rider.team) : ''}</span></td>
+                <td><div class="rider-cell">{@html riderDisplay(row.rider?.name, row.rider?.photo_url, row.rider?.id)} <span class="team-badge-sm">{@html row.rider ? teamBadge(row.rider.team) : ''}</span></div></td>
                 <td class="time text-end">{row.timeCell}</td>
-                {#if !isClassic}<td class="text-end mob-hide">{row.bonif ? '-' + row.bonif + 's' : '-'}</td>{/if}
-                <td class="text-end mob-hide">{row.result ? (row.pick.is_late ? '0' : row.result.points) : '-'}</td>
-                <td class="text-end mob-hide">{row.result ? (row.pick.is_late ? '0' : row.result.mountain_points) : '-'}</td>
+                {#if !isClassic}<td class="text-end mob-hide tnum">{row.bonif ? '-' + row.bonif + 's' : '-'}</td>{/if}
+                <td class="text-end mob-hide tnum">{row.result ? (row.pick.is_late ? '0' : row.result.points) : '-'}</td>
+                <td class="text-end mob-hide tnum">{row.result ? (row.pick.is_late ? '0' : row.result.mountain_points) : '-'}</td>
                 {#if !isClassic}
-                  <td class="text-end">{#if row.isWinner}<span style="color:var(--green);font-weight:700;">⭐ 1</span>{:else}{row.result ? '0' : '-'}{/if}</td>
+                  <td class="text-end tnum">{#if row.isWinner}<span style="color:var(--green);font-weight:700;">{@html icon('star', '', 11)} 1</span>{:else}{row.result ? '0' : '-'}{/if}</td>
                 {:else}
-                  <td class="text-end">{row.gp}</td>
+                  <td class="text-end tnum">{row.gp}</td>
                 {/if}
-                <td>{#if row.pick.is_late}<span class="badge bg-warning">Te laat</span>{/if}{#if row.pick.is_random}<span class="badge bg-info">🎡 Rad</span>{/if}</td>
+                <td class="col-status">{#if row.pick.is_late}<span class="badge bg-warning">Te laat</span>{/if}{#if row.pick.is_random}<span class="badge bg-info">{@html icon('wheel', '', 11)} Rad</span>{/if}</td>
               </tr>
             {/each}
           {/if}

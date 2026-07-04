@@ -131,11 +131,17 @@
 
   const currentPick = $derived(appState.myPicks.find((p: any) => p.stage_id === selectedStageId));
   const compStageIds = $derived(new Set(compStages.map((s: any) => s.id)));
-  const usedInOtherStages = $derived(new Set(
-    appState.myPicks
-      .filter((p: any) => p.stage_id !== selectedStageId && compStageIds.has(p.stage_id))
-      .map((p: any) => p.rider_id)
-  ));
+  // rider_id → etappe-label van de pick waarin de renner al gebruikt is
+  const usedStageByRider = $derived.by(() => {
+    const map = new Map();
+    for (const p of appState.myPicks) {
+      if (p.stage_id === selectedStageId || !compStageIds.has(p.stage_id)) continue;
+      const st = compStages.find((s: any) => s.id === p.stage_id);
+      if (st) map.set(p.rider_id, st.stage_number === 0 ? 'proloog' : `etappe ${st.stage_number}`);
+    }
+    return map;
+  });
+  const usedInOtherStages = $derived(new Set(usedStageByRider.keys()));
 
   // Bij klassiekers: filter op de startlijst van deze specifieke etappe
   const stageRiderList = $derived.by(() => {
@@ -482,7 +488,7 @@
             <span>{p.display_name}</span>
             <span>
               {#if p.rider_name}
-                {@html riderDisplay(p.rider_name, riderPhoto(p.rider_id), p.rider_id)} {@html teamBadge(p.rider_team)}{#if p.is_random} <span class="badge bg-info" style="font-size:0.6rem;">🎡</span>{/if}
+                {@html riderDisplay(p.rider_name, riderPhoto(p.rider_id), p.rider_id)} {@html teamBadge(p.rider_team)}{#if p.is_random} <span class="badge bg-info" style="font-size:0.6rem;">{@html icon('wheel', '', 10)} Rad</span>{/if}
               {:else}
                 <span style="color:var(--red);font-size:0.78rem;">nog geen keuze</span>
               {/if}
@@ -510,7 +516,7 @@
       </button>
     </div>
     <!-- Filter panel: ingeklapt op mobiel, altijd zichtbaar op desktop -->
-    <div id="filter-panel" class="d-flex gap-2 flex-wrap {filterOpen ? 'open' : ''}">
+    <div id="filter-panel" class={filterOpen ? 'open' : ''}>
       <select id="rider-team-filter" class="form-select" style="max-width:220px;" bind:value={teamFilter}>
         <option value="">Alle teams</option>
         {#each teamOptions as t}<option value={t}>{t}</option>{/each}
@@ -557,7 +563,7 @@
                       {#if dnf}
                         <small class="text-secondary mt-1 d-block">Uit koers (DNF)</small>
                       {:else if used}
-                        <small class="text-danger mt-1 d-block">Al gebruikt</small>
+                        <small class="text-danger mt-1 d-block">Gebruikt in {usedStageByRider.get(r.id) || 'andere etappe'}</small>
                       {:else if isCurrent}
                         <small class="current-pick-label mt-1 d-block">✓ Huidige keuze</small>
                       {/if}

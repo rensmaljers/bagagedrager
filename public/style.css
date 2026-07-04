@@ -929,14 +929,19 @@ code, pre { color: var(--text); }
 .achievement-badge.purple { background: var(--purple-dim); color: var(--purple); }
 .achievements-wrap { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.25rem; }
 
+/* Zelfde schuinte-taal als .stage-eyebrow-chip, maar gedempt (secundaire info) */
 .stage-info-badge {
   display: inline-block;
-  font-size: 0.65rem;
+  font-family: var(--font-display);
+  font-size: 0.66rem;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   color: var(--text-muted);
   background: var(--badge-muted-bg);
-  padding: 0.15rem 0.6rem;
-  clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%);
+  padding: 0.18rem 0.75rem;
+  border-radius: 0;
+  clip-path: polygon(7px 0, 100% 0, calc(100% - 7px) 100%, 0 100%);
   margin-right: 0.25rem;
   margin-bottom: 0.2rem;
 }
@@ -1696,23 +1701,35 @@ code, pre { color: var(--text); }
   background: var(--hover-overlay);
 }
 
+/* Mobile-first: één regel, horizontaal scrollend (geen wrap-brij op smal scherm) */
 .rider-availability {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.4rem;
   font-size: 0.8rem;
   color: var(--text-muted);
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 2px;
 }
+.rider-availability::-webkit-scrollbar { display: none; }
+/* Schuine tellers in de chip-vormentaal */
 .rider-availability .avail-stat {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.2rem 0.6rem;
-  border-radius: 999px;
+  padding: 0.24rem 0.8rem;
+  clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
   font-weight: 600;
   font-size: 0.72rem;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+@media (min-width: 768px) {
+  .rider-availability { flex-wrap: wrap; overflow: visible; }
 }
 .rider-availability .avail-stat::before {
   content: '';
@@ -1725,6 +1742,46 @@ code, pre { color: var(--text); }
 .avail-stat.used { background: var(--red-dim); color: var(--red); }
 .avail-stat.dnf { background: var(--badge-muted-bg); color: var(--text-muted); }
 .avail-stat.total { background: var(--badge-muted-bg); color: var(--text-muted); }
+
+/* --- Pick-filters: één koersbord-strip (mobile-first) --- */
+.pick-filters {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.65rem 0.7rem;
+}
+.pick-filters .form-control,
+.pick-filters .form-select {
+  background: var(--bg);
+  /* 16px voorkomt de automatische inzoom van iOS Safari bij focus */
+  font-size: 1rem;
+}
+.pick-filters .d-flex.mb-2 { margin-bottom: 0 !important; }
+#filter-toggle { min-height: 44px; }
+/* Mobiel (base): panel ingeklapt, open = gestapeld en volle breedte */
+#filter-panel { display: none; }
+#filter-panel.open {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+#filter-panel.open .form-select { max-width: none !important; width: 100%; }
+#filter-panel .form-check { min-height: 44px; display: flex; align-items: center; }
+/* Desktop: panel altijd zichtbaar, alles op één rij */
+@media (min-width: 768px) {
+  #filter-panel {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.6rem;
+  }
+  .pick-filters .form-control,
+  .pick-filters .form-select { font-size: 0.85rem; }
+  #filter-panel .form-check { min-height: 0; }
+}
 
 .others-pick-row {
   display: flex;
@@ -1995,6 +2052,41 @@ tbody:not(.expanded) .standings-extra { display: none; }
 }
 .comp-banner-name { font-family: var(--font-display); font-weight: 600; color: var(--text); }
 
+/* --- Uitslagen & peloton: koersbord-tabellen --- */
+/* Finishlijn als kop-onderrand: schuine streepjes i.p.v. rechte lijn */
+.results-table thead th {
+  border-bottom: 2px solid;
+  border-image: repeating-linear-gradient(45deg,
+    color-mix(in srgb, var(--text-muted) 40%, transparent) 0 4px,
+    transparent 4px 8px) 1;
+}
+.results-table th:first-child, .results-table td:first-child { padding-left: 1.1rem; }
+.results-table th:last-child, .results-table td:last-child { padding-right: 1.1rem; }
+.results-table td { padding-top: 0.55rem; padding-bottom: 0.55rem; }
+/* Vaste kolombreedtes: cijferkolommen dansen niet en lijnen strak uit */
+.results-table .col-num { width: 4.2rem; }
+.results-table .col-time { width: 5.8rem; }
+.results-table .col-status { width: 8.5rem; text-align: right; white-space: nowrap; }
+/* Renner-cel: foto, naam, ploeg en chips netjes op één as */
+.results-table .rider-cell { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+/* Dagwinnaar draagt de zege: schuine accent-wig links (signatuur-schuinte) */
+.results-table .winner-row td { background: var(--accent-bg); }
+.results-table .winner-row td:first-child { position: relative; overflow: hidden; }
+.results-table .winner-row td:first-child::before {
+  content: ""; position: absolute; left: -10px; top: 0; bottom: 0; width: 20px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border-right: 2px solid var(--accent);
+  transform: skewX(-10deg);
+  pointer-events: none;
+}
+/* Gedimde datacellen (datums, e-mail) — één maat, tabulaire cijfers */
+.results-table .cell-dim {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 /* --- History --- */
 /* Stats-tegels in de signatuur-schuinte (zelfde taal als .stage-stat) */
 .history-stat {
@@ -2141,15 +2233,13 @@ tbody:not(.expanded) .standings-extra { display: none; }
     white-space: nowrap;
   }
 
-  /* Pick-cards compact */
+  /* Pick-cards compact — kleine rennerfoto blijft zichtbaar (avatar-formaat) */
   .pick-card .card-body { padding: 0.4rem 0.6rem !important; }
   .pick-card .fw-bold { font-size: 0.82rem; }
   .pick-card small { font-size: 0.7rem; }
-  .pick-card .rider-photo { display: none !important; }
+  .pick-card .rider-photo { width: 28px; height: 28px; }
 
-  /* Filterpaneel ingeklapt */
-  #filter-panel { display: none !important; }
-  #filter-panel.open { display: flex !important; }
+  /* Filterpaneel: mobiel gedrag staat mobile-first bij de component zelf */
   #filter-toggle.active {
     background: var(--comp-color, var(--accent));
     border-color: var(--comp-color, var(--accent));
