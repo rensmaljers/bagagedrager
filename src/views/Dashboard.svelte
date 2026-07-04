@@ -372,13 +372,25 @@
     }
 
     // Inleg-banner: betaalverzoek voor de prijzenpot, vanaf de startdag van
-    // etappe 1 tot de speler hem wegklikt (localStorage) — port van main
+    // etappe 1 tot de speler hem wegklikt (localStorage) of betaald heeft
+    // (competition_participants.has_paid, admin vinkt af) — port van main
     const stage1 = activeStages().find(s => s.stage_number === 1);
-    potBanner = !!(
+    const potKandidaat = !!(
       comp?.name?.includes('Tour de France 2026') &&
       localStorage.getItem(POT_BANNER_KEY) !== '1' &&
       stage1 && new Date() >= new Date(new Date(stage1.start_time).toDateString())
     );
+    if (potKandidaat) {
+      try {
+        const paidRows = await supaRest('competition_participants', {
+          select: 'has_paid',
+          filters: `competition_id=eq.${comp.id}&user_id=eq.${appState.session.user.id}`,
+        });
+        potBanner = !paidRows?.[0]?.has_paid;
+      } catch (_) { potBanner = true; /* status onbekend → tonen */ }
+    } else {
+      potBanner = false;
+    }
 
     // Welkom-hero: deelname is impliciet (eerste pick = meedoen) — (was renderWelcomeCard)
     const compStageIdSet = new Set(activeStages().map(s => s.id));
