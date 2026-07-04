@@ -152,10 +152,12 @@
   const teamOptions = $derived([...new Set(stageRiderList.map((r: any) => r.team))].sort());
   const nationalityOptions = $derived([...new Set(stageRiderList.map((r: any) => r.nationality).filter(Boolean))].sort());
 
+  // Diakriet-ongevoelig zoeken: "pogacar" moet POGAČAR vinden
+  const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   const filteredRiders = $derived.by(() => {
-    const q = search.toLowerCase();
+    const q = norm(search);
     return stageRiderList.filter((r: any) =>
-      (r.name.toLowerCase().includes(q) || r.team.toLowerCase().includes(q)) &&
+      (norm(r.name).includes(q) || norm(r.team).includes(q)) &&
       (!teamFilter || r.team === teamFilter) &&
       (!nationalityFilter || r.nationality === nationalityFilter) &&
       (!hideUsed || (!usedInOtherStages.has(r.id) && !appState.dnfRiderIds.has(r.id)))
