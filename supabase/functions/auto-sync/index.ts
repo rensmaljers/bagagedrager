@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.46/deno-dom-wasm.ts";
 import { parseStagePage } from "../_shared/pcs-parse.ts";
+import { fetchPcsPage } from "../_shared/pcs-fetch.ts";
 import { importVapidPrivateKey, sendPush } from "../_shared/webpush.ts";
 
 // Draait dagelijks om 09:00 en 16:00 UTC (11:00 en 18:00 Nederlandse zomertijd).
@@ -120,14 +121,9 @@ Deno.serve(async (req: Request) => {
         continue;
       }
 
-      // Fetch PCS pagina
-      const pcsRes = await fetch(pcsUrl, {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-          "Accept-Language": "en-US,en;q=0.5",
-        },
-      });
+      // Fetch PCS pagina — gedeelde helper met retry/backoff bij 5xx/429/netwerkfout.
+      // Gooit na uitputting; de outer catch zet dat om in een failure-entry.
+      const pcsRes = await fetchPcsPage(pcsUrl);
 
       if (!pcsRes.ok) {
         fail(stage, `PCS status ${pcsRes.status}`);
