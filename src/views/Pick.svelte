@@ -176,7 +176,7 @@
   function matchChipHtml(r: any): string {
     const pct = matchPct(r);
     if (pct < 25) return '';
-    return `<span class="match-chip ${pct >= 60 ? 'strong' : ''}" title="${spec!.label}-score: ${pct}% van de beste van de startlijst (PCS-punten per specialiteit)">${spec!.label} ${pct}</span>`;
+    return `<span class="match-chip ${pct >= 60 ? 'strong' : ''}" title="Hoe goed deze renner bij dit rittype past: ${pct}% van de beste ${spec!.label.toLowerCase()}-specialist op de startlijst (o.b.v. PCS-punten)">${spec!.label}-match ${pct}%</span>`;
   }
   function riderSpecsHtml(r: any): string {
     const chip = matchChipHtml(r);
