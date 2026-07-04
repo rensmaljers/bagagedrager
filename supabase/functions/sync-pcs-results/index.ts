@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.46/deno-dom-wasm.ts";
 import { parseStagePage } from "../_shared/pcs-parse.ts";
+import { fetchPcsPage } from "../_shared/pcs-fetch.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -40,14 +41,13 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Ongeldige PCS URL" }), { status: 400, headers: corsHeaders });
     }
 
-    // Fetch PCS page
-    const pcsRes = await fetch(pcs_url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
-      },
-    });
+    // Fetch PCS page — gedeelde helper met retry/backoff bij 5xx/429/netwerkfout
+    let pcsRes: Response;
+    try {
+      pcsRes = await fetchPcsPage(pcs_url);
+    } catch (e) {
+      return new Response(JSON.stringify({ error: `PCS niet bereikbaar: ${(e as Error).message}. Probeer het later opnieuw.` }), { status: 502, headers: corsHeaders });
+    }
 
     if (!pcsRes.ok) {
       return new Response(JSON.stringify({ error: `PCS gaf status ${pcsRes.status}. Probeer het later opnieuw.` }), { status: 502, headers: corsHeaders });

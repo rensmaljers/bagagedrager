@@ -329,7 +329,9 @@ function renderRiderGrid(usedInOtherStages, fullyLocked) {
     ? state.riders.filter(r => stageRiderSet.has(r.id))
     : state.riders;
 
-  const search = $('rider-search').value.toLowerCase();
+  // Diakriet-ongevoelig zoeken: "pogacar" moet POGAČAR vinden
+  const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const search = norm($('rider-search').value);
   const teamFilter = $('rider-team-filter').value;
   const nationalityFilter = $('rider-nationality-filter').value;
   const hideUsed = $('rider-hide-used').checked;
@@ -349,7 +351,7 @@ function renderRiderGrid(usedInOtherStages, fullyLocked) {
   }
 
   const filtered = stageFilteredRiders.filter(r =>
-    (r.name.toLowerCase().includes(search) || r.team.toLowerCase().includes(search)) &&
+    (norm(r.name).includes(search) || norm(r.team).includes(search)) &&
     (!teamFilter || r.team === teamFilter) &&
     (!nationalityFilter || r.nationality === nationalityFilter) &&
     (!hideUsed || (!usedInOtherStages.has(r.id) && !state.dnfRiderIds.has(r.id)))
