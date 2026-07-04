@@ -706,7 +706,7 @@
               <div class="welcome-card-title">Je doet nog niet mee aan {welcome.compName}</div>
               <div class="welcome-card-sub">Kies je renner voor {welcome.stageTitle} en je zit in de koers — daarna doe je automatisch mee met alle klassementen. Deadline: {formatDeadline(welcome.deadline)}.</div>
             </div>
-            <button class="btn btn-accent welcome-card-cta" onclick={goPick}>Kies je eerste renner</button>
+            <button class="btn btn-accent btn-skew welcome-card-cta" onclick={goPick}><span>Kies je eerste renner</span></button>
           </div>
         </div>
       </div>

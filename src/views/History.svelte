@@ -201,21 +201,21 @@
 <div class="tab-section active" id="section-history">
   <div id="history-stats" class="row g-3 mb-3">
     {#if stats}
-      <div class="col-4"><div class="card"><div class="card-body py-2 px-3 text-center">
-        <div class="text-muted" style="font-size:0.7rem;">Favoriete renner</div>
-        <div style="font-size:0.85rem; font-weight:700; margin:2px 0;">{#if stats.favRider}{@html riderDisplay(stats.favRider.name, stats.favRider.photo_url, stats.favRider.id)}{:else}—{/if}</div>
-        <div style="font-size:0.7rem; color:var(--text-muted);">{stats.favCount}× gekozen</div>
-      </div></div></div>
-      <div class="col-4"><div class="card"><div class="card-body py-2 px-3 text-center">
-        <div class="text-muted" style="font-size:0.7rem;">Gemiddeld</div>
-        <div style="font-size:1.1rem; font-weight:700;">{stats.avg} pts</div>
-        <div style="font-size:0.75rem;">{stats.count} etappes</div>
-      </div></div></div>
-      <div class="col-4"><div class="card"><div class="card-body py-2 px-3 text-center">
-        <div class="text-muted" style="font-size:0.7rem;">Etappewinnaars ⭐</div>
-        <div style="font-size:1.6rem; font-weight:700; color:var(--green);">{stats.winCount}</div>
-        <div style="font-size:0.7rem; color:var(--text-muted);">van {stats.count} etappes</div>
-      </div></div></div>
+      <div class="col-4"><div class="history-stat">
+        <div class="history-stat-label">Favoriete renner</div>
+        <div class="history-stat-value" style="font-size:0.85rem;">{#if stats.favRider}{@html riderDisplay(stats.favRider.name, stats.favRider.photo_url, stats.favRider.id)}{:else}—{/if}</div>
+        <div class="history-stat-sub">{stats.favCount}× gekozen</div>
+      </div></div>
+      <div class="col-4"><div class="history-stat">
+        <div class="history-stat-label">Gemiddeld</div>
+        <div class="history-stat-value">{stats.avg} pts</div>
+        <div class="history-stat-sub">{stats.count} etappes</div>
+      </div></div>
+      <div class="col-4"><div class="history-stat">
+        <div class="history-stat-label">Etappewinnaars</div>
+        <div class="history-stat-value" style="color:var(--green); font-size:1.4rem;">{stats.winCount}</div>
+        <div class="history-stat-sub">van {stats.count} etappes</div>
+      </div></div>
       {#if badges.length}
         <div class="col-12">
           <div class="achievements-wrap">

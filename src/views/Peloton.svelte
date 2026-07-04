@@ -154,7 +154,7 @@
       {#each stageGroups as group}
         <div class="card mb-3">
           <div class="card-header d-flex align-items-center flex-wrap">
-            <h6 class="mb-0" style="font-size:0.9rem;">Etappe {group.num}{#if group.pcsUrl}{' '}<a href={group.pcsUrl} target="_blank" rel="noopener" class="pcs-link" title="Bekijk op PCS">PCS ↗</a>{/if}</h6>{#if group.winner}<span style="font-size:0.75rem; color:var(--text-muted); font-weight:400; margin-left:0.5rem;">{@html icon('trophy', '', 12)} {group.winner.name} — {formatTime(group.winner.time)}</span>{/if}
+            <h6 class="mb-0">Etappe {group.num}{#if group.pcsUrl}{' '}<a href={group.pcsUrl} target="_blank" rel="noopener" class="pcs-link" title="Bekijk op PCS">PCS ↗</a>{/if}</h6>{#if group.winner}<span style="font-size:0.75rem; color:var(--text-muted); font-weight:400; margin-left:0.5rem;">{@html icon('trophy', '', 12)} {group.winner.name} — {formatTime(group.winner.time)}</span>{/if}
           </div>
           <div class="card-body p-0">
             <table class="table table-sm mb-0">

@@ -94,7 +94,7 @@
           <div class="mb-3">
             <input type="password" id="auth-password" class="form-control" placeholder="Wachtwoord" autocomplete="current-password" bind:value={password} />
           </div>
-          <button id="btn-login" type="submit" class="btn btn-accent w-100 mb-2" disabled={busy}>{busy ? 'Bezig…' : 'Inloggen'}</button>
+          <button id="btn-login" type="submit" class="btn btn-accent btn-skew w-100 mb-2" disabled={busy}><span>{busy ? 'Bezig…' : 'Inloggen'}</span></button>
           <button id="btn-signup" type="button" class="btn btn-ghost w-100 mb-2" onclick={handleSignup} disabled={busy}>Aanmelden</button>
           <a href="#wachtwoord-vergeten" id="btn-forgot-password" style="font-size:0.8rem; color:var(--text-muted);" onclick={handleForgotPassword}>Wachtwoord vergeten?</a>
           <div id="auth-error" class="text-danger mt-3" style="font-size:0.85rem;" style:display={errorMsg ? 'block' : 'none'}>{errorMsg}</div>

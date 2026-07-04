@@ -715,6 +715,10 @@ code, pre { color: var(--text); }
   letter-spacing: 0;
 }
 .btn:active:not(:disabled) { transform: scale(0.98); }
+/* Schuine CTA (signatuur-schuinte): vereist een <span> om de tekst, die terugkantelt */
+.btn-skew { transform: skewX(-10deg); border-radius: 6px; }
+.btn-skew > span { display: inline-block; transform: skewX(10deg); }
+.btn-skew:active:not(:disabled) { transform: skewX(-10deg) scale(0.98); }
 .btn-accent {
   background: var(--comp-color, var(--jaune));
   color: var(--jaune-ink);
@@ -793,9 +797,10 @@ code, pre { color: var(--text); }
   --bs-table-border-color: var(--border);
 }
 .table thead th {
+  font-family: var(--font-display);
   font-size: 0.64rem;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   color: color-mix(in srgb, var(--text-muted) 75%, transparent);
   border-bottom: 1px solid var(--border);
   font-weight: 600;
@@ -860,10 +865,11 @@ code, pre { color: var(--text); }
   box-shadow: inset 3px 0 0 0 var(--jcol);
 }
 .leader-row.wears td:last-child { font-family: var(--font-display); font-weight: 600; }
-/* "trui"-chip naast de leider, in de truikleur */
+/* "trui"-chip naast de leider, in de truikleur — schuine vormentaal */
 .trui-chip {
   font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 800;
-  padding: 0.1rem 0.34rem; border-radius: 4px; vertical-align: 0.12em;
+  padding: 0.1rem 0.45rem; vertical-align: 0.12em;
+  clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%);
   background: var(--jcol, var(--accent)); color: var(--jaune-ink);
 }
 .leader-row.jersey-mountain .trui-chip { color: var(--pois-ink); }
@@ -894,8 +900,8 @@ code, pre { color: var(--text); }
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  padding: 0.15rem 0.5rem;
-  border-radius: 999px;
+  padding: 0.15rem 0.7rem;
+  clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
   font-size: 0.65rem;
   font-weight: 700;
   background: var(--badge-muted-bg);
@@ -914,8 +920,8 @@ code, pre { color: var(--text); }
   font-weight: 600;
   color: var(--text-muted);
   background: var(--badge-muted-bg);
-  padding: 0.15rem 0.45rem;
-  border-radius: 6px;
+  padding: 0.15rem 0.6rem;
+  clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%);
   margin-right: 0.25rem;
   margin-bottom: 0.2rem;
 }
@@ -1065,10 +1071,12 @@ code, pre { color: var(--text); }
 }
 .toast {
   pointer-events: auto;
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  padding: 0.7rem 1rem;
+  padding: 0.7rem 1rem 0.7rem 1.35rem;
   border-radius: var(--radius);
   background: var(--bg-elevated);
   border: 1px solid var(--border);
@@ -1080,13 +1088,22 @@ code, pre { color: var(--text); }
   max-width: 360px;
   animation: toast-in 0.25s var(--ease);
   transition: opacity 0.25s, transform 0.25s;
+  --toast-col: var(--blue);
+}
+/* Schuine kleur-wig links i.p.v. rechte border (signatuur-schuinte) */
+.toast::before {
+  content: ""; position: absolute; left: -14px; top: 0; bottom: 0; width: 26px;
+  background: color-mix(in srgb, var(--toast-col) 16%, transparent);
+  border-right: 3px solid var(--toast-col);
+  transform: skewX(-10deg);
+  pointer-events: none;
 }
 .toast.removing { opacity: 0; transform: translateX(20px); }
 .toast-icon { font-size: 1.1rem; flex-shrink: 0; }
-.toast-success { border-left: 3px solid var(--green); }
-.toast-error { border-left: 3px solid var(--red); }
-.toast-warning { border-left: 3px solid var(--accent); }
-.toast-info { border-left: 3px solid var(--blue); }
+.toast-success { --toast-col: var(--green); }
+.toast-error { --toast-col: var(--red); }
+.toast-warning { --toast-col: var(--accent); }
+.toast-info { --toast-col: var(--blue); }
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(-8px); }
   to { opacity: 1; transform: none; }
@@ -1126,7 +1143,16 @@ code, pre { color: var(--text); }
   align-items: center;
   margin-bottom: 1rem;
 }
-.h2h-header h3 { font-size: 0.95rem; margin: 0; }
+/* Modal-kop als koersbord-label (zelfde taal als card-headers) */
+.h2h-header h3 {
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.13em;
+  color: var(--text-muted);
+  margin: 0;
+}
 .h2h-close {
   background: none; border: none;
   color: var(--text-muted);
@@ -1145,8 +1171,17 @@ code, pre { color: var(--text); }
   text-align: center;
   margin-bottom: 1rem;
 }
-.h2h-player { font-weight: 800; font-size: 1.1rem; }
-.h2h-vs-label { color: var(--text-muted); font-weight: 700; font-size: 0.8rem; }
+.h2h-player { font-family: var(--font-display); font-weight: 600; font-size: 1.15rem; letter-spacing: -0.01em; }
+/* "TEGEN"-chip in de schuine vormentaal */
+.h2h-vs-label {
+  font-family: var(--font-display);
+  color: var(--text-muted); font-weight: 600; font-size: 0.64rem;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  background: var(--badge-muted-bg);
+  clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+  padding: 0.22rem 0.8rem;
+  justify-self: center;
+}
 .h2h-stage-row {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
@@ -1166,14 +1201,18 @@ code, pre { color: var(--text); }
   gap: 0.75rem;
   margin-top: 1rem;
 }
+/* Schuine koersbord-tegels (signatuur-schuinte), tekst blijft recht */
 .h2h-stat {
   text-align: center;
   padding: 0.6rem;
-  background: var(--bg);
-  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  transform: skewX(-10deg);
 }
+.h2h-stat > * { transform: skewX(10deg); }
 .h2h-stat-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
-.h2h-stat-value { font-size: 1.35rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.h2h-stat-value { font-family: var(--font-display); font-size: 1.35rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 
 /* --- Skeleton --- */
 .skeleton {
@@ -1241,9 +1280,13 @@ code, pre { color: var(--text); }
   font-size: 0.82rem;
   line-height: 1.5;
 }
+/* Finishlijn onderin de login-kaart — zelfde signatuur als de Jouw-koers-strip */
 .auth-road {
-  height: 1px;
-  background: var(--border);
+  height: 4px;
+  background: repeating-linear-gradient(45deg,
+    color-mix(in srgb, var(--text) 55%, transparent) 0 5px,
+    transparent 5px 10px);
+  opacity: 0.35;
   margin-top: 1.5rem;
 }
 .auth-intro {
@@ -1314,8 +1357,9 @@ code, pre { color: var(--text); }
   gap: 1.25rem;
 }
 .welcome-card-title {
-  font-size: 1.05rem;
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 600;
   letter-spacing: -0.015em;
   margin-bottom: 0.3rem;
 }
@@ -1396,8 +1440,9 @@ code, pre { color: var(--text); }
   margin-top: 0.15rem;
 }
 .leader-hero-score {
+  font-family: var(--font-display);
   font-size: 1.4rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -1431,9 +1476,10 @@ code, pre { color: var(--text); }
 }
 .my-status-card .card-body { padding: 1.6rem 1.75rem 1.4rem; }
 .my-status-label {
+  font-family: var(--font-display);
   font-size: 0.66rem;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   font-weight: 600;
   color: var(--text-muted);
   margin-bottom: 1.1rem;
@@ -1881,16 +1927,49 @@ tbody:not(.expanded) .standings-extra { display: none; }
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  padding: 0.55rem 1rem;
+  padding: 0.55rem 1rem 0.55rem 1.5rem;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   font-size: 0.85rem;
-  border-left: 3px solid var(--comp-color, var(--accent));
+  position: relative;
+  overflow: hidden;
 }
-.comp-banner-name { font-weight: 700; color: var(--text); }
+/* Schuine comp-kleur-wig links (signatuur-schuinte) */
+.comp-banner::before {
+  content: ""; position: absolute; left: -14px; top: 0; bottom: 0; width: 30px;
+  background: color-mix(in srgb, var(--comp-color, var(--accent)) 16%, transparent);
+  border-right: 3px solid var(--comp-color, var(--accent));
+  transform: skewX(-10deg);
+  pointer-events: none;
+}
+.comp-banner-name { font-family: var(--font-display); font-weight: 600; color: var(--text); }
 
 /* --- History --- */
+/* Stats-tegels in de signatuur-schuinte (zelfde taal als .stage-stat) */
+.history-stat {
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  border-radius: 6px;
+  padding: 0.6rem 0.9rem 0.55rem;
+  text-align: center;
+  transform: skewX(-10deg);
+  height: 100%;
+}
+.history-stat > * { transform: skewX(10deg); }
+.history-stat-label {
+  font-family: var(--font-display);
+  font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.08em;
+  font-weight: 600; color: var(--text-muted);
+}
+.history-stat-value {
+  font-family: var(--font-display);
+  font-weight: 600; font-size: 1.15rem;
+  font-variant-numeric: tabular-nums;
+  margin: 2px 0;
+}
+.history-stat-sub { font-size: 0.7rem; color: var(--text-muted); }
+
 .history-great td { background: var(--green-dim) !important; }
 .history-good td { background: color-mix(in srgb, var(--green) 5%, transparent) !important; }
 .history-bad td { background: var(--red-dim) !important; }
@@ -2094,8 +2173,8 @@ tbody:not(.expanded) .standings-extra { display: none; }
   #participants-content .rider-photo { display: none !important; }
   #history-table .team-badge-sm,
   #participants-content .team-badge-sm { display: none; }
-  #history-stats .col-4 .card-body { padding: 0.4rem 0.25rem !important; }
-  #history-stats .col-4 div[style*="font-size:1.1rem"] { font-size: 0.95rem !important; }
+  #history-stats .history-stat { padding: 0.45rem 0.4rem 0.4rem; }
+  #history-stats .history-stat-value { font-size: 0.95rem; }
 
   .container { padding-left: 0.75rem; padding-right: 0.75rem; }
   .stage-dot { width: 28px; height: 28px; font-size: 0.6rem; }
@@ -2137,7 +2216,8 @@ tbody:not(.expanded) .standings-extra { display: none; }
 .pm-hero { font-size: 0.72rem; color: var(--text-muted); }
 .pm-motto { font-size: 0.75rem; color: var(--text-muted); font-style: italic; margin-top: 0.3rem; }
 .pm-section-label {
-  font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.1em;
+  font-family: var(--font-display);
+  font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.12em;
   font-weight: 600; color: var(--text-muted);
   margin: 1.15rem 0 0.6rem;
 }
