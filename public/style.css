@@ -2300,19 +2300,13 @@ tbody:not(.expanded) .standings-extra { display: none; }
   }
   .mob-hide { display: none !important; }
 
-  /* History */
+  /* History: foto en tenue blijven zichtbaar op avatar-formaat (tabel scrolt zelf) */
   #section-history .table th,
   #section-history .table td { white-space: normal; }
-  #history-table td:nth-child(2) {
-    max-width: 110px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
   #history-table .rider-photo,
-  #participants-content .rider-photo { display: none !important; }
-  #history-table .team-badge-sm,
-  #participants-content .team-badge-sm { display: none; }
+  #participants-content .rider-photo { width: 24px; height: 24px; }
+  #history-table .team-badge-sm .team-shirt,
+  #participants-content .team-badge-sm .team-shirt { width: 16px; height: 16px; }
   #history-stats .history-stat { padding: 0.45rem 0.4rem 0.4rem; }
   #history-stats .history-stat-value { font-size: 0.95rem; }
 
