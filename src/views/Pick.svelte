@@ -292,6 +292,24 @@
     }
   }
 
+  async function withdrawPick() {
+    if (selectedStageId == null || !currentPick) return;
+    if (!window.confirm('Keuze verwijderen? Je kunt tot de deadline een nieuwe renner kiezen.')) return;
+    const stageId = selectedStageId;
+    try {
+      pickStatus = { text: 'Bezig...', cls: 'ms-3 text-muted' };
+      await supaRpc('withdraw_pick', { p_stage_id: stageId });
+      toast('Keuze verwijderd', 'success');
+      appState.myPicks = await supaRest('picks', { filters: `user_id=eq.${appState.session.user.id}&order=stage_id` });
+      appState._cache.standings = null; appState._cache.participants = null;
+      appState.selectedRiderId = null;
+      pickStatus = { text: '', cls: '' };
+      othersRefresh++;
+    } catch (e: any) {
+      pickStatus = { text: e.message, cls: 'ms-3 text-danger' };
+    }
+  }
+
   // --- Init bij mount: eerstvolgende niet-vergrendelde etappe ---
   {
     const cs = activeStages();
@@ -597,6 +615,9 @@
           <span id="pick-bar-countdown" class={countdownClass}>{countdownText}</span>
         </div>
         <div class="pick-bar-actions">
+          {#if currentPick && !isLocked}
+            <button id="btn-withdraw-pick" class="btn btn-ghost" onclick={withdrawPick} title="Verwijder je bevestigde keuze voor deze etappe">Verwijder</button>
+          {/if}
           <button id="btn-submit-pick" class="btn btn-accent" disabled={submitDisabled} onclick={submitPick}><span>Bevestigen</span></button>
           <span id="pick-status" class={pickStatus.cls} style="font-size:0.8rem;">{pickStatus.text}</span>
         </div>

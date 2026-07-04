@@ -267,8 +267,8 @@ th { text-align: inherit; }
 .btn:disabled { pointer-events: none; opacity: 0.65; }
 .btn-sm { padding: 0.25rem 0.5rem; font-size: 0.875rem; border-radius: 0.25rem; }
 /* Variant-kleuren die sectie 4 niet zelf definieert */
-.btn-warning { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
-.btn-warning:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: var(--accent-text); }
+.btn-warning { background: var(--accent); border-color: var(--accent); color: var(--jaune-ink); }
+.btn-warning:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: var(--jaune-ink); }
 .btn-danger { background: var(--red); border-color: var(--red); color: #fff; }
 .btn-danger:hover { background: color-mix(in srgb, var(--red) 85%, #000); border-color: transparent; color: #fff; }
 .btn-outline-primary { color: var(--blue); border-color: var(--blue); }
@@ -721,14 +721,14 @@ code, pre { color: var(--text); }
 .btn-skew:active:not(:disabled) { transform: skewX(-10deg) scale(0.98); }
 .btn-accent {
   background: var(--comp-color, var(--jaune));
+  /* Altijd donkere inkt: comp-kleuren zijn fel (Tour-geel!) — witte tekst is daar onleesbaar */
   color: var(--jaune-ink);
-  color: var(--accent-text);
   border: none;
   box-shadow: var(--shadow-sm);
 }
 .btn-accent:hover {
   background: var(--accent-hover);
-  color: var(--accent-text);
+  color: var(--jaune-ink);
   box-shadow: var(--shadow-md);
 }
 .btn-accent:disabled { opacity: 0.4; box-shadow: none; }
@@ -968,7 +968,7 @@ code, pre { color: var(--text); }
   width: 22px; height: 22px;
   border-radius: 50%;
   background: var(--accent);
-  color: var(--accent-text);
+  color: var(--jaune-ink);
   display: flex; align-items: center; justify-content: center;
   cursor: pointer;
   border: 2px solid var(--bg-card);
@@ -1028,7 +1028,7 @@ code, pre { color: var(--text); }
   flex-shrink: 0;
   transition: color var(--dur), background var(--dur);
 }
-.rider-pcs-icon:hover { color: var(--accent-text); background: var(--accent); }
+.rider-pcs-icon:hover { color: var(--jaune-ink); background: var(--accent); }
 .rider-specs {
   font-size: 0.65rem;
   color: var(--text-muted);
@@ -1602,7 +1602,7 @@ code, pre { color: var(--text); }
   position: absolute;
   top: 6px; right: 8px;
   background: var(--comp-color, var(--accent));
-  color: var(--accent-text);
+  color: var(--jaune-ink);
   width: 20px; height: 20px;
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
@@ -1693,7 +1693,7 @@ code, pre { color: var(--text); }
 .specialty-pill.active {
   background: var(--comp-color, var(--accent));
   border-color: var(--comp-color, var(--accent));
-  color: var(--accent-text);
+  color: var(--jaune-ink);
   font-weight: 600;
 }
 .specialty-pill:not(.active):hover {
@@ -1845,11 +1845,14 @@ tbody:not(.expanded) .standings-extra { display: none; }
   transform: skewX(-10deg);
 }
 .stage-stat > * { transform: skewX(10deg); }
+/* Icoon-blokje loopt mee in de schuinte van de tegel; alleen de SVG staat recht */
 .stage-stat-icon {
   display: flex; align-items: center; justify-content: center;
-  width: 30px; height: 30px; border-radius: 6px;
+  width: 30px; height: 30px; border-radius: 4px;
   background: var(--accent-dim); color: var(--accent);
+  transform: none;
 }
+.stage-stat-icon > svg { transform: skewX(10deg); }
 .stage-stat-body { display: flex; flex-direction: column; line-height: 1.15; }
 .stage-stat-label { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .stage-stat-value { font-family: var(--font-display); font-weight: 600; font-size: 0.95rem; color: var(--text); }
@@ -2243,7 +2246,7 @@ tbody:not(.expanded) .standings-extra { display: none; }
   #filter-toggle.active {
     background: var(--comp-color, var(--accent));
     border-color: var(--comp-color, var(--accent));
-    color: var(--accent-text);
+    color: var(--jaune-ink);
   }
 
   /* Klassementen stapelen — uniforme afstand tussen alle kaarten */

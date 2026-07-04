@@ -231,9 +231,9 @@
         <thead>
           <tr id="history-table-header">
             {#if isClassic}
-              <th>Etappe</th><th>Renner</th><th class="text-end col-time">Tijd</th><th class="text-end mob-hide col-num"><span class="info-tooltip" data-tip="Sprintpunten uit het puntenklassement">Pts &#9432;</span></th><th class="text-end mob-hide col-num"><span class="info-tooltip" data-tip="Bergpunten (KOM)">Berg &#9432;</span></th><th class="text-end col-num"><span class="info-tooltip" data-tip="Spelpunten op basis van finishpositie, na deelpenalty">Spel &#9432;</span></th><th class="col-status">Status</th>
+              <th>Etappe</th><th>Renner</th><th class="text-end col-time">Tijd</th><th class="text-end col-num"><span class="info-tooltip" data-tip="Sprintpunten uit het puntenklassement">Pts &#9432;</span></th><th class="text-end col-num"><span class="info-tooltip" data-tip="Bergpunten (KOM)">Berg &#9432;</span></th><th class="text-end col-num"><span class="info-tooltip" data-tip="Spelpunten op basis van finishpositie, na deelpenalty">Spel &#9432;</span></th><th class="col-status">Status</th>
             {:else}
-              <th>Etappe</th><th>Renner</th><th class="text-end col-time"><span class="info-tooltip" data-tip="Tijdsverschil met etappewinnaar">Verschil &#9432;</span></th><th class="text-end mob-hide col-num"><span class="info-tooltip" data-tip="Bonificatie: 1e −10s, 2e −6s, 3e −4s">Bonif. &#9432;</span></th><th class="text-end mob-hide col-num"><span class="info-tooltip" data-tip="Sprintpunten uit het puntenklassement">Pts &#9432;</span></th><th class="text-end mob-hide col-num"><span class="info-tooltip" data-tip="Bergpunten (KOM)">Berg &#9432;</span></th><th class="text-end col-num"><span class="info-tooltip" data-tip="1 punt als je de etappewinnaar correct voorspelde">{@html icon('star', '', 12)} &#9432;</span></th><th class="col-status">Status</th>
+              <th>Etappe</th><th>Renner</th><th class="text-end col-time"><span class="info-tooltip" data-tip="Tijdsverschil met etappewinnaar">Verschil &#9432;</span></th><th class="text-end col-num"><span class="info-tooltip" data-tip="Bonificatie: 1e −10s, 2e −6s, 3e −4s">Bonif. &#9432;</span></th><th class="text-end col-num"><span class="info-tooltip" data-tip="Sprintpunten uit het puntenklassement">Pts &#9432;</span></th><th class="text-end col-num"><span class="info-tooltip" data-tip="Bergpunten (KOM)">Berg &#9432;</span></th><th class="text-end col-num"><span class="info-tooltip" data-tip="1 punt als je de etappewinnaar correct voorspelde">{@html icon('star', '', 12)} &#9432;</span></th><th class="col-status">Status</th>
             {/if}
           </tr>
         </thead>
@@ -254,9 +254,9 @@
                 </td>
                 <td><div class="rider-cell">{@html riderDisplay(row.rider?.name, row.rider?.photo_url, row.rider?.id)} <span class="team-badge-sm">{@html row.rider ? teamBadge(row.rider.team) : ''}</span></div></td>
                 <td class="time text-end">{row.timeCell}</td>
-                {#if !isClassic}<td class="text-end mob-hide tnum">{row.bonif ? '-' + row.bonif + 's' : '-'}</td>{/if}
-                <td class="text-end mob-hide tnum">{row.result ? (row.pick.is_late ? '0' : row.result.points) : '-'}</td>
-                <td class="text-end mob-hide tnum">{row.result ? (row.pick.is_late ? '0' : row.result.mountain_points) : '-'}</td>
+                {#if !isClassic}<td class="text-end tnum">{row.bonif ? '-' + row.bonif + 's' : '-'}</td>{/if}
+                <td class="text-end tnum">{row.result ? (row.pick.is_late ? '0' : row.result.points) : '-'}</td>
+                <td class="text-end tnum">{row.result ? (row.pick.is_late ? '0' : row.result.mountain_points) : '-'}</td>
                 {#if !isClassic}
                   <td class="text-end tnum">{#if row.isWinner}<span style="color:var(--green);font-weight:700;">{@html icon('star', '', 11)} 1</span>{:else}{row.result ? '0' : '-'}{/if}</td>
                 {:else}
