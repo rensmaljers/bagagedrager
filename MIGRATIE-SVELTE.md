@@ -1,4 +1,4 @@
-# Svelte 5-migratie (branch `svelte-migratie` — NIET naar main mergen zonder akkoord)
+# Svelte 5-migratie — LIVE sinds 4 juli 2026 (merge f0468cc)
 
 Stap 4 van het tech-stack-plan. Doel: de vanilla-TS UI (`public/app.ts` + `public/views/*`)
 naar Svelte 5-componenten, met behoud van álle functionaliteit, styling en de Supabase-laag.
@@ -36,7 +36,7 @@ public/style.css       — ongewijzigd; geïmporteerd in main.ts. Componenten ge
 9. Realtime, notifications en auth-flows: logica uit app.ts overnemen, alleen de
    DOM-koppelstukken vervangen.
 
-## Status — VOORBEREID, NIET LIVE
+## Status — LIVE
 
 - [x] Scaffold: vite-plugin-svelte 7 + Vite 8, svelte.config.mjs, state.svelte.ts
 - [x] src/lib-modules geport (imports omgezet)
