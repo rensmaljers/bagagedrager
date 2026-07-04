@@ -92,3 +92,18 @@ supabase db query "select status_code, left(content,200), created from net._http
 ```
 
 Let op: `net._http_response` met `status_code`/`content` = NULL is meestal een pg_net-timing/niet-vastgelegde response, **geen** Cloudflare-blok. Een echt blok geeft 403/503 met content. `last_synced_at` op de competitie wordt door de admin-sync gezet, niet door auto-sync.
+
+## ETA-sync & niet-starters (sinds 4 juli 2026, migratie 072)
+
+- **`auto-sync-eta`** (cron */15 min, body `{"mode":"eta"}`): auto-sync synct in
+  deze mode alleen etappes waarvan `stages.estimated_end_time` + 20 min
+  verstreken is én die nog geen `stage_results` hebben. Skips zijn geen
+  failures. De vaste 9:00/16:00 UTC-runs blijven als correctie-pass (die
+  syncen wél opnieuw, voor PCS-correcties/bonis). Admin-push bij fouten geldt
+  in eta-mode pas als de etappe >7u geleden startte (anti-spam op de kwartier-cadans).
+- **`auto-dns-check`** (cron */30 min): voor etappes met een deadline binnen
+  3 uur wordt `<race-base>/results/dropouts` geparset
+  (`_shared/pcs-dropouts.ts`, getest) — tabel met Stage/Rider/Type-kolommen,
+  rider-slug uit de href. Nieuwe uitvallers → `riders.dnf = true` (submit_pick
+  blokkeert ze dan al); spelers met een pick op zo'n renner voor die etappe
+  krijgen éénmalig een push (alleen bij de run die de renner markeert).

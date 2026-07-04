@@ -87,13 +87,23 @@ Deno.serve(async (req: Request) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
+  // Twee modes:
+  //  - vaste runs (9:00/16:00 UTC, lege body): alle etappes van vandaag,
+  //    ook als er al resultaten staan (tweede pass vangt PCS-correcties)
+  //  - "eta" (cron elke 15 min): alleen etappes waarvan de verwachte aankomst
+  //    (stages.estimated_end_time) + marge verstreken is en die nog géén
+  //    resultaten hebben — zo staat de uitslag er kort na de finish zonder
+  //    dat we PCS de hele dag hameren
+  const { mode } = await req.json().catch(() => ({} as any));
+  const ETA_MARGIN_MS = 20 * 60 * 1000;
+
   // Haal alle etappes op die vandaag gereden worden, inclusief de PCS URL van de ronde.
   // De PCS-link staat meestal op de ronde (competitions.pcs_url), niet op elke losse
   // etappe — daarom bouwen we de etappe-URL zelf, net als de admin-knop in de frontend.
   const today = new Date().toISOString().slice(0, 10);
   const { data: stages, error } = await supabase
     .from("stages")
-    .select("id, stage_number, pcs_url, start_time, competition_id, competitions(pcs_url, is_one_day)")
+    .select("id, stage_number, pcs_url, start_time, estimated_end_time, competition_id, competitions(pcs_url, is_one_day)")
     .gte("start_time", `${today}T00:00:00`)
     .lte("start_time", `${today}T23:59:59`);
 
@@ -113,6 +123,28 @@ Deno.serve(async (req: Request) => {
 
   for (const stage of stages) {
     try {
+      // ETA-mode: alleen syncen als de etappe klaar zou moeten zijn en er
+      // nog geen uitslag staat. Skips zijn geen failures (geen admin-push).
+      if (mode === "eta") {
+        if (!stage.estimated_end_time) {
+          syncResults.push({ stage_id: stage.id, skipped: "geen ETA — vaste runs pakken deze" });
+          continue;
+        }
+        const readyAt = new Date(stage.estimated_end_time).getTime() + ETA_MARGIN_MS;
+        if (Date.now() < readyAt) {
+          syncResults.push({ stage_id: stage.id, skipped: `etappe nog bezig (klaar ~${stage.estimated_end_time})` });
+          continue;
+        }
+        const { count } = await supabase
+          .from("stage_results")
+          .select("id", { count: "exact", head: true })
+          .eq("stage_id", stage.id);
+        if (count && count > 0) {
+          syncResults.push({ stage_id: stage.id, skipped: "al gesynct" });
+          continue;
+        }
+      }
+
       // Bouw de PCS-uitslag-URL (zelfde logica als helpers.buildPcsStageUrl in de frontend):
       // eigen etappe-URL (klassiekers) heeft voorrang, anders ronde-URL + /stage-N.
       const pcsUrl = buildStageUrl(stage);
@@ -232,9 +264,13 @@ Deno.serve(async (req: Request) => {
   // Admin-push bij échte failures. Guard-fouten ("nog geen uitslag") tellen
   // alleen mee als de etappe al ruim voorbij zou moeten zijn — de ochtend-run
   // draait terwijl de etappe nog bezig is en mag geen vals alarm geven.
+  // In eta-mode (elke 15 min) geldt diezelfde drempel voor álle fouten,
+  // anders spamt een aanhoudende fout de admins elk kwartier.
   const failures = syncResults.filter((r: any) => r.error && (
-    !GUARD_RE.test(r.error) ||
-    (r.start_time && Date.now() - new Date(r.start_time).getTime() > STAGE_SHOULD_BE_DONE_MS)
+    mode === "eta"
+      ? (r.start_time && Date.now() - new Date(r.start_time).getTime() > STAGE_SHOULD_BE_DONE_MS)
+      : (!GUARD_RE.test(r.error) ||
+         (r.start_time && Date.now() - new Date(r.start_time).getTime() > STAGE_SHOULD_BE_DONE_MS))
   ));
   let adminPush: any = null;
   if (failures.length) {
