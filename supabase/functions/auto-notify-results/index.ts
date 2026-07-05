@@ -69,7 +69,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: subscriptions } = await supabase
       .from("push_subscriptions")
-      .select("endpoint, p256dh, auth_key")
+      .select("endpoint, p256dh, auth_key, user_id")
       .in("user_id", participantIds);
 
     if (!subscriptions?.length) {
@@ -80,16 +80,48 @@ Deno.serve(async (req: Request) => {
 
     const compName = (stage as any).competitions?.name || "";
     const stageLabel = stage.stage_number === 0 ? "Proloog" : `Etappe ${stage.stage_number}`;
-    const payload = {
-      title: `🏁 Uitslag binnen — ${stageLabel}`,
-      body: `${compName ? compName + ": " : ""}de klassementen zijn bijgewerkt. Bekijk de nieuwe stand!`,
-      url: "/#dashboard",
+
+    // Personalisatie: eigen renner + spelpunten + nieuwe klassementspositie.
+    // Valt terug op de generieke melding als de data ontbreekt.
+    const [{ data: stagePicks }, { data: gc }] = await Promise.all([
+      supabase.from("stage_picks_public")
+        .select("user_id, rider_name, finish_position, effective_game_points, dnf, is_late, is_random, scoring_mode")
+        .eq("stage_id", stage.id),
+      supabase.from("general_classification")
+        .select("user_id, total_time, total_game_points")
+        .eq("competition_id", stage.competition_id),
+    ]);
+    const pickByUser = new Map((stagePicks || []).map((p: any) => [p.user_id, p]));
+    const isClassic = (stagePicks || [])[0]?.scoring_mode === "classic";
+    const gcSorted = [...(gc || [])].sort((a: any, b: any) =>
+      isClassic ? (b.total_game_points || 0) - (a.total_game_points || 0) : a.total_time - b.total_time);
+    const gcPos = new Map(gcSorted.map((r: any, i: number) => [r.user_id, i + 1]));
+    const klassementNaam = isClassic ? "het spelklassement" : "het AK";
+
+    const genericBody = `${compName ? compName + ": " : ""}de klassementen zijn bijgewerkt. Bekijk de nieuwe stand!`;
+    const payloadForUser = (userId: string) => {
+      const p: any = pickByUser.get(userId);
+      if (!p) return { title: `🏁 Uitslag binnen — ${stageLabel}`, body: genericBody, url: "/#dashboard" };
+      const pos = gcPos.get(userId);
+      const posStr = pos ? ` · nu P${pos} in ${klassementNaam}` : "";
+      const rad = p.is_random ? " (Rad)" : "";
+      let body: string;
+      if (p.dnf) {
+        body = `${p.rider_name}${rad} haalde de finish niet (DNF) — 0 punten${posStr}.`;
+      } else if (p.finish_position) {
+        const pts = p.is_late ? 0 : (p.effective_game_points ?? 0);
+        body = `${p.rider_name}${rad} werd ${p.finish_position}e → jij +${pts} spelpunten${posStr}.`;
+      } else {
+        body = genericBody;
+      }
+      return { title: `🏁 ${stageLabel} — uitslag binnen`, body, url: "/#dashboard" };
     };
 
     let sent = 0;
     const statuses: (number | string)[] = [];
     for (const sub of subscriptions) {
       try {
+        const payload = payloadForUser((sub as any).user_id);
         const res = await sendPush(sub.endpoint, sub, payload, privateKey, VAPID_PUBLIC_KEY, VAPID_SUBJECT);
         statuses.push(res.status);
         if (res.ok || res.status === 201) {

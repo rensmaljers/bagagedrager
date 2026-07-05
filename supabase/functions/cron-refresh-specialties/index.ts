@@ -22,6 +22,15 @@ const SPEC_MAP: Record<string, string> = {
   'results/hills':               'specialty_hills',
 };
 
+// Nationaliteit staat op dezelfde renner-pagina die we toch al fetchen:
+//   <div class="bold mr5" >Nationality:</div> ... <a  href="nation/slovenia">Slovenia</a>
+// Let op de ruwe-HTML-eigenaardigheden: dubbele spatie in `<a  href` en
+// spaties vóór sluit-`>` — vandaar \s+ en \s* (vastgelegd 5 juli 2026).
+function parseNationality(html: string): string | null {
+  const m = html.match(/Nationality:[\s\S]{0,300}?<a\s+href="nation\/[^"]*"\s*>([^<]+)<\/a>/);
+  return m ? m[1].trim() : null;
+}
+
 function parseSpecialties(html: string): Record<string, number> {
   const result: Record<string, number> = {};
   // Let op: ruwe PCS-HTML heeft soms een spatie vóór de sluit-`>` (class="…" >)
@@ -100,10 +109,17 @@ Deno.serve(async (req) => {
       const specs = parseSpecialties(html);
       if (Object.keys(specs).length === 0) continue;
 
+      // Nationaliteit meenemen (zelfde pagina, gratis) — vult het landen-filter op de pick-pagina
+      const nationality = parseNationality(html);
+
       // Update alle rider-rijen met deze slug (over alle competities)
       await adminClient
         .from("riders")
-        .update({ ...specs, specialty_refreshed_at: new Date().toISOString() })
+        .update({
+          ...specs,
+          ...(nationality ? { nationality } : {}),
+          specialty_refreshed_at: new Date().toISOString(),
+        })
         .eq("pcs_slug", slug);
 
       processed++;
