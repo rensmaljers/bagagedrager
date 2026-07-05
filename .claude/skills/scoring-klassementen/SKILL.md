@@ -16,7 +16,7 @@ Het wielerspel: elke speler kiest 1 renner per etappe vóór de starttijd (deadl
 
 Beide views worden **als owner** uitgevoerd en omzeilen RLS bewust — zodat klassementen compleet blijven, ook met renners/picks die een speler zelf niet mag zien.
 
-De views worden telkens in één migratie volledig opnieuw gedefinieerd (`DROP VIEW` + `CREATE VIEW`). De laatste volledige definitie is leidend (**nu migratie 074**) — zoek de hoogst genummerde migratie die `CREATE VIEW general_classification` bevat:
+De views worden telkens in één migratie volledig opnieuw gedefinieerd (`DROP VIEW` + `CREATE VIEW`). De laatste volledige definitie is leidend (**nu migratie 075**) — zoek de hoogst genummerde migratie die `CREATE VIEW general_classification` bevat:
 
 ```bash
 grep -rl "CREATE VIEW general_classification" supabase/migrations/ | sort
@@ -31,6 +31,8 @@ Wil je iets aan scoring wijzigen? Maak een **nieuwe migratie** met de volledige 
 3. **Bergklassement** — som van KOM-punten (PCS Mountain/KOM Classification). Geen sharing-straf.
 4. **Spelklassement** — punten op finishpositie (1e=100, 2e=80, … 20e=5) mét sharing-straf: als meer spelers dezelfde renner kiezen daalt de opbrengst via `sharing_multiplier(num_pickers)`. Dit zit in `game_points` (kolom op `stage_results`, berekend door `calculate_game_points(stage_id)`) × multiplier.
    - **`num_pickers` telt alleen bewuste, scorende picks** (`WHERE NOT is_late AND NOT is_random` in de `rider_pick_counts`-CTE, migratie 074). Te-late picks (scoren 0) en Rad-toewijzingen tellen dus niet mee — anders werd de eerlijke, op-tijd-picker gestraft omdat een ander te laat was of het Rad dezelfde renner toewees.
+
+**Strijdlust** (`total_combativity_points`) = 1 punt als je de **exacte etappewinnaar** koos. Sinds migratie 075 op de UNIEKE winnaar: de `stage_winner_rider`-CTE (`DISTINCT ON (stage_id)`, ontdubbeld op laagste tijd dan rider_id) bepaalt één winnaar per etappe. Eerder telde het elke pick met `finish_position=1` — fout bij een ploegentijdrit/gelijke tijd waar meerdere renners positie 1 delen.
 
 `scoring_mode` op de competitie (`grand_tour` / `classic`) bepaalt welke klassementen tonen.
 

@@ -44,7 +44,7 @@ Fantasy cycling game ("wielerspel") where players pick one rider per stage and c
 3. **Bergklassement (Mountain)** — Sum of KOM points from PCS Mountain/KOM Classification. No sharing penalty.
 4. **Spelklassement (Game)** — Points based on finish position (1st=100, 2nd=80, ..., 20th=5) with sharing multiplier penalty when multiple players pick the same rider. De deelpenalty telt **alleen bewuste, scorende picks** (`NOT is_late AND NOT is_random`, migratie 074) — te-late en Rad-picks straffen de eerlijke picker niet.
 
-De klassementen zitten in de views `general_classification` en `stage_picks_public` (**laatst volledig gedefinieerd in migratie 074**; 074 verving 063 met de deelpenalty-fix). Views draaien als owner en omzeilen RLS — bewust, zodat klassementen compleet blijven.
+De klassementen zitten in de views `general_classification` en `stage_picks_public` (**laatst volledig gedefinieerd in migratie 075**; 074 verving 063 met de deelpenalty-fix). Views draaien als owner en omzeilen RLS — bewust, zodat klassementen compleet blijven.
 
 ## Game rules
 - Pick 1 rider per stage before the start time (deadline = start_time)
