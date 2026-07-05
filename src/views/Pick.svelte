@@ -357,7 +357,7 @@
         preview = true;
         const [rawPicks, participants] = await Promise.all([
           supaRest('picks', { filters: `stage_id=eq.${stageId}`, select: 'user_id,rider_id,is_random' }),
-          supaRest('competition_participants', { filters: `competition_id=eq.${appState.activeCompId}`, select: 'user_id' }),
+          supaRest('competition_pot_status', { filters: `competition_id=eq.${appState.activeCompId}`, select: 'user_id' }),
         ]);
         const profileById = new Map<string, any>((appState._cache.allProfiles || []).map((p: any) => [p.id, p]));
         const pickedIds = new Set((rawPicks || []).map((p: any) => p.user_id));

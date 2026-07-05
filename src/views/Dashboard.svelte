@@ -464,7 +464,7 @@
     );
     if (potKandidaat) {
       try {
-        const paidRows = await supaRest('competition_participants', {
+        const paidRows = await supaRest('competition_pot_status', {
           select: 'has_paid',
           filters: `competition_id=eq.${comp.id}&user_id=eq.${appState.session.user.id}`,
         });
@@ -549,7 +549,7 @@
     const activeComp = appState.competitions.find(c => c.id === appState.activeCompId);
     if (!activeComp?.entry_fee) { potVM = null; return; }
 
-    const participants = await supaRest('competition_participants', {
+    const participants = await supaRest('competition_pot_status', {
       select: 'user_id,has_paid',
       filters: `competition_id=eq.${appState.activeCompId}`,
     });
