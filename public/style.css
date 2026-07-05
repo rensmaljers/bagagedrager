@@ -1045,6 +1045,27 @@ code, pre { color: var(--text); }
 }
 .pcs-link:hover { opacity: 1; color: var(--accent); }
 
+/* H2H "vs"-knop: klein ogend maar een fatsoenlijk tikvlak */
+.h2h-vs-btn {
+  padding: 0.1rem 0.5rem;
+  font-size: 0.6rem;
+  border-radius: 4px;
+  min-height: 32px;
+}
+
+/* Mobiel: kleine icoon-/tekstlinks krijgen een 40px-tikvlak zonder groter te
+   ogen (negatieve marge compenseert de extra padding in de flow) */
+@media (max-width: 768px) {
+  .h2h-vs-btn { min-height: 40px; min-width: 40px; }
+  .rider-pcs-icon, .pcs-link, .stage-link-chip {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .rider-pcs-icon { min-width: 40px; border-radius: 12px; }
+}
+
 /* --- Tooltips --- */
 .info-tooltip {
   cursor: help;

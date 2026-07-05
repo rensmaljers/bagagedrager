@@ -8,6 +8,7 @@
   import { state as appState, ui } from '../lib/state.svelte';
   import { supaRest } from '../lib/api';
   import { teamBadge } from '../lib/helpers';
+  import { focusTrap } from '../lib/focus-trap';
 
   const SPECS = [
     { key: 'specialty_climber', label: 'Klim' },
@@ -82,7 +83,7 @@
 
 {#if ui.riderModalId}
   <div class="h2h-overlay" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) close(); }}>
-    <div class="h2h-modal detail-modal">
+    <div class="h2h-modal detail-modal" role="dialog" aria-modal="true" aria-label="Rennerdetails" use:focusTrap>
       <div class="h2h-header">
         <h3>Renner</h3>
         <button class="h2h-close" aria-label="Sluiten" onclick={close}>&times;</button>

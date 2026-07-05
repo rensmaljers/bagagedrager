@@ -76,6 +76,7 @@
   import { supaRest } from '../lib/api';
   import { activeScoringMode, activeStages, riderPhoto } from '../lib/helpers';
   import RadTheater from './RadTheater.svelte';
+  import { focusTrap } from '../lib/focus-trap';
 
   const COMPACT_TOP = 5;
 
@@ -598,10 +599,18 @@
     h2hOpen = true;
 
     try {
-      const allPicks = await supaRest('stage_picks_public', {
-        filters: `competition_id=eq.${appState.activeCompId}`,
-        select: 'stage_id,stage_number,user_id,display_name,rider_name,time_gap,dnf_penalty_gap,bonification,effective_points,effective_mountain_points,effective_game_points,finish_position,dnf,is_late'
-      });
+      // Cache per ronde: opeenvolgende H2H's (populair tijdens de Tour) delen
+      // dezelfde grote query i.p.v. hem elke keer opnieuw op te halen.
+      let allPicks = (appState._cache as any).h2hPicksCompId === appState.activeCompId
+        ? (appState._cache as any).h2hPicks : null;
+      if (!allPicks) {
+        allPicks = await supaRest('stage_picks_public', {
+          filters: `competition_id=eq.${appState.activeCompId}`,
+          select: 'stage_id,stage_number,user_id,display_name,rider_name,time_gap,dnf_penalty_gap,bonification,effective_points,effective_mountain_points,effective_game_points,finish_position,dnf,is_late'
+        });
+        (appState._cache as any).h2hPicks = allPicks;
+        (appState._cache as any).h2hPicksCompId = appState.activeCompId;
+      }
 
       const myPks = allPicks.filter(p => p.display_name === appState.profile?.display_name);
       const oppPks = allPicks.filter(p => p.display_name === opponentName);
@@ -802,7 +811,7 @@
           <tr
             style={row.isMe ? 'background:var(--accent-bg);' : undefined}
             class={row.isLeader ? `leader-row${t.jerseyClass ? ' wears ' + t.jerseyClass : ''}` : (row.extra ? 'standings-extra' : undefined)}
-          ><td class="tnum">{@html rankBadge(i)}{@html row.deltaHtml}</td><td><div class="d-flex align-items-center gap-2"><span class="player-click d-inline-flex align-items-center gap-2" role="button" tabindex="0" onclick={() => (ui.playerModalId = row.user_id)} onkeydown={(e) => { if (e.key === 'Enter') ui.playerModalId = row.user_id; }}>{@html avatarHtml(row.name, appState._avatarMap[row.name], 'sm')}{row.name}</span>{#if row.showTrui}<span class="trui-chip">trui</span>{/if}{#if row.showH2h}<button class="btn btn-ghost" style="padding:0.1rem 0.4rem;font-size:0.6rem;border-radius:4px;" onclick={() => openH2H(row.name, t.mode)}>vs</button>{/if}</div></td><td class="text-end tnum">{@html row.valueHtml}{#if row.barPct != null}<span class="score-bar score-bar-{t.mode}"><span style="width:{row.barPct}%"></span></span>{/if}</td></tr>
+          ><td class="tnum">{@html rankBadge(i)}{@html row.deltaHtml}</td><td><div class="d-flex align-items-center gap-2"><span class="player-click d-inline-flex align-items-center gap-2" role="button" tabindex="0" onclick={() => (ui.playerModalId = row.user_id)} onkeydown={(e) => { if (e.key === 'Enter') ui.playerModalId = row.user_id; }}>{@html avatarHtml(row.name, appState._avatarMap[row.name], 'sm')}{row.name}</span>{#if row.showTrui}<span class="trui-chip">trui</span>{/if}{#if row.showH2h}<button class="btn btn-ghost h2h-vs-btn" onclick={() => openH2H(row.name, t.mode)} aria-label="Vergelijk met {row.name}">vs</button>{/if}</div></td><td class="text-end tnum">{@html row.valueHtml}{#if row.barPct != null}<span class="score-bar score-bar-{t.mode}"><span style="width:{row.barPct}%"></span></span>{/if}</td></tr>
         {/each}
         {#if t.collapsible}
           <tr class="standings-expand-row"><td colspan="3"><button type="button" class="standings-expand-btn" onclick={() => expanded[key] = !expanded[key]}>{expanded[key] ? `Toon top ${COMPACT_TOP}` : `Toon alle ${t.count} spelers`}</button></td></tr>
@@ -1000,7 +1009,7 @@
 <!-- Head-to-head modal -->
 {#if h2hOpen}
   <div id="h2h-overlay" class="h2h-overlay" style="display:flex;" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) h2hOpen = false; }}>
-    <div class="h2h-modal">
+    <div class="h2h-modal" role="dialog" aria-modal="true" aria-label="Head-to-head" use:focusTrap>
       <div class="h2h-header">
         <h3>Head-to-Head</h3>
         <button class="h2h-close" onclick={() => (h2hOpen = false)}>&times;</button>

@@ -8,6 +8,7 @@
 <script lang="ts">
   import { icon } from '../lib/icons';
   import { confettiBurst } from '../lib/utils';
+  import { focusTrap } from '../lib/focus-trap';
 
   let { names, spins, stageLabel, onDismiss } = $props<{
     names: string[]; // segmentnamen (8), bevat alle target-renners
@@ -64,7 +65,7 @@
 <svelte:window onkeydown={onKey} />
 
 <div class="h2h-overlay" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) onDismiss(); }}>
-  <div class="rad-modal">
+  <div class="rad-modal" role="dialog" aria-modal="true" aria-label="Rad van Fortuin" use:focusTrap>
     <div class="rad-title">{@html icon('wheel', '', 16)} Het Rad van Fortuin</div>
     <div class="rad-sub">Niet iedereen koos op tijd voor {stageLabel} — het Rad besliste.</div>
 

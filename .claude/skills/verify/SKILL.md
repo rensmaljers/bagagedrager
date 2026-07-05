@@ -14,7 +14,13 @@ npm run preview        # serveert dist/ op http://localhost:4173 (run_in_backgro
 
 Playwright MCP → `browser_navigate` naar `http://localhost:4173`. **Cache-buster
 gebruiken** (`/?v=N`) na elke rebuild — de service worker + browser cachen de
-gehashte assets agressief.
+gehashte assets agressief. Betrouwbaarder: aan het begin van de eval-sessie de
+SW + caches wissen, dan pas inloggen:
+```js
+const regs = await navigator.serviceWorker.getRegistrations();
+for (const r of regs) await r.unregister();
+for (const k of await caches.keys()) await caches.delete(k);
+```
 
 ## Testaccount (productie-Supabase!)
 

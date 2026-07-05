@@ -183,6 +183,7 @@
         // zichzelf zonder remount (zoekveld/scroll blijven staan).
         appState._cache.standings = null;
         appState._cache.participants = null;
+        (appState._cache as any).h2hPicks = null;
         // Herlaad DNF-renners zodat grid direct klopt (reactief in Pick)
         await loadDnfRiderIds();
         if (ui.activeTab === 'dashboard') toast('Resultaten bijgewerkt', 'info', 2500);
@@ -190,6 +191,7 @@
       .on('postgres_changes', { event: '*', schema: 'public', table: 'picks' }, (payload: any) => {
         appState._cache.participants = null;
         appState._cache.standings = null;
+        (appState._cache as any).h2hPicks = null;
         // Eigen picks alleen herladen als het event over onszelf gaat — anders
         // veroorzaakt de deadline-piek (27 spelers kiezen tegelijk) per client
         // een fetch-golf. RLS verbergt andermans picks vóór de deadline, dus

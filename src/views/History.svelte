@@ -241,7 +241,11 @@
           </tr>
         </thead>
         <tbody id="history-table">
-          {#if loaded && !rows.length}
+          {#if !loaded}
+            {#each Array(6) as _}
+              <tr><td colspan={isClassic ? 7 : 8}><div class="skeleton skeleton-row"></div></td></tr>
+            {/each}
+          {:else if !rows.length}
             <tr><td colspan={isClassic ? 7 : 8}>
               <div class="empty-state">
                 <div class="empty-state-icon">{@html icon('target', '', 32)}</div>

@@ -46,3 +46,10 @@ De vier klassementen dragen hun echte wielertrui als structurele identiteit:
 - Geen emoji's in de UI (bewust verwijderd in de UI-craft pass) — iconen zijn SVG/CSS.
 - Test elke wijziging in dark én light (thema-toggle) — de light-overrides zijn handmatig gebalanceerd (accent is daar donkerder goud voor contrast).
 - Micro-animaties via `--ease`/`--dur`; respecteer bestaande motion-sectie, geen ad-hoc transitions.
+- **Contrast**: gele/comp-kleur-vlakken gebruiken donkere inkt (`--jaune-ink`), nooit `--accent-text` (dat is wit in light mode → onleesbaar op Tour-geel).
+
+## Toegankelijkheid & mobiel (niet onderhandelbaar)
+
+- **Modals**: elke overlay-inhoud krijgt `use:focusTrap` (`src/lib/focus-trap.ts`) + `role="dialog"` + `aria-modal="true"` + `aria-label`. De trap focust bij openen, houdt Tab binnen, en geeft focus terug bij sluiten. Escape sluit (eigen handler per modal). Backdrop-klik sluit.
+- **Touch-targets ≥ 40px op mobiel**: kleine icoon-/tekstlinks (`.h2h-vs-btn`, `.rider-pcs-icon`, `.pcs-link`, `.stage-link-chip`) krijgen in de `max-width:768px`-query een `min-height:40px` (flex-centered) zonder visueel groter te ogen. Nieuwe kleine tikdoelen: zelfde patroon.
+- **Laadstatus**: een tab die async data haalt toont skeleton-rijen (`.skeleton.skeleton-row`) zolang `!loaded`, geen lege tabel.

@@ -7,41 +7,44 @@ Fantasy cycling game ("wielerspel") where players pick one rider per stage and c
 - **Supabase project-ref**: `hdkvirtytljnuawcmoui`
 
 ## Tech stack
-- **Frontend**: Vanilla TypeScript + HTML/CSS (`public/`), Bootstrap 5 (CDN, async geladen), Vite build
+- **Frontend**: Svelte 5 (runes) + TypeScript, eigen CSS op design-tokens (geen Bootstrap meer), Vite build. **Sinds 5 juli 2026 live** (Svelte-migratie gemerged, commit `f0468cc`; de oude vanilla-TS in `public/*.ts` bestaat niet meer).
 - **Backend**: Supabase (PostgreSQL + Edge Functions + Auth + RLS + pg_cron)
-- **Hosting**: Netlify — auto-deploy bij push naar `main`, build `npm run build`, publish `dist/`
+- **Hosting**: Netlify — auto-deploy bij push naar `main`, build `npm run build`, publish `dist/`. Deploy is atomisch (~15-30s), nul downtime.
 - **Data source**: ProCyclingStats (PCS) scraping for race results
 
 ## Architecture
 - All business logic lives in PostgreSQL functions and views (`supabase/migrations/`)
 - Edge Functions in `supabase/functions/` handle PCS scraping, cron-taken en admin operations
 - Frontend communicates via Supabase REST API (PostgREST) + één realtime channel
-- Git workflow: commit and push directly to `main`, no feature branches or PRs
+- Git workflow: commit and push directly to `main`. Grote/risicovolle features op een aparte branch, mergen na akkoord (bv. `rad-theater`).
 
-## Key files
-- `public/index.html` — Full app UI (HTML + inline kritieke CSS + theme script). Bootstrap/Fontshare CSS async (media-swap) — first paint hangt alleen op inline CSS
-- `public/app.ts` — Entry: boot (getSession → initApp), tab-navigatie, auth-handlers, account, realtime
-- `public/state.ts` — Gedeeld mutable state-object (session, riders, stages, caches). Alle modules muteren `state.x`
-- `public/api.ts` — REST-helpers (supaRest/supaDelete/supaPatch/supaUpsert/supaRpc)
-- `public/helpers.ts` — UI-helpers (teamBadge, comp-banner, buildPcsStageUrl)
-- `public/views/` — Tabbladen: dashboard (klassementen+H2H+badges), pick, history, peloton
-- `public/admin.ts` — Admin-panel incl. PCS-sync en imports. **Lazy geladen** (dynamic import bij tab-open)
-- `public/notifications.ts` — Deadline- en push-notificaties
-- `supabase/functions/_shared/` — `pcs-parse.ts` en `webpush.ts` (getest), `email-template.ts`
-- `supabase/functions/tests/` — Deno-tests (PCS-parsing incl. TTT, web push incl. RFC 8291-vector)
+## Key files (Svelte)
+- `public/index.html` — slank mount-punt: inline kritieke CSS + fonts + theme-script + tooltip-engine + `<div id="svelte-root">`. Wat vóór de eerste paint zichtbaar is óók hier aanpassen.
+- `public/style.css` — het volledige design system (geïmporteerd in main.ts). Componenten gebruiken deze klassen; secties Tokens→Base→Layout→Components→Views→Motion→Responsive.
+- `src/main.ts` — `mount(App)`.
+- `src/App.svelte` — shell: auth ↔ app, navbar, tab-routing (hash), realtime-channel, account, service-worker-registratie.
+- `src/lib/state.svelte.ts` — gedeelde reactieve state (`$state`-runes) + `ui`-state. In .svelte-bestanden **altijd** `import { state as appState }` (anders ziet de compiler `$state` als store-subscription).
+- `src/lib/*.ts` — api/config/utils/icons/helpers/supabase-client/notifications/**focus-trap**.
+- `src/views/*.svelte` — Dashboard (klassementen+H2H+pot+RadTheater), Pick, History, Peloton, Admin (**lazy** via dynamic import), Account, PlayerModal, RiderModal, RadTheater, Auth.
+- `supabase/functions/_shared/` — `pcs-parse.ts`, `pcs-fetch.ts` (retry/backoff), `pcs-dropouts.ts`, `webpush.ts` (allen getest), `email-template.ts`
+- `supabase/functions/tests/` — Deno-tests (PCS-parsing incl. TTT/ITT, dropouts, pcs-fetch-retry, web push RFC 8291-vector)
 
 ### Valkuilen frontend
-- **Niets opstart-kritieks in `admin.ts`** — die module laadt pas bij het openen van het admin-tabblad. Boot-code hoort in `app.ts`.
-- Inline `onclick="..."` strings in HTML-templates vereisen `window.x = ...`-registratie in de module die de HTML rendert.
-- `npm run typecheck` heeft een baseline van ~56 bestaande errors (niet afgedwongen) — niet laten groeien.
+- Wijzig je iets dat vóór de eerste paint zichtbaar is (body-achtergrond, thema, nav): pas het aan in **zowel** `public/index.html` (inline kritieke CSS) als `public/style.css`.
+- HTML-string-helpers (`teamBadge`, `avatarHtml`, `riderDisplay`, `icon`) geven strings terug → renderen met `{@html ...}`. Niet herschrijven.
+- Admin blijft lazy (dynamic import) — niets opstart-kritieks erin.
+- `npm run typecheck` wijst naar `src/**` en staat op **0 errors** — houden zo (build-gate: svelte-check draait vóór elke build).
+- Modals krijgen `use:focusTrap` (`src/lib/focus-trap.ts`) + `role="dialog"`/`aria-modal`.
+- Async data-laders (loadStandings/loadParticipants/loadHistory): leg `const loadCompId = appState.activeCompId` vast en `return` vóór toewijzing als de ronde intussen wisselde (stale-guard).
+- Live-verificatie tegen productie: zie `.claude/skills/verify` (testaccount + Playwright-recept).
 
 ## Scoring system (4 classifications)
 1. **Algemeen Klassement (GC)** — Sum of time gaps to stage winner, minus `bonification_seconds` from `stage_results`. DNF/DNS/late = slechtste tijdverschil van het **hele veld** op die etappe (de hekkensluiter, migratie 063). No sharing penalty.
 2. **Puntenklassement (Points)** — Sum of sprint points from PCS Points Classification. No sharing penalty.
 3. **Bergklassement (Mountain)** — Sum of KOM points from PCS Mountain/KOM Classification. No sharing penalty.
-4. **Spelklassement (Game)** — Points based on finish position (1st=100, 2nd=80, ..., 20th=5) with sharing multiplier penalty when multiple players pick the same rider.
+4. **Spelklassement (Game)** — Points based on finish position (1st=100, 2nd=80, ..., 20th=5) with sharing multiplier penalty when multiple players pick the same rider. De deelpenalty telt **alleen bewuste, scorende picks** (`NOT is_late AND NOT is_random`, migratie 074) — te-late en Rad-picks straffen de eerlijke picker niet.
 
-De klassementen zitten in de views `general_classification` en `stage_picks_public` (beide laatst volledig gedefinieerd in migratie 063). Views draaien als owner en omzeilen RLS — bewust, zodat klassementen compleet blijven.
+De klassementen zitten in de views `general_classification` en `stage_picks_public` (**laatst volledig gedefinieerd in migratie 074**; 074 verving 063 met de deelpenalty-fix). Views draaien als owner en omzeilen RLS — bewust, zodat klassementen compleet blijven.
 
 ## Game rules
 - Pick 1 rider per stage before the start time (deadline = start_time)
@@ -51,19 +54,25 @@ De klassementen zitten in de views `general_classification` en `stage_picks_publ
 - Bonification seconds stored per rider in `stage_results.bonification_seconds` (scraped from PCS or entered manually by admin). NOT derived from finish position.
 - Klassiekers: één competitie met meerdere "etappes" (koersen) en per-etappe startlijsten in `stage_riders`
 
-## RLS (sinds migratie 058)
-- `picks`: eigen picks altijd leesbaar; van anderen pas na deadline/lock; admins alles
-- `profiles`: publiek leesbaar; eigen profiel + admin schrijfbaar
-- Realtime respecteert RLS — events voor verborgen rijen komen niet binnen
+## RLS (sinds migratie 058, gehardend in 073/074)
+- `picks`: eigen picks altijd leesbaar; van anderen pas na deadline/lock; admins alles. **INSERT-policy verwijderd (073)** — schrijven kan alléén via de RPC's `submit_pick`/`withdraw_pick`/`assign_random_riders`/`admin_upsert_pick`, zodat deadline/DNF/renner-al-gebruikt-regels niet te omzeilen zijn.
+- `profiles`: publiek leesbaar; eigen profiel schrijfbaar behalve `is_admin`/`is_ai`/`email` — die kolommen blokkeert een trigger voor niet-admins (073, was een privilege-escalatie).
+- `competition_participants`: basistabel alleen admin-leesbaar (paid_at privé); de pot leest `has_paid` uit de view **`competition_pot_status`** (074).
+- SECURITY DEFINER-functies krijgen `SET search_path = public`.
+- Realtime respecteert RLS — events voor verborgen rijen komen niet binnen.
 
 ## Cron & edge functions
 Cron-jobs (pg_cron + pg_net, zie `cron.job`):
 - `auto-rad` (*/10 min) — Rad van Fortuin na deadline (`rad_assigned`-vlag voorkomt dubbel draaien)
 - `auto-lock-stages` (*/10 min) — pure SQL UPDATE, geen edge function
 - `auto-remind` (*/30 min) — push naar spelers zonder pick, 30–90 min voor deadline (`reminder_sent`-vlag)
-- `auto-notify-results` (*/10 min) — push naar alle deelnemers zodra een uitslag binnen is (`results_notified`-vlag, migratie 068)
-- `auto-sync-ochtend/-middag` (9:00/16:00 UTC) — PCS-resultaten syncen
-- `weekly-rider-specialty-refresh` (ma 3:00 UTC)
+- `auto-notify-results` (*/10 min) — **gepersonaliseerde** push zodra een uitslag binnen is (eigen renner + spelpunten + nieuwe positie; `results_notified`-vlag, migratie 068)
+- `auto-sync-ochtend/-middag` (9:00/16:00 UTC) — PCS-resultaten syncen (correctie-pass/vangnet)
+- `auto-sync-eta` (*/15 min, body `{"mode":"eta"}`) — synct een etappe zodra `estimated_end_time` + 20 min verstreken is en er nog geen resultaten zijn; skipt daarna. Uitslag staat ~20 min na de finish binnen (migratie 072)
+- `auto-dns-check` (*/30 min) — parset PCS' dropouts-pagina voor etappes met deadline binnen 3 uur; zet `riders.dnf` + pusht spelers die een niet-starter kozen (migratie 072)
+- `weekly-rider-specialty-refresh` (ma 3:00 UTC) — specialties **én nationaliteit** van de renner-pagina
+
+Vlag-conventie voor push-crons: zet de "verzonden"-vlag (`results_notified`/`reminder_sent`) **vóór** de push-loop — een crash halverwege mag bij de volgende run geen dubbele meldingen geven. `webpush.sendPush` heeft een 5s-timeout zodat één hangend endpoint de loop niet blokkeert.
 
 Conventies:
 - **Cron-functies** eisen `x-cron-secret`-header; secret staat in `_app_config` (DB), op te vragen via `get_cron_secret()` RPC. Cron-jobs sturen hem mee.
@@ -105,10 +114,10 @@ supabase db query "select status_code, left(content,200), created from net._http
 # Tests (PCS-parsing + web push)
 deno test --allow-read supabase/functions/tests/
 
-# Frontend
-npm run build       # Vite → dist/
-npm run typecheck   # baseline ~56 errors, niet afgedwongen
-npm run preview     # lokale test van dist/
+# Frontend (Svelte 5 + Vite)
+npm run build       # svelte-check (0-baseline, gate) → Vite → dist/
+npm run typecheck   # tsc over src/** — 0 errors, houden zo
+npm run preview     # lokale test van dist/ (localhost:4173)
 
 # Secrets
 supabase secrets list

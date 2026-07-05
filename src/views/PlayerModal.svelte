@@ -13,6 +13,7 @@
   import { icon } from '../lib/icons';
   import { supaRest } from '../lib/api';
   import { activeScoringMode, riderPhoto, teamBadge } from '../lib/helpers';
+  import { focusTrap } from '../lib/focus-trap';
 
   // Zelfde rol-logica als Peloton.svelte (bewust klein gekopieerd)
   function getPelotonRole(p: any, totalPicks: number) {
@@ -119,7 +120,7 @@
 
 {#if ui.playerModalId}
   <div class="h2h-overlay" role="presentation" onclick={(e) => { if (e.target === e.currentTarget) close(); }}>
-    <div class="h2h-modal detail-modal">
+    <div class="h2h-modal detail-modal" role="dialog" aria-modal="true" aria-label="Spelerdetails" use:focusTrap>
       <div class="h2h-header">
         <h3>Speler</h3>
         <button class="h2h-close" aria-label="Sluiten" onclick={close}>&times;</button>
