@@ -75,6 +75,7 @@
   import { icon } from '../lib/icons';
   import { supaRest } from '../lib/api';
   import { activeScoringMode, activeStages, riderPhoto } from '../lib/helpers';
+  import RadTheater from './RadTheater.svelte';
 
   const COMPACT_TOP = 5;
 
@@ -88,6 +89,87 @@
   let statusEntries: { label: string; value: string; sub?: string; deltaHtml?: string; jersey?: string }[] = $state([]);
   let statusNext: { stageTitle: string; name: string | null; deadline: string; riderName: string | null } | null = $state(null);
   let welcome: { compName: string; stageTitle: string; deadline: string } | null = $state(null);
+  // Rad-theater: eenmalig per etappe, per apparaat (localStorage-vlag).
+  // Getoond aan ÁLLE deelnemers zodra het Rad voor iemand gedraaid heeft
+  // (Rad-picks van anderen zijn na de deadline zichtbaar via
+  // stage_picks_public). Meerdere slachtoffers = meerdere spins.
+  // ?radtest=1 forceert een demo met twee gefingeerde slachtoffers.
+  const RAD_KEY = (stageId: number) => `bagagedrager_rad_gezien_${stageId}`;
+  const MAX_SPINS = 6; // meer dan dit wordt saai — de rest staat in de eindlijst niet
+  let radTheater: {
+    names: string[];
+    spins: { playerName: string; riderName: string; isMe: boolean; targetIndex: number }[];
+    stageLabel: string;
+    stageId: number | null;
+  } | null = $state(null);
+
+  async function buildRadTheater() {
+    const riders = Object.values(appState._riderMap || {});
+    if (riders.length < 8) return;
+    const myName = appState.profile?.display_name;
+
+    const demo = new URLSearchParams(location.search).has('radtest');
+    let victims: { playerName: string; riderName: string; isMe: boolean }[];
+    let stageId: number | null = null;
+    let stageLabel = 'deze etappe';
+
+    if (demo) {
+      const pick = () => (riders[Math.floor(Math.random() * riders.length)] as any).name;
+      victims = [
+        { playerName: myName || 'Jij', riderName: pick(), isMe: true },
+        { playerName: 'Rick', riderName: pick(), isMe: false },
+      ];
+      stageLabel = 'de demo-etappe';
+    } else {
+      // Recentst afgesloten etappe (max 3 dagen terug — geen oude rads op nieuwe apparaten)
+      const now = Date.now();
+      const recent = activeStages()
+        .filter((s: any) => (s.locked || now > new Date(s.deadline).getTime())
+          && now - new Date(s.deadline).getTime() < 3 * 24 * 3600 * 1000
+          && !localStorage.getItem(RAD_KEY(s.id)))
+        .sort((a: any, b: any) => (b.stage_number || 0) - (a.stage_number || 0))[0];
+      if (!recent) return;
+
+      const rows = await supaRest('stage_picks_public', {
+        select: 'user_id, display_name, rider_name, is_random',
+        filters: `stage_id=eq.${recent.id}&is_random=eq.true`,
+      });
+      if (!rows?.length) {
+        // Rad draait binnen ~10 min na de deadline; daarna is "geen rad-picks" definitief
+        if (now - new Date(recent.deadline).getTime() > 3600 * 1000) localStorage.setItem(RAD_KEY(recent.id), '1');
+        return;
+      }
+      victims = rows.map((r: any) => ({
+        playerName: r.display_name,
+        riderName: r.rider_name,
+        isMe: r.display_name === myName,
+      }));
+      stageId = recent.id;
+      stageLabel = recent.stage_number === 0 ? 'de proloog' : `etappe ${recent.stage_number}`;
+    }
+
+    // 8 segmenten: alle doel-renners + vulling met willekeurige anderen, geschud
+    const spinVictims = victims.slice(0, MAX_SPINS);
+    const targetNames = [...new Set(spinVictims.map((v) => v.riderName))];
+    const vulling = riders
+      .map((r: any) => r.name)
+      .filter((n: string) => !targetNames.includes(n))
+      .sort(() => Math.random() - 0.5)
+      .slice(0, Math.max(0, 8 - targetNames.length));
+    const names = [...targetNames, ...vulling].sort(() => Math.random() - 0.5);
+    radTheater = {
+      names,
+      spins: spinVictims.map((v) => ({ ...v, targetIndex: names.indexOf(v.riderName) })),
+      stageLabel,
+      stageId,
+    };
+  }
+
+  function dismissRadTheater() {
+    if (radTheater?.stageId != null) localStorage.setItem(RAD_KEY(radTheater.stageId), '1');
+    radTheater = null;
+  }
+
   const POT_BANNER_KEY = 'bagagedrager_pot_tdf2026_dismissed';
   const POT_BETAALLINK = 'https://betaalverzoek.rabobank.nl/betaalverzoek/?id=aS3cgsxLTTGy-w-qM-B95A';
   let potBanner = $state(false);
@@ -405,6 +487,9 @@
 
     // Pot kaart — asynchroon renderen (blokkeert standings niet)
     renderPotCard(standings).catch(() => {});
+
+    // Rad-theater: check of er ongeziene Rad-picks zijn (of ?radtest=1)
+    if (!radTheater) buildRadTheater().catch(() => {});
   }
 
   export function refresh() {
@@ -901,6 +986,16 @@
     </div>
   {/if}
 </div>
+
+<!-- Rad van Fortuin-theater -->
+{#if radTheater}
+  <RadTheater
+    names={radTheater.names}
+    spins={radTheater.spins}
+    stageLabel={radTheater.stageLabel}
+    onDismiss={dismissRadTheater}
+  />
+{/if}
 
 <!-- Head-to-head modal -->
 {#if h2hOpen}

@@ -2055,6 +2055,104 @@ tbody:not(.expanded) .standings-extra { display: none; }
 }
 .comp-banner-name { font-family: var(--font-display); font-weight: 600; color: var(--text); }
 
+/* --- Rad van Fortuin-theater --- */
+.rad-modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  width: min(92vw, 420px);
+  padding: 1.6rem 1.5rem 1.5rem;
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+  animation: modal-in 0.25s var(--ease);
+}
+.rad-title {
+  font-family: var(--font-display);
+  font-size: 0.8rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.13em;
+  color: var(--text-muted);
+  display: flex; align-items: center; justify-content: center; gap: 0.45rem;
+}
+.rad-sub { font-size: 0.8rem; color: var(--text-muted); margin: 0.4rem 0 1.2rem; }
+.rad-stage { position: relative; width: 260px; height: 260px; margin: 0 auto; }
+.rad-wheel {
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  border: 4px solid var(--border-strong);
+  position: relative;
+  /* Uitrollend rad: lange easing met zachte landing */
+  transition: transform 4s cubic-bezier(0.12, 0.8, 0.2, 1);
+  will-change: transform;
+}
+.rad-label {
+  position: absolute; inset: 0;
+  display: flex; justify-content: center;
+  pointer-events: none;
+}
+.rad-label-text {
+  font-family: var(--font-display);
+  font-size: 0.62rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  color: rgba(10, 11, 14, 0.82);
+  margin-top: 12px;
+  max-width: 84px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rad-pointer {
+  position: absolute; top: -6px; left: 50%; transform: translateX(-50%);
+  width: 0; height: 0; z-index: 2;
+  border-left: 11px solid transparent;
+  border-right: 11px solid transparent;
+  border-top: 18px solid var(--text);
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3));
+}
+.rad-hub {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 52px; height: 52px; border-radius: 50%;
+  background: var(--bg-elevated);
+  border: 3px solid var(--border-strong);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent); z-index: 2;
+}
+/* Wie is er aan de beurt (boven het rad) */
+.rad-turn {
+  font-family: var(--font-display);
+  font-size: 0.9rem; font-weight: 600;
+  margin-bottom: 1rem;
+  display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+}
+.rad-turn.is-me { color: var(--accent); }
+.rad-count {
+  font-size: 0.62rem; font-weight: 700;
+  color: var(--text-muted);
+  background: var(--badge-muted-bg);
+  clip-path: polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%);
+  padding: 0.14rem 0.5rem;
+}
+.rad-result-row {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 1rem;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+.rad-result-row:last-of-type { border-bottom: none; }
+.rad-result-row.is-me { background: var(--accent-bg); font-weight: 700; }
+.rad-result-rider { font-family: var(--font-display); font-weight: 600; }
+
+.rad-result { margin-top: 1.3rem; animation: rise-in 0.35s var(--ease); }
+.rad-result-label {
+  font-family: var(--font-display);
+  font-size: 0.66rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--text-muted);
+}
+.rad-result-name {
+  font-family: var(--font-display);
+  font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em;
+  margin: 0.25rem 0 1rem;
+}
+
 /* --- Uitslagen & peloton: koersbord-tabellen --- */
 /* Finishlijn als kop-onderrand: schuine streepjes i.p.v. rechte lijn */
 .results-table thead th {
