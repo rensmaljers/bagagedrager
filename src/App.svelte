@@ -356,21 +356,6 @@
     if (getPreviewableImg(e.target)) previewVisible = false;
   }
 
-  // H2H / admin-picks overlays: legacy contract — views openen ze via
-  // document.getElementById('h2h-overlay').style.display = 'flex' en vullen #h2h-content
-  let h2hOverlay: HTMLDivElement;
-  let adminPicksOverlay: HTMLDivElement;
-  function overlayBackdropClose(e: MouseEvent) {
-    if (e.target === e.currentTarget) (e.currentTarget as HTMLElement).style.display = 'none';
-  }
-  // Escape sluit een open overlay (display wordt legacy via JS getoggeld, dus altijd luisteren)
-  function onWindowKeydown(e: KeyboardEvent) {
-    if (e.key !== 'Escape') return;
-    for (const el of [h2hOverlay, adminPicksOverlay]) {
-      if (el && el.style.display !== 'none') el.style.display = 'none';
-    }
-  }
-
   // --- RENNER-KLIK DELEGATIE ---
   // riderDisplay(...) rendert overal via {@html}; echte event handlers kunnen daar
   // niet in. Eén document-brede click/Enter-delegatie op .rider-click opent de modal.
@@ -392,32 +377,12 @@
 </script>
 
 <svelte:document onmouseover={onDocMouseover} onmousemove={onDocMousemove} onmouseout={onDocMouseout} onclick={onDocClick} onkeydown={onDocKeydown} />
-<svelte:window onkeydown={onWindowKeydown} />
 
 <!-- Toast container -->
 <div id="toast-container" class="toast-container"></div>
 
-<!-- Admin: edit user picks modal -->
-<div id="admin-picks-overlay" class="h2h-overlay" style="display:none;" role="presentation" bind:this={adminPicksOverlay} onclick={overlayBackdropClose}>
-  <div class="h2h-modal">
-    <div class="h2h-header">
-      <h3 id="admin-picks-title">Keuzes bewerken</h3>
-      <button class="h2h-close" onclick={() => { adminPicksOverlay.style.display = 'none'; }}>&times;</button>
-    </div>
-    <div id="admin-picks-content" class="p-2"></div>
-  </div>
-</div>
-
-<!-- Head-to-head modal -->
-<div id="h2h-overlay" class="h2h-overlay" style="display:none;" role="presentation" bind:this={h2hOverlay} onclick={overlayBackdropClose}>
-  <div class="h2h-modal">
-    <div class="h2h-header">
-      <h3>Head-to-Head</h3>
-      <button class="h2h-close" onclick={() => { h2hOverlay.style.display = 'none'; }}>&times;</button>
-    </div>
-    <div id="h2h-content"></div>
-  </div>
-</div>
+<!-- (De admin-picks- en H2H-modals leven in Admin.svelte resp. Dashboard.svelte
+     als reactieve {#if}-modals; de oude display-toggle-overlays zijn verwijderd.) -->
 
 {#if ui.loading}
   <div id="app-loading"><div class="app-loader"></div></div>

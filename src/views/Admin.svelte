@@ -9,6 +9,7 @@
   import { state as appState } from '../lib/state.svelte';
   import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../lib/config';
   import { escapeHtml, formatTime, formatGap, toast } from '../lib/utils';
+  import { focusTrap } from '../lib/focus-trap';
   import { supaDelete, supaPatch, supaRest, supaRpc, supaUpsert } from '../lib/api';
   import { signup } from '../lib/auth';
   import {
@@ -2090,7 +2091,7 @@
 {#if picksModal.open}
   <div id="admin-picks-overlay" class="h2h-overlay" style="display:flex;" role="presentation"
        onclick={(e) => { if (e.target === e.currentTarget) picksModal.open = false; }}>
-    <div class="h2h-modal">
+    <div class="h2h-modal" role="dialog" aria-modal="true" aria-label="Keuzes bewerken" use:focusTrap>
       <div class="h2h-header">
         <h3 id="admin-picks-title">Keuzes — {picksModal.name}</h3>
         <button class="h2h-close" onclick={() => picksModal.open = false}>&times;</button>
