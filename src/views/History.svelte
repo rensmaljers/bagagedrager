@@ -67,6 +67,8 @@
   }
 
   async function loadHistory() {
+    // Comp-guard: oudere fetch mag een ronde-wissel niet overschrijven
+    const loadCompId = appState.activeCompId;
     const compStageIds = new Set(activeStages().map((s: any) => s.id));
     const compPicks = appState.myPicks.filter((p: any) => compStageIds.has(p.stage_id));
 
@@ -186,6 +188,7 @@
       newBadges = computeAchievements(compPicks, allResults, appState.stages, allPicksForStages);
     }
 
+    if (appState.activeCompId !== loadCompId) return; // ronde gewisseld — nieuwere load rendert
     rows = builtRows;
     isClassic = histIsClassic;
     stats = newStats;

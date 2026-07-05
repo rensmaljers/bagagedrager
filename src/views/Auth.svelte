@@ -36,17 +36,22 @@
   async function handleSignup() {
     const em = email.trim();
     if (!em || !password) { showError('Vul je e-mailadres en wachtwoord in.'); return; }
+    if (busy) return;
+    busy = true;
     try {
       const data = await signup(em, password, em.split('@')[0]);
       if (data.session) appState.session = data.session;
       else showError('Check je email om je account te bevestigen');
     } catch (e: any) { showError(e.message); }
+    finally { busy = false; }
   }
 
   async function handleForgotPassword(e: Event) {
     e.preventDefault();
     const em = email.trim();
     if (!em) { showError('Vul eerst je e-mailadres in'); return; }
+    if (busy) return;
+    busy = true;
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(em);
       if (error) throw new Error(error.message);
@@ -55,6 +60,7 @@
       clearTimeout(successTimer);
       successTimer = setTimeout(() => { successMsg = ''; }, 5000);
     } catch (err: any) { showError(err.message); }
+    finally { busy = false; }
   }
 </script>
 

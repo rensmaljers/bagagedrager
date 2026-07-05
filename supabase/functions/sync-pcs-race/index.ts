@@ -1,5 +1,6 @@
 import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.46/deno-dom-wasm.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { fetchPcsPage } from "../_shared/pcs-fetch.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -41,7 +42,7 @@ function mapStageType(iconClass: string, name: string): string {
 }
 
 async function fetchPCS(url: string): Promise<any> {
-  const res = await fetch(url, { headers: PCS_HEADERS });
+  const res = await fetchPcsPage(url);
   if (!res.ok) throw new Error(`PCS gaf status ${res.status} voor ${url}`);
   const html = await res.text();
   const doc = new DOMParser().parseFromString(html, "text/html");
@@ -127,7 +128,7 @@ async function fetchStageDetails(stages: any[]): Promise<{ profiles: Record<numb
     try {
       if (!s._href) continue;
       const url = s._href.startsWith("http") ? s._href : `https://www.procyclingstats.com/${s._href}`;
-      const res = await fetch(url, { headers: PCS_HEADERS });
+      const res = await fetchPcsPage(url);
       if (!res.ok) continue;
       const html = await res.text();
       const doc = new DOMParser().parseFromString(html, "text/html");
@@ -169,7 +170,7 @@ async function fetchRiderPhotos(adminClient: any, competition_id: number, log: s
   for (const r of ridersWithoutPhoto) {
     try {
       const url = `https://www.procyclingstats.com/rider/${r.pcs_slug}`;
-      const res = await fetch(url, { headers: PCS_HEADERS });
+      const res = await fetchPcsPage(url);
       if (!res.ok) continue;
       const html = await res.text();
       // Zoek rider foto: <img> in .riderProfileHeader of met rider naam in src
@@ -401,7 +402,7 @@ Deno.serve(async (req) => {
       // 1. Race-info ophalen
       log.push(`📅 Race-info ophalen voor ${stage.name}...`);
       try {
-        const pcsRes = await fetch(stageBaseUrl, { headers: PCS_HEADERS });
+        const pcsRes = await fetchPcsPage(stageBaseUrl);
         if (!pcsRes.ok) throw new Error(`PCS gaf status ${pcsRes.status}`);
         const rawHtml = await pcsRes.text();
         const overviewDoc = new DOMParser().parseFromString(rawHtml, "text/html");
@@ -410,7 +411,7 @@ Deno.serve(async (req) => {
         // Probeer /result pagina voor extra info
         if (!info.startTime && !info.departure) {
           try {
-            const resultRes = await fetch(stageBaseUrl + "/result", { headers: PCS_HEADERS });
+            const resultRes = await fetchPcsPage(stageBaseUrl + "/result");
             if (resultRes.ok) {
               const resultInfo = parseSingleRaceInfo(await resultRes.text());
               for (const key of Object.keys(resultInfo) as (keyof typeof resultInfo)[]) {
@@ -606,7 +607,7 @@ Deno.serve(async (req) => {
     if (comp?.is_one_day) {
       // Eendagskoers: haal alle info van de race-overzichtspagina
       try {
-        const pcsRes = await fetch(baseUrl, { headers: PCS_HEADERS });
+        const pcsRes = await fetchPcsPage(baseUrl);
         if (!pcsRes.ok) throw new Error(`PCS gaf status ${pcsRes.status}`);
         const rawHtml = await pcsRes.text();
         const overviewDoc = new DOMParser().parseFromString(rawHtml, "text/html");
@@ -616,7 +617,7 @@ Deno.serve(async (req) => {
         // Als de overzichtspagina weinig info heeft, probeer de /result pagina
         if (!info.startTime && !info.departure) {
           try {
-            const resultRes = await fetch(baseUrl + "/result", { headers: PCS_HEADERS });
+            const resultRes = await fetchPcsPage(baseUrl + "/result");
             if (resultRes.ok) {
               const resultHtml = await resultRes.text();
               const resultInfo = parseRaceInfo(resultHtml);
@@ -800,7 +801,20 @@ Deno.serve(async (req) => {
     log.push(`📅 Etappes: ${stagesSaved} nieuw, ${stagesUpdated} bijgewerkt`);
 
     // 5. Save riders (match op pcs_slug of bib_number, update bestaande)
+    // Bib-regel (zie CLAUDE.md): vóór de koers verzint de parser bibs uit
+    // DOM-volgorde — nooit uit de parse overnemen bij update, nieuwe renners
+    // krijgen max+1. Zonder dit botsen re-syncs op UNIQUE(competition_id,
+    // bib_number) en sneuvelen inserts stil (Tour: 180 opgehaald, 136 in DB).
     let ridersSaved = 0, ridersUpdated = 0;
+    let maxBib = 0;
+    {
+      const { data: bibRow } = await adminClient
+        .from("riders").select("bib_number")
+        .eq("competition_id", competition_id)
+        .order("bib_number", { ascending: false })
+        .limit(1).maybeSingle();
+      maxBib = bibRow?.bib_number || 0;
+    }
     for (const r of riders) {
       try {
         // Zoek eerst op pcs_slug (stabiel), dan op bib_number als fallback
@@ -829,8 +843,9 @@ Deno.serve(async (req) => {
           }
         }
         if (existing) {
-          // Update bestaande renner (bibnummer kan veranderd zijn)
+          // Update bestaande renner — bib NOOIT uit de parse overnemen
           const updateData: any = { ...r };
+          delete updateData.bib_number;
           if (foundByBib && r.pcs_slug) {
             // Bij bib-fallback: herstel global_rider_id en foto voor de correcte renner
             const enriched = await enrichFromExisting(adminClient, r.pcs_slug);
@@ -844,7 +859,7 @@ Deno.serve(async (req) => {
           // Zorg dat global_riders record bestaat zodat global_rider_id altijd gezet is
           if (r.pcs_slug) await upsertGlobalRider(adminClient, r);
           const enriched = await enrichFromExisting(adminClient, r.pcs_slug);
-          await adminClient.from("riders").insert({ ...enriched, ...r, competition_id });
+          await adminClient.from("riders").insert({ ...enriched, ...r, competition_id, bib_number: ++maxBib });
           ridersSaved++;
         }
       } catch (e) {

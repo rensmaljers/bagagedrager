@@ -55,6 +55,9 @@
       stageGroups = [];
       return;
     }
+    // Comp-guard: bij ronde-wissel tijdens de fetch mag een oudere run de
+    // nieuwe ronde niet overschrijven (zelfde patroon als Dashboard)
+    const loadCompId = appState.activeCompId;
 
     // Fetch public picks (view only shows locked/past-deadline stages) — cached
     let allPicks: any[];
@@ -110,6 +113,8 @@
     const stageNums = Object.keys(byStage).map(Number).sort((a, b) => b - a);
 
     const classic = activeScoringMode() === 'classic';
+
+    if (appState.activeCompId !== loadCompId) return; // ronde gewisseld — nieuwere load rendert
 
     stageGroups = stageNums.map(num => {
       const { picks } = byStage[num];

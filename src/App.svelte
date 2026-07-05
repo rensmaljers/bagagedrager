@@ -174,6 +174,7 @@
   function setupRealtime() {
     // Verwijder eventuele bestaande channel (bij re-login)
     if (appState._realtimeChannel) { supabase.removeChannel(appState._realtimeChannel); }
+    let myPicksDebounce: any = null;
 
     appState._realtimeChannel = supabase
       .channel('game-updates')
@@ -186,11 +187,19 @@
         await loadDnfRiderIds();
         if (ui.activeTab === 'dashboard') toast('Resultaten bijgewerkt', 'info', 2500);
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'picks' }, async () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'picks' }, (payload: any) => {
         appState._cache.participants = null;
         appState._cache.standings = null;
-        // Herlaad eigen picks zodat "al gebruikt" direct klopt (reactief in Pick)
-        appState.myPicks = await supaRest('picks', { filters: `user_id=eq.${appState.session.user.id}&order=stage_id` });
+        // Eigen picks alleen herladen als het event over onszelf gaat — anders
+        // veroorzaakt de deadline-piek (27 spelers kiezen tegelijk) per client
+        // een fetch-golf. RLS verbergt andermans picks vóór de deadline, dus
+        // events zonder new-row zijn per definitie van onszelf niet.
+        const rowUserId = payload?.new?.user_id || payload?.old?.user_id;
+        if (rowUserId && rowUserId !== appState.session?.user?.id) return;
+        clearTimeout(myPicksDebounce);
+        myPicksDebounce = setTimeout(async () => {
+          appState.myPicks = await supaRest('picks', { filters: `user_id=eq.${appState.session.user.id}&order=stage_id` });
+        }, 800);
       })
       .subscribe();
   }

@@ -145,5 +145,9 @@ export async function sendPush(
       "TTL": "3600",
     },
     body,
+    // Eén hangend push-endpoint mag de sequentiële verzendloop (auto-notify/
+    // auto-remind) niet blokkeren tot de functie-timeout — dat veroorzaakte
+    // het risico op dubbele meldingen bij een halve run.
+    signal: AbortSignal.timeout(5000),
   });
 }

@@ -103,20 +103,28 @@ Deno.serve(async (req: Request) => {
               hour: "2-digit", minute: "2-digit", timeZone: "Europe/Amsterdam",
             });
 
+            // Subscriptions in één query (geen N+1 bij massale uitval)
+            const { data: allSubs } = await supabase
+              .from("push_subscriptions")
+              .select("endpoint, p256dh, auth_key, user_id")
+              .in("user_id", picks.map((p: any) => p.user_id));
+            const subsByUser = new Map<string, any[]>();
+            for (const s of allSubs || []) {
+              const list = subsByUser.get(s.user_id) || [];
+              list.push(s);
+              subsByUser.set(s.user_id, list);
+            }
+
             for (const pick of picks) {
               const rider = riderById.get(pick.rider_id);
               if (!rider) continue;
               const type = typeBySlug.get(rider.pcs_slug) || "DNS";
-              const { data: subs } = await supabase
-                .from("push_subscriptions")
-                .select("endpoint, p256dh, auth_key")
-                .eq("user_id", pick.user_id);
               const payload = {
                 title: `⚠️ ${rider.name} stapt niet op`,
                 body: `Je keuze voor deze etappe staat als ${type} bij PCS. Kies vóór ${deadlineStr} een andere renner!`,
                 url: "/#pick",
               };
-              for (const sub of subs || []) {
+              for (const sub of subsByUser.get(pick.user_id) || []) {
                 try {
                   const res = await sendPush(sub.endpoint, sub, payload, privateKey, VAPID_PUBLIC_KEY, VAPID_SUBJECT);
                   if (res.ok || res.status === 201) notified++;

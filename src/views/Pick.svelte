@@ -52,7 +52,11 @@
   const compStages = $derived(activeStages());
   const stage = $derived(appState.stages.find((s: any) => s.id === selectedStageId));
   const stageIdx = $derived(compStages.findIndex((s: any) => s.id === selectedStageId));
-  const isLocked = $derived(!!stage && (stage.locked || new Date() > new Date(stage.deadline)));
+  // deadlinePassed is reactieve klok-state (gezet door de countdown-$effect):
+  // zonder die tik zou isLocked pas bij een re-render omklappen en kon een
+  // last-second-kiezer nog "op tijd" submitten en tóch de te-laat-straf krijgen
+  let deadlinePassed = $state(false);
+  const isLocked = $derived(!!stage && (stage.locked || deadlinePassed || new Date() > new Date(stage.deadline)));
   const comp = $derived(stage ? appState.competitions.find((c: any) => c.id === stage.competition_id) : null);
   const pcsStageUrl = $derived(stage ? buildPcsStageUrl(comp, stage.stage_number, stage) : null);
   const newsUrl = $derived(stage ? buildStageNewsUrl(comp, stage.stage_number, stage) : null);
@@ -217,7 +221,8 @@
   const pickBarUnconfirmed = $derived((!!selectedRider && !currentPick) || isChangedPick);
   const pickBarStatus = $derived(currentPick && selectedRider && selectedRider.id === currentPick.rider_id ? '✓ Bevestigd' : '⚠ Nog niet bevestigd');
   const replacesRider = $derived(isChangedPick ? appState._riderMap[currentPick.rider_id] : null);
-  const submitDisabled = $derived(!appState.selectedRiderId || isLocked);
+  let submitting = $state(false); // dubbelklik-guard: één submit_pick tegelijk
+  const submitDisabled = $derived(!appState.selectedRiderId || isLocked || submitting);
 
   // Bevestigde keuze blijft zichtbaar in de grid, ook als een andere renner geselecteerd is
   const currentPickRiderId = $derived(currentPick?.rider_id ?? null);
@@ -225,6 +230,7 @@
   // --- Acties ---
   function selectStage(id: number | null) {
     selectedStageId = id;
+    deadlinePassed = false; // klok-vergrendeling geldt per etappe
     const cp = id != null ? appState.myPicks.find((p: any) => p.stage_id === id) : null;
     appState.selectedRiderId = cp?.rider_id || null;
     // Dropdowns herladen bij etappewissel (klassiekers hebben andere renners per etappe)
@@ -276,7 +282,8 @@
 
   // Submit pick via Postgres RPC
   async function submitPick() {
-    if (!appState.selectedRiderId || selectedStageId == null) return;
+    if (!appState.selectedRiderId || selectedStageId == null || submitting) return;
+    submitting = true;
     const stageId = selectedStageId;
     try {
       pickStatus = { text: 'Bezig...', cls: 'ms-3 text-muted' };
@@ -291,6 +298,8 @@
       othersRefresh++;
     } catch (e: any) {
       pickStatus = { text: e.message, cls: 'ms-3 text-danger' };
+    } finally {
+      submitting = false;
     }
   }
 
@@ -397,6 +406,8 @@
     const updateCountdown = () => {
       const deadline = new Date(st.start_time || st.deadline).getTime();
       const diff = deadline - Date.now();
+      // Echte deadline (kan vóór start_time liggen) — vergrendel de UI live
+      if (Date.now() > new Date(st.deadline).getTime()) deadlinePassed = true;
       if (diff <= 0) {
         countdownText = '🔒 Etappe gestart';
         countdownClass = 'pick-bar-countdown urgent';

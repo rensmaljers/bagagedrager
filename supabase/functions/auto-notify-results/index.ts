@@ -98,6 +98,11 @@ Deno.serve(async (req: Request) => {
     const gcPos = new Map(gcSorted.map((r: any, i: number) => [r.user_id, i + 1]));
     const klassementNaam = isClassic ? "het spelklassement" : "het AK";
 
+    // Vlag VÓÓR de verzendloop: crasht/time-out de functie halverwege, dan is
+    // een zeldzame gemiste melding beter dan dat de volgende run (10 min later)
+    // álle deelnemers een dubbele push stuurt.
+    await supabase.from("stages").update({ results_notified: true }).eq("id", stage.id);
+
     const genericBody = `${compName ? compName + ": " : ""}de klassementen zijn bijgewerkt. Bekijk de nieuwe stand!`;
     const payloadForUser = (userId: string) => {
       const p: any = pickByUser.get(userId);
@@ -134,7 +139,6 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    await supabase.from("stages").update({ results_notified: true }).eq("id", stage.id);
     results.push({ stage_id: stage.id, stage_number: stage.stage_number, notified: sent, statuses });
   }
 

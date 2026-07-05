@@ -90,6 +90,10 @@ Deno.serve(async (req: Request) => {
       url: "/#pick",
     };
 
+    // Vlag VÓÓR de verzendloop: een crash halverwege mag bij de volgende run
+    // geen dubbele herinnering aan de hele groep sturen.
+    await supabase.from("stages").update({ reminder_sent: true }).eq("id", stage.id);
+
     let sent = 0;
     const statuses: (number | string)[] = [];
     for (const sub of subscriptions) {
@@ -107,7 +111,6 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    await supabase.from("stages").update({ reminder_sent: true }).eq("id", stage.id);
     results.push({ stage_id: stage.id, stage_number: stage.stage_number, reminded: sent, statuses });
   }
 
