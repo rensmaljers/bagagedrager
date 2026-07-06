@@ -166,11 +166,15 @@
     radTheater = null;
   }
 
-  const POT_BANNER_KEY = 'bagagedrager_pot_tdf2026_dismissed';
-  const POT_BETAALLINK = 'https://betaalverzoek.rabobank.nl/betaalverzoek/?id=aS3cgsxLTTGy-w-qM-B95A';
+  // Sleutel + link zijn per-competitie (comp.id), niet meer aan een naam of jaar
+  // gekoppeld — anders blijft de banner voor altijd verborgen na de volgende ronde
+  // voor iedereen die 'm bij de vorige ronde al wegklikte.
   let potBanner = $state(false);
+  let potDismissKey = $state('');
+  let potPaymentUrl: string | null = $state(null);
+  let potEntryFeeDisplay = $state(0);
   function dismissPotBanner() {
-    localStorage.setItem(POT_BANNER_KEY, '1');
+    if (potDismissKey) localStorage.setItem(potDismissKey, '1');
     potBanner = false;
   }
   let potVM: any = $state(null);
@@ -472,11 +476,16 @@
 
     // Inleg-banner: betaalverzoek voor de prijzenpot, vanaf de startdag van
     // etappe 1 tot de speler hem wegklikt (localStorage) of betaald heeft
-    // (competition_participants.has_paid, admin vinkt af) — port van main
+    // (competition_participants.has_paid, admin vinkt af) — port van main.
+    // Werkt voor elke ronde met entry_fee + payment_url ingevuld (admin, tab Rondes),
+    // niet meer hardcoded op één specifieke ronde.
     const stage1 = activeStages().find(s => s.stage_number === 1);
+    potDismissKey = comp ? `bagagedrager_pot_${comp.id}_dismissed` : '';
+    potPaymentUrl = comp?.payment_url || null;
+    potEntryFeeDisplay = comp?.entry_fee || 0;
     const potKandidaat = !!(
-      comp?.name?.includes('Tour de France 2026') &&
-      localStorage.getItem(POT_BANNER_KEY) !== '1' &&
+      comp?.entry_fee && comp?.payment_url &&
+      potDismissKey && localStorage.getItem(potDismissKey) !== '1' &&
       stage1 && new Date() >= new Date(new Date(stage1.start_time).toDateString())
     );
     if (potKandidaat) {
@@ -869,11 +878,11 @@
         <div class="card-body">
           <div class="welcome-card-inner">
             <div>
-              <div class="welcome-card-title">De Tour is begonnen — doe je inleg in de pot</div>
-              <div class="welcome-card-sub">Inleg voor het Bagagedragerspel TdF is €10,00. Betaal via het Rabobank-betaalverzoek — dat werkt met elke Nederlandse bank. Dank je wel!</div>
+              <div class="welcome-card-title">De ronde is begonnen — doe je inleg in de pot</div>
+              <div class="welcome-card-sub">Inleg is €{potEntryFeeDisplay},00. Betaal via het betaalverzoek — dat werkt met elke Nederlandse bank. Dank je wel!</div>
             </div>
             <div class="d-flex align-items-center gap-2 welcome-card-cta">
-              <a class="btn btn-accent btn-skew" href={POT_BETAALLINK} target="_blank" rel="noopener"><span>Betaal €10 inleg ↗</span></a>
+              <a class="btn btn-accent btn-skew" href={potPaymentUrl} target="_blank" rel="noopener"><span>Betaal €{potEntryFeeDisplay} inleg ↗</span></a>
               <button class="btn btn-ghost" title="Melding verbergen" onclick={dismissPotBanner}>Later</button>
             </div>
           </div>

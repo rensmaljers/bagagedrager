@@ -103,6 +103,7 @@ export type Database = {
           last_synced_at: string | null
           logo_url: string | null
           name: string
+          payment_url: string | null
           pcs_url: string | null
           scoring_mode: string
           slug: string
@@ -120,6 +121,7 @@ export type Database = {
           last_synced_at?: string | null
           logo_url?: string | null
           name: string
+          payment_url?: string | null
           pcs_url?: string | null
           scoring_mode?: string
           slug: string
@@ -137,6 +139,7 @@ export type Database = {
           last_synced_at?: string | null
           logo_url?: string | null
           name?: string
+          payment_url?: string | null
           pcs_url?: string | null
           scoring_mode?: string
           slug?: string

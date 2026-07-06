@@ -1706,7 +1706,7 @@
     <div class="card">
       <div class="card-body p-0">
         <table class="table table-sm table-striped mb-0">
-          <thead><tr><th>Naam</th><th>Jaar</th><th>Modus</th><th>Kleur</th><th>Vlag</th><th>Logo</th><th>PCS URL</th><th>Inleg</th><th>Sync</th><th>Actief</th><th>Acties</th></tr></thead>
+          <thead><tr><th>Naam</th><th>Jaar</th><th>Modus</th><th>Kleur</th><th>Vlag</th><th>Logo</th><th>PCS URL</th><th>Inleg</th><th>Betaallink</th><th>Sync</th><th>Actief</th><th>Acties</th></tr></thead>
           <tbody id="admin-comp-table">
             {#each appState.competitions as c (c.id)}
               <tr>
@@ -1751,6 +1751,11 @@
                     <input type="number" class="form-control form-control-sm" value={c.entry_fee ?? ''} min="1" max="999" placeholder="—"
                            style="width:55px;" onchange={(e) => updateCompField(c.id, 'entry_fee', e.currentTarget.value ? parseInt(e.currentTarget.value) : null)}>
                   </div>
+                </td>
+                <td>
+                  <input type="url" class="form-control form-control-sm" value={c.payment_url || ''}
+                         placeholder="Betaalverzoek-URL" style="min-width:140px; font-size:0.75rem;"
+                         onchange={(e) => updateCompField(c.id, 'payment_url', e.currentTarget.value || null)}>
                 </td>
                 <td style="font-size:0.7rem;color:var(--text-muted);white-space:nowrap;">
                   {c.last_synced_at ? new Date(c.last_synced_at).toLocaleString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—'}
