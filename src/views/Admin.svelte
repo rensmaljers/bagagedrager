@@ -103,6 +103,24 @@
   let newUserPassword = $state('');
   let createUserStatus = $state({ text: '', cls: 'mt-1 d-block' });
 
+  // Uitnodigingslinks
+  let inviteCompId = $state<number | null>(null);
+  let inviteUrl = $state('');
+  let inviteStatus = $state('');
+  async function generateInvite() {
+    const compId = inviteCompId ?? appState.activeCompId;
+    try {
+      inviteStatus = 'Bezig…';
+      const code = await supaRpc('create_invite', { p_competition_id: compId, p_label: null });
+      inviteUrl = `${location.origin}/?invite=${code}`;
+      inviteStatus = '';
+    } catch (e: any) { inviteStatus = e.message; }
+  }
+  async function copyInvite() {
+    try { await navigator.clipboard.writeText(inviteUrl); inviteStatus = 'Gekopieerd!'; setTimeout(() => inviteStatus = '', 2000); }
+    catch { inviteStatus = 'Kopiëren mislukt — selecteer handmatig'; }
+  }
+
   async function loadAdminUsers() {
     adminUsers = await supaRpc('admin_users_with_status');
   }
@@ -1519,6 +1537,30 @@
           </div>
         </div>
         <span id="admin-create-user-status" class={createUserStatus.cls} style="font-size:0.8rem;">{createUserStatus.text}</span>
+      </div>
+    </div>
+    <div class="card mb-3">
+      <div class="card-header"><h5 class="mb-0">Uitnodigingslink</h5></div>
+      <div class="card-body">
+        <p class="text-muted" style="font-size:0.8rem; margin-bottom:0.6rem;">Genereer een deelbare link. Wie hem opent ziet een welkom voor de ronde en maakt direct een account aan.</p>
+        <div class="row g-2 align-items-center">
+          <div class="col-md-5">
+            <select class="form-select form-select-sm" bind:value={inviteCompId}>
+              <option value={null}>Actieve ronde</option>
+              {#each appState.competitions as c}<option value={c.id}>{c.name}</option>{/each}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <button class="btn btn-primary btn-sm w-100" onclick={generateInvite}>Genereer link</button>
+          </div>
+        </div>
+        {#if inviteUrl}
+          <div class="d-flex gap-2 align-items-center mt-2">
+            <input class="form-control form-control-sm" readonly value={inviteUrl} onclick={(e) => (e.currentTarget as HTMLInputElement).select()} />
+            <button class="btn btn-ghost btn-sm" style="white-space:nowrap;" onclick={copyInvite}>Kopieer</button>
+          </div>
+        {/if}
+        {#if inviteStatus}<span class="text-muted" style="font-size:0.8rem;">{inviteStatus}</span>{/if}
       </div>
     </div>
     <div class="card">

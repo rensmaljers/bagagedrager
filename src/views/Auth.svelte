@@ -9,6 +9,7 @@
   import { state as appState } from '../lib/state.svelte';
   import { login, signup } from '../lib/auth';
   import { supabase } from '../lib/supabase-client';
+  import { supaRpc } from '../lib/api';
 
   let email = $state('');
   let password = $state('');
@@ -21,6 +22,15 @@
   }
 
   let busy = $state(false);
+
+  // Uitnodigingslink: ?invite=<code> in de URL → gebrande welkom + signup-default
+  const inviteCode = new URLSearchParams(location.search).get('invite');
+  let invite: { competition_name: string | null; inviter_name: string | null } | null = $state(null);
+  if (inviteCode) {
+    supaRpc('resolve_invite', { p_code: inviteCode }).then((data: any) => {
+      if (data && data[0]) invite = data[0];
+    }, () => {});
+  }
 
   async function handleLogin() {
     const em = email.trim();
@@ -40,6 +50,8 @@
     busy = true;
     try {
       const data = await signup(em, password, em.split('@')[0]);
+      // Best-effort attributie van de uitnodiging (blokkeert de signup niet)
+      if (inviteCode) supaRpc('redeem_invite', { p_code: inviteCode }).then(() => {}, () => {});
       if (data.session) appState.session = data.session;
       else showError('Check je email om je account te bevestigen');
     } catch (e: any) { showError(e.message); }
@@ -91,7 +103,14 @@
           <circle cx="32" cy="32" r="4" fill="currentColor"/>
         </svg>
         <h1 class="mb-1">Bagagedrager</h1>
-        <p class="text-muted auth-subtitle mb-4">Kies je renner, verdien de trui.<br>Het wielerspel voor echte ploegleiders.</p>
+        {#if invite}
+          <div class="invite-welcome">
+            <div class="invite-welcome-title">Je bent uitgenodigd{invite.inviter_name ? ` door ${invite.inviter_name}` : ''}!</div>
+            <div class="invite-welcome-sub">Maak een account en doe mee{invite.competition_name ? ` met ${invite.competition_name}` : ''}. Kies je eerste renner en je zit in de koers.</div>
+          </div>
+        {:else}
+          <p class="text-muted auth-subtitle mb-4">Kies je renner, verdien de trui.<br>Het wielerspel voor echte ploegleiders.</p>
+        {/if}
         <!-- form + submit: Enter in een veld logt ook in, en de browser/wachtwoordmanager herkent het als loginformulier -->
         <form id="auth-form" onsubmit={(e) => { e.preventDefault(); handleLogin(); }}>
           <div class="mb-3">
@@ -100,8 +119,14 @@
           <div class="mb-3">
             <input type="password" id="auth-password" class="form-control" placeholder="Wachtwoord" autocomplete="current-password" bind:value={password} />
           </div>
-          <button id="btn-login" type="submit" class="btn btn-accent btn-skew w-100 mb-2" disabled={busy}><span>{busy ? 'Bezig…' : 'Inloggen'}</span></button>
-          <button id="btn-signup" type="button" class="btn btn-ghost w-100 mb-2" onclick={handleSignup} disabled={busy}>Aanmelden</button>
+          {#if invite}
+            <!-- Uitgenodigd: aanmelden is de hoofdactie -->
+            <button id="btn-signup" type="button" class="btn btn-accent btn-skew w-100 mb-2" onclick={handleSignup} disabled={busy}><span>{busy ? 'Bezig…' : 'Account aanmaken'}</span></button>
+            <button id="btn-login" type="submit" class="btn btn-ghost w-100 mb-2" disabled={busy}>Ik heb al een account</button>
+          {:else}
+            <button id="btn-login" type="submit" class="btn btn-accent btn-skew w-100 mb-2" disabled={busy}><span>{busy ? 'Bezig…' : 'Inloggen'}</span></button>
+            <button id="btn-signup" type="button" class="btn btn-ghost w-100 mb-2" onclick={handleSignup} disabled={busy}>Aanmelden</button>
+          {/if}
           <a href="#wachtwoord-vergeten" id="btn-forgot-password" style="font-size:0.8rem; color:var(--text-muted);" onclick={handleForgotPassword}>Wachtwoord vergeten?</a>
           <div id="auth-error" class="text-danger mt-3" style="font-size:0.85rem;" style:display={errorMsg ? 'block' : 'none'}>{errorMsg}</div>
           <div id="auth-success" class="text-success mt-3" style="font-size:0.85rem;" style:display={successMsg ? 'block' : 'none'}>{successMsg}</div>
