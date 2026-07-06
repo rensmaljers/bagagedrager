@@ -175,6 +175,27 @@
   }
   let potVM: any = $state(null);
 
+  // Beginscherm-tip: pushmeldingen voor renner/uitslag werken op iOS alleen als
+  // geïnstalleerde PWA — niet ronde-specifiek, dus altijd relevant zolang niet standalone.
+  const A2HS_BANNER_KEY = 'bagagedrager_a2hs_dismissed';
+  let a2hsBanner = $state(false);
+  let a2hsPlatform: 'ios' | 'android' | null = $state(null);
+  function dismissA2hsBanner() {
+    localStorage.setItem(A2HS_BANNER_KEY, '1');
+    a2hsBanner = false;
+  }
+  $effect(() => {
+    if (localStorage.getItem(A2HS_BANNER_KEY) === '1') return;
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
+    if (isStandalone) return;
+    const ua = navigator.userAgent;
+    const isIos = /iPad|iPhone|iPod/.test(ua) || (ua.includes('Macintosh') && navigator.maxTouchPoints > 1);
+    const isAndroid = /Android/.test(ua);
+    if (!isIos && !isAndroid) return;
+    a2hsPlatform = isIos ? 'ios' : 'android';
+    a2hsBanner = true;
+  });
+
   // --- H2H overlay state (reactief i.p.v. window.openH2H) ---
   let h2hOpen = $state(false);
   let h2hHtml = $state('');
@@ -818,6 +839,28 @@
 
 <!-- Dashboard -->
 <div class="tab-section active" id="section-dashboard">
+  <!-- Beginscherm-tip: zichtbaar tot weggeklikt, op elk toestel dat niet als PWA draait -->
+  {#if a2hsBanner}
+    <div id="a2hs-banner-wrap" class="mb-4">
+      <div class="card welcome-card">
+        <div class="card-body">
+          <div class="welcome-card-inner">
+            <div>
+              <div class="welcome-card-title">Zet Bagagedrager op je beginscherm</div>
+              <div class="welcome-card-sub">
+                {#if a2hsPlatform === 'ios'}
+                  Meldingen over jouw renner en etappe-uitslagen werken op iPhone/iPad alleen als de app op je beginscherm staat. Tik op het deelicoon <span aria-hidden="true">⎋</span> in Safari en kies <strong>Zet op beginscherm</strong>.
+                {:else}
+                  Voor pushmeldingen over jouw renner en etappe-uitslagen: tik op het browsermenu (⋮) en kies <strong>App installeren</strong> of <strong>Toevoegen aan startscherm</strong>.
+                {/if}
+              </div>
+            </div>
+            <button class="btn btn-ghost welcome-card-cta" onclick={dismissA2hsBanner}>Snap ik</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  {/if}
   <!-- Welkom-hero: zichtbaar zolang je nog geen pick hebt in de actieve ronde -->
   <!-- Inleg-betaalverzoek: zichtbaar tijdens de Tour tot weggeklikt -->
   {#if potBanner}
