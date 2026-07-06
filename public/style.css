@@ -565,6 +565,9 @@ code, pre { color: var(--text); }
   min-width: 160px;
   padding-right: 2.5rem;
   font-size: 0.82rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .comp-selector select:focus {
   border-color: var(--accent);
@@ -2382,6 +2385,13 @@ tbody:not(.expanded) .standings-extra { display: none; }
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+
+  /* Comp-select: min-width 160px past niet naast logo+count+sync-info op smalle schermen */
+  .comp-selector select#comp-select {
+    min-width: 0;
+    max-width: 150px;
+  }
+  .comp-sync-info { display: none; }
 
   /* Hoofdtabs: alleen iconen, volle breedte */
   #main-tabs {
