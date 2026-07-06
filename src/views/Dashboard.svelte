@@ -98,8 +98,8 @@
   const RAD_KEY = (stageId: number) => `bagagedrager_rad_gezien_${stageId}`;
   const MAX_SPINS = 6; // meer dan dit wordt saai — de rest staat in de eindlijst niet
   let radTheater: {
-    names: string[];
-    spins: { playerName: string; riderName: string; isMe: boolean; targetIndex: number }[];
+    pool: string[];
+    spins: { playerName: string; riderName: string; isMe: boolean }[];
     stageLabel: string;
     stageId: number | null;
   } | null = $state(null);
@@ -149,18 +149,13 @@
       stageLabel = recent.stage_number === 0 ? 'de proloog' : `etappe ${recent.stage_number}`;
     }
 
-    // 8 segmenten: alle doel-renners + vulling met willekeurige anderen, geschud
-    const spinVictims = victims.slice(0, MAX_SPINS);
-    const targetNames = [...new Set(spinVictims.map((v) => v.riderName))];
-    const vulling = riders
-      .map((r: any) => r.name)
-      .filter((n: string) => !targetNames.includes(n))
-      .sort(() => Math.random() - 0.5)
-      .slice(0, Math.max(0, 8 - targetNames.length));
-    const names = [...targetNames, ...vulling].sort(() => Math.random() - 0.5);
+    // Brede namen-pool: het rad laat tijdens het draaien tientallen renners
+    // langsflitsen (slot-machine-gevoel) zodat het "hele peloton" lijkt mee te
+    // draaien. De toegewezen renner staat vast bij de landing (theater, geen logica).
+    const pool = riders.map((r: any) => r.name).sort(() => Math.random() - 0.5).slice(0, 60);
     radTheater = {
-      names,
-      spins: spinVictims.map((v) => ({ ...v, targetIndex: names.indexOf(v.riderName) })),
+      pool,
+      spins: victims.slice(0, MAX_SPINS).map((v) => ({ ...v })),
       stageLabel,
       stageId,
     };
@@ -999,7 +994,7 @@
 <!-- Rad van Fortuin-theater -->
 {#if radTheater}
   <RadTheater
-    names={radTheater.names}
+    pool={radTheater.pool}
     spins={radTheater.spins}
     stageLabel={radTheater.stageLabel}
     onDismiss={dismissRadTheater}
