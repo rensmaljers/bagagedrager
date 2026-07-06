@@ -794,10 +794,10 @@
     const pcsWinnerTime = results[0]?.time_seconds || 0;
     const top10PCS = results.slice(0, 10);
     return `<strong>${header}</strong><br>` + top10PCS.map((r: any, i: number) => {
-      const rider = appState.riders.find((rd: any) =>
-        (r.pcs_slug && rd.pcs_slug === r.pcs_slug) ||
-        (r.bib_number && rd.bib_number === r.bib_number)
-      );
+      // pcs_slug altijd eerst over álle kandidaten checken, bib_number pas als fallback —
+      // anders wint een toevallige bib-coincidentie (PCS-bib vs ons eigen sequentiële bib) van de juiste slug-match.
+      const rider = (r.pcs_slug && appState.riders.find((rd: any) => rd.pcs_slug === r.pcs_slug))
+        || (r.bib_number && appState.riders.find((rd: any) => rd.bib_number === r.bib_number));
       const timeDisplay = i === 0 ? formatTime(r.time_seconds) : formatGap(r.time_seconds - pcsWinnerTime);
       const matchMark = rider ? '' : ' ⚠️ niet in startlijst';
       return `${i + 1}. ${rider?.name || r.pcs_slug || '?'} — ${timeDisplay}${r.dnf ? ' (DNF)' : ''}${matchMark}`;
