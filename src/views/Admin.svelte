@@ -28,6 +28,7 @@
     { id: 'admin-results', label: 'Resultaten' },
     { id: 'admin-import', label: 'Import' },
     { id: 'admin-pot', label: 'Pot' },
+    { id: 'admin-audit', label: 'Audit-log' },
   ];
   let adminSub = $state('admin-users');
 
@@ -416,6 +417,48 @@
         loadAdminPot();
       }
     } catch (e: any) { toast(e.message, 'error'); }
+  }
+
+  // =====================
+  // ADMIN: AUDIT-LOG (wie wijzigde welke pick, wanneer, via welke route)
+  // =====================
+  let auditRows = $state<any[]>([]);
+  let auditLoaded = $state(false);
+  let auditProfileMap = $state<Record<string, string>>({});
+  let auditStageMap = $state<Record<number, string>>({});
+  let auditRiderMap = $state<Record<number, string>>({});
+
+  const auditActionLabels: Record<string, string> = { insert: 'nieuw', update: 'gewijzigd', delete: 'verwijderd' };
+
+  async function loadAdminAudit() {
+    const rows = await supaRest('pick_audit_log', { filters: 'order=changed_at.desc&limit=200' });
+    auditRows = rows || [];
+
+    const userIds = new Set<string>();
+    const stageIds = new Set<number>();
+    const riderIds = new Set<number>();
+    auditRows.forEach((r: any) => {
+      userIds.add(r.user_id);
+      if (r.changed_by) userIds.add(r.changed_by);
+      stageIds.add(r.stage_id);
+      if (r.rider_id) riderIds.add(r.rider_id);
+      if (r.old_rider_id) riderIds.add(r.old_rider_id);
+    });
+
+    const [profiles, stages, riders] = await Promise.all([
+      userIds.size ? supaRest('profiles', { select: 'id,display_name,email', filters: `id=in.(${[...userIds].join(',')})` }) : [],
+      stageIds.size ? supaRest('stages', { select: 'id,stage_number,name', filters: `id=in.(${[...stageIds].join(',')})` }) : [],
+      riderIds.size ? supaRest('riders', { select: 'id,name', filters: `id=in.(${[...riderIds].join(',')})` }) : [],
+    ]);
+
+    auditProfileMap = {};
+    (profiles || []).forEach((p: any) => { auditProfileMap[p.id] = p.display_name || p.email || p.id; });
+    auditStageMap = {};
+    (stages || []).forEach((s: any) => { auditStageMap[s.id] = s.name ? `E${s.stage_number} — ${s.name}` : `E${s.stage_number}`; });
+    auditRiderMap = {};
+    (riders || []).forEach((r: any) => { auditRiderMap[r.id] = r.name; });
+
+    auditLoaded = true;
   }
 
   // =====================
@@ -1500,6 +1543,7 @@
     initDefaultCompSelects();
     loadAdminResults();
     loadAdminPot();
+    loadAdminAudit();
   }
 
   onMount(() => {
@@ -2124,6 +2168,61 @@
             </table>
           {/if}
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin: audit-log picks -->
+  <div class="admin-sub" class:active={adminSub === 'admin-audit'} id="admin-audit">
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">🕵️ Audit-log picks</h5>
+        <button class="btn btn-sm btn-outline-secondary" onclick={() => loadAdminAudit()}>↻ Vernieuwen</button>
+      </div>
+      <div class="card-body">
+        <p class="text-muted" style="font-size:0.8rem;">Laatste 200 wijzigingen op picks — insert/update/delete, met bron (welke actie het deed) en wie de wijziging deed.</p>
+        {#if !auditLoaded}
+          <p class="text-muted">Laden…</p>
+        {:else if auditRows.length === 0}
+          <p class="text-muted">Nog geen wijzigingen gelogd.</p>
+        {:else}
+          <div class="table-responsive-wrapper">
+            <table class="table table-sm table-striped mb-0">
+              <thead>
+                <tr><th>Tijd</th><th>Speler</th><th>Actie</th><th>Bron</th><th>Etappe</th><th>Renner</th><th>Door</th></tr>
+              </thead>
+              <tbody>
+                {#each auditRows as row (row.id)}
+                  <tr>
+                    <td style="white-space:nowrap;">{new Date(row.changed_at).toLocaleString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' })}</td>
+                    <td>{auditProfileMap[row.user_id] || row.user_id}</td>
+                    <td>
+                      <span class="badge" class:bg-success={row.action === 'insert'} class:bg-warning={row.action === 'update'} class:bg-danger={row.action === 'delete'}>
+                        {auditActionLabels[row.action] || row.action}
+                      </span>
+                    </td>
+                    <td><code style="font-size:0.75rem;">{row.source}</code></td>
+                    <td>{auditStageMap[row.stage_id] || row.stage_id}</td>
+                    <td>
+                      {#if row.action === 'update' && row.old_rider_id && row.old_rider_id !== row.rider_id}
+                        <span class="text-muted">{auditRiderMap[row.old_rider_id] || row.old_rider_id}</span> → {auditRiderMap[row.rider_id] || row.rider_id}
+                      {:else}
+                        {auditRiderMap[row.rider_id] || row.rider_id || '—'}
+                      {/if}
+                    </td>
+                    <td>
+                      {#if row.changed_by && row.changed_by !== row.user_id}
+                        <span class="badge bg-info text-dark">admin: {auditProfileMap[row.changed_by] || row.changed_by}</span>
+                      {:else if !row.changed_by}
+                        <span class="text-muted" style="font-size:0.75rem;">systeem</span>
+                      {/if}
+                    </td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+        {/if}
       </div>
     </div>
   </div>
