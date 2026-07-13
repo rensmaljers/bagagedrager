@@ -91,6 +91,50 @@ Deno.test("normale etappe: pakt STAGE-tab, niet de GC-tabel", () => {
   assertEquals(third.time_seconds, 3 * 3600 + 43 * 60 + 33 + 19);
 });
 
+// ---- Bergrit met meerdere klimmen (KOM-tab heeft General + Today-split) ----
+// PCS toont op de KOM-tab bij meerdere beklimmingen een cumulatief "General"-klassement
+// (td zonder class) plus een verborgen div.today met per klim een eigen tabelletje
+// (td.pnt). We moeten de Today-tabelletjes sommeren, niet het General-cijfer pakken
+// (regressie: etappe 6 Tour 2026, zie migratie-notitie).
+const MULTI_CLIMB_STAGE = `
+<ul class="restabs">
+  <li><a data-id="1">STAGE</a></li>
+  <li><a data-id="4">KOM</a></li>
+</ul>
+<div class="resTab" data-id="1"><table class="results"><tbody>
+  <tr><td class="bibs">1</td><td>x</td><td><a href="rider/climber-a">Climber A</a></td><td class="time ar"><font>3:43:33</font></td></tr>
+  <tr><td class="bibs">2</td><td>x</td><td><a href="rider/climber-b">Climber B</a></td><td class="time ar">,,</td></tr>
+</tbody></table></div>
+<div class="resTab" data-id="4">
+  <ul class="buttonNav"><li><a class="viewGeneral" href="">General</a></li><li><a class="viewToday" href="">Today</a></li></ul>
+  <table class="results"><tbody>
+    <tr><td class="bibs">1</td><td><a href="rider/climber-a">Climber A</a></td><td>28</td></tr>
+    <tr><td class="bibs">2</td><td><a href="rider/climber-b">Climber B</a></td><td>19</td></tr>
+  </tbody></table>
+  <div class="today hide">
+    <h4>KOM Sprint (1) Col Eerste</h4>
+    <table class="results"><tbody>
+      <tr><td class="bibs">2</td><td><a href="rider/climber-b">Climber B</a></td><td class="pnt">10</td></tr>
+      <tr><td class="bibs">1</td><td><a href="rider/climber-a">Climber A</a></td><td class="pnt">6</td></tr>
+    </tbody></table>
+    <h4>KOM Sprint (HC) Slotklim</h4>
+    <table class="results"><tbody>
+      <tr><td class="bibs">1</td><td><a href="rider/climber-a">Climber A</a></td><td class="pnt">20</td></tr>
+      <tr><td class="bibs">2</td><td><a href="rider/climber-b">Climber B</a></td><td class="pnt">15</td></tr>
+    </tbody></table>
+  </div>
+</div>
+`;
+
+Deno.test("KOM-tab met General+Today-split: sommeert Today-tabelletjes, negeert General-cumulatief", () => {
+  const results = parseStagePage(parseDoc(MULTI_CLIMB_STAGE));
+  const a = results.find(r => r.pcs_slug === "climber-a")!;
+  const b = results.find(r => r.pcs_slug === "climber-b")!;
+  // Today: A scoorde 6+20=26, B scoorde 10+15=25 — niet de General-waarden (28/19)
+  assertEquals(a.mountain_points, 26);
+  assertEquals(b.mountain_points, 25);
+});
+
 // ---- Ploegentijdrit (ul.ttt-results, geen table.results in STAGE-tab) ----
 
 const TTT_STAGE = `

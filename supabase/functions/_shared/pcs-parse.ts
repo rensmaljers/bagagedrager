@@ -206,29 +206,45 @@ export function parseTableResults(table: any): { results: StageResult[]; winnerT
   return { results, winnerTime };
 }
 
-export function extractClassificationPoints(classTable: any, results: StageResult[], field: "points" | "mountain_points") {
-  if (!classTable) return;
-  const classRows = classTable.querySelectorAll("tbody tr");
-  for (const row of classRows) {
-    const cells = row.querySelectorAll("td");
-    let classBib = 0, classPts = 0, classSlug: string | null = null;
-    // Extract pcs_slug from rider link
-    const riderLink = row.querySelector("a[href*='rider/']");
-    if (riderLink) {
-      const href = riderLink.getAttribute("href") || "";
-      classSlug = href.replace(/^.*rider\//, "").trim() || null;
-    }
-    for (const cell of cells) {
-      const cls = cell.className || "";
-      const text = cell.textContent?.trim() || "";
-      if (cls.includes("bibs")) classBib = parseInt(text) || 0;
-      if (cls.includes("pnt") && !cls.includes("uci")) classPts = parseInt(text) || 0;
-    }
-    if ((classBib > 0 || classSlug) && classPts > 0) {
-      const existing = results.find(r =>
-        (classSlug && r.pcs_slug === classSlug) || (classBib > 0 && r.bib_number === classBib)
-      );
-      if (existing) existing[field] = classPts;
+// Op een klassement-tab (POINTS/KOM) toont PCS bij meerdere scorende momenten per
+// etappe (bv. 3+ beklimmingen op een bergrit, of meerdere tussensprints) twee weergaven:
+// - "General": het cumulatieve klassement (rondetotaal t/m deze etappe) — td zonder class
+// - "Today" (div.today, standaard verborgen): per moment een eigen tabelletje met td.pnt,
+//   alleen de punten van déze etappe
+// We willen altijd de punten van déze etappe. Bij één scorend moment ontbreekt de
+// Today-split en is de ene table.results in de tab meteen de juiste (bestaand gedrag).
+// Bij meerdere momenten moet je over de Today-tabelletjes heen sommeren — de General-tabel
+// alleen pakken geeft het seizoenstotaal, niet de etappepunten (zie migratie-notitie).
+export function extractClassificationPoints(classDiv: any, results: StageResult[], field: "points" | "mountain_points") {
+  if (!classDiv) return;
+  const todayDiv = classDiv.querySelector("div.today");
+  const tables = todayDiv ? todayDiv.querySelectorAll("table.results") : classDiv.querySelectorAll("table.results");
+
+  for (const classTable of tables) {
+    const classRows = classTable.querySelectorAll("tbody tr");
+    for (const row of classRows) {
+      const cells = row.querySelectorAll("td");
+      let classBib = 0, classPts = 0, classSlug: string | null = null;
+      // Extract pcs_slug from rider link
+      const riderLink = row.querySelector("a[href*='rider/']");
+      if (riderLink) {
+        const href = riderLink.getAttribute("href") || "";
+        classSlug = href.replace(/^.*rider\//, "").trim() || null;
+      }
+      for (const cell of cells) {
+        const cls = cell.className || "";
+        const text = cell.textContent?.trim() || "";
+        if (cls.includes("bibs")) classBib = parseInt(text) || 0;
+        if (cls.includes("pnt") && !cls.includes("uci")) classPts = parseInt(text) || 0;
+      }
+      if ((classBib > 0 || classSlug) && classPts > 0) {
+        const existing = results.find(r =>
+          (classSlug && r.pcs_slug === classSlug) || (classBib > 0 && r.bib_number === classBib)
+        );
+        // Sommeren, niet overschrijven: bij meerdere Today-tabelletjes (klimmen/sprints)
+        // scoort dezelfde renner meerdere keren in aparte tabellen.
+        if (existing) existing[field] += classPts;
+      }
     }
   }
 }
@@ -291,8 +307,8 @@ export function parseStagePage(doc: any): StageResult[] {
     throw new Error("Geen tijden gevonden — PCS toont waarschijnlijk nog de startlijst. Wacht tot de etappe klaar is en probeer opnieuw.");
   }
 
-  extractClassificationPoints(findTabTable(doc, "POINTS"), results, "points");
-  extractClassificationPoints(findTabTable(doc, "KOM"), results, "mountain_points");
+  extractClassificationPoints(findTabDiv(doc, "POINTS"), results, "points");
+  extractClassificationPoints(findTabDiv(doc, "KOM"), results, "mountain_points");
   extractBonifications(findTabTable(doc, "BONIS") || findTabTable(doc, "BONIFICATION"), results);
 
   return results;
