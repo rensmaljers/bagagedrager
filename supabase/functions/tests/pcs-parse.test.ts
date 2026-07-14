@@ -173,6 +173,33 @@ Deno.test("POINTS-tab: td.pnt niet verward met td.delta_pnt (bonusseconden-kolom
   assertEquals(b.points, 15);
 });
 
+// PCS vult verborgen kolommen (hide_td) in de STAGE-tabel soms met andermans data —
+// renner A kan daar de bib van renner B hebben. Een per-rij slug-OF-bib-match geeft
+// de klassementpunten dan aan de verkeerde renner (etappe 8 Tour 2026: Russo's 22
+// finishpunten gingen naar Kanter omdat Kanter in de STAGE-tabel Russo's bib had).
+const WRONG_HIDDEN_BIB_STAGE = `
+<ul class="restabs">
+  <li><a data-id="1">STAGE</a></li>
+  <li><a data-id="4">POINTS</a></li>
+</ul>
+<div class="resTab" data-id="1"><table class="results"><tbody>
+  <tr><td class="bibs">188</td><td>x</td><td><a href="rider/rider-a">A</a></td><td class="time ar"><font>3:43:33</font></td></tr>
+  <tr><td class="bibs">64</td><td>x</td><td><a href="rider/rider-b">B</a></td><td class="time ar">,,</td></tr>
+</tbody></table></div>
+<div class="resTab" data-id="4"><table class="results"><tbody>
+  <tr><td class="bibs">188</td><td><a href="rider/rider-b">B</a></td><td class="pnt">22</td></tr>
+  <tr><td class="bibs">64</td><td><a href="rider/rider-a">A</a></td><td class="pnt">12</td></tr>
+</tbody></table></div>
+`;
+
+Deno.test("POINTS-tab: slug wint van bib-coincidentie (verborgen kolommen bevatten soms andermans bib)", () => {
+  const results = parseStagePage(parseDoc(WRONG_HIDDEN_BIB_STAGE));
+  const a = results.find(r => r.pcs_slug === "rider-a")!;
+  const b = results.find(r => r.pcs_slug === "rider-b")!;
+  assertEquals(a.points, 12);
+  assertEquals(b.points, 22);
+});
+
 // ---- Ploegentijdrit (ul.ttt-results, geen table.results in STAGE-tab) ----
 
 const TTT_STAGE = `

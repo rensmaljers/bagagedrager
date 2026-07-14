@@ -240,9 +240,12 @@ export function extractClassificationPoints(classDiv: any, results: StageResult[
         if (/(^|\s)pnt(\s|$)/.test(cls) && !cls.includes("uci")) classPts = parseInt(text) || 0;
       }
       if ((classBib > 0 || classSlug) && classPts > 0) {
-        const existing = results.find(r =>
-          (classSlug && r.pcs_slug === classSlug) || (classBib > 0 && r.bib_number === classBib)
-        );
+        // Slug eerst over álle results, bib pas als fallback — PCS vult verborgen kolommen
+        // (hide_td) soms met andermans bib, waardoor een per-rij slug-OF-bib-match de punten
+        // aan de verkeerde renner geeft (etappe 8 Tour 2026: Russo's 22 punten naar Kanter).
+        const existing =
+          (classSlug ? results.find(r => r.pcs_slug === classSlug) : undefined)
+          ?? (classBib > 0 ? results.find(r => r.bib_number === classBib) : undefined);
         // Sommeren, niet overschrijven: bij meerdere Today-tabelletjes (klimmen/sprints)
         // scoort dezelfde renner meerdere keren in aparte tabellen.
         if (existing) existing[field] += classPts;
@@ -276,9 +279,10 @@ export function extractBonifications(bonisTable: any, results: StageResult[]) {
       }
     }
     if ((bBib > 0 || bSlug) && bPts > 0) {
-      const existing = results.find(r =>
-        (bSlug && r.pcs_slug === bSlug) || (bBib > 0 && r.bib_number === bBib)
-      );
+      // Slug eerst over álle results, bib pas als fallback (zie extractClassificationPoints)
+      const existing =
+        (bSlug ? results.find(r => r.pcs_slug === bSlug) : undefined)
+        ?? (bBib > 0 ? results.find(r => r.bib_number === bBib) : undefined);
       if (existing) existing.bonification_seconds = bPts;
     }
   }
