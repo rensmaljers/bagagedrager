@@ -135,6 +135,44 @@ Deno.test("KOM-tab met General+Today-split: sommeert Today-tabelletjes, negeert 
   assertEquals(b.mountain_points, 25);
 });
 
+// PCS toont in de Today-tabel voor een tussensprint/top met bonusseconden een extra
+// td.delta_pnt-kolom naast td.pnt. "delta_pnt" bevat de substring "pnt", dus een naïeve
+// cls.includes("pnt")-check matcht ook die kolom en overschrijft de echte puntenwaarde
+// met de (vaak lege) bonusseconden-waarde (regressie: etappe 6 Tour 2026, Lipowitz kreeg
+// 0 punten i.p.v. 10 omdat zijn delta_pnt-cel leeg was).
+const DELTA_PNT_COLLISION_STAGE = `
+<ul class="restabs">
+  <li><a data-id="1">STAGE</a></li>
+  <li><a data-id="4">POINTS</a></li>
+</ul>
+<div class="resTab" data-id="1"><table class="results"><tbody>
+  <tr><td class="bibs">1</td><td>x</td><td><a href="rider/climber-a">Climber A</a></td><td class="time ar"><font>3:43:33</font></td></tr>
+  <tr><td class="bibs">2</td><td>x</td><td><a href="rider/climber-b">Climber B</a></td><td class="time ar">,,</td></tr>
+</tbody></table></div>
+<div class="resTab" data-id="4">
+  <ul class="buttonNav"><li><a class="viewGeneral" href="">General</a></li><li><a class="viewToday" href="">Today</a></li></ul>
+  <table class="results"><tbody>
+    <tr><td class="bibs">1</td><td><a href="rider/climber-a">Climber A</a></td><td>75</td></tr>
+    <tr><td class="bibs">2</td><td><a href="rider/climber-b">Climber B</a></td><td>54</td></tr>
+  </tbody></table>
+  <div class="today hide">
+    <table class="results"><tbody>
+      <tr><td class="bibs">1</td><td><a href="rider/climber-a">Climber A</a></td><td class="pnt">20</td><td></td><td class="delta_pnt ar green">10</td></tr>
+      <tr><td class="bibs">2</td><td><a href="rider/climber-b">Climber B</a></td><td class="pnt">15</td><td></td><td class="delta_pnt ar green"></td></tr>
+    </tbody></table>
+  </div>
+</div>
+`;
+
+Deno.test("POINTS-tab: td.pnt niet verward met td.delta_pnt (bonusseconden-kolom)", () => {
+  const results = parseStagePage(parseDoc(DELTA_PNT_COLLISION_STAGE));
+  const a = results.find(r => r.pcs_slug === "climber-a")!;
+  const b = results.find(r => r.pcs_slug === "climber-b")!;
+  assertEquals(a.points, 20);
+  // B heeft een lege delta_pnt-cel (geen bonusseconden) — mag zijn punten (15) niet naar 0 trekken
+  assertEquals(b.points, 15);
+});
+
 // ---- Ploegentijdrit (ul.ttt-results, geen table.results in STAGE-tab) ----
 
 const TTT_STAGE = `

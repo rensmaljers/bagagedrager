@@ -235,7 +235,9 @@ export function extractClassificationPoints(classDiv: any, results: StageResult[
         const cls = cell.className || "";
         const text = cell.textContent?.trim() || "";
         if (cls.includes("bibs")) classBib = parseInt(text) || 0;
-        if (cls.includes("pnt") && !cls.includes("uci")) classPts = parseInt(text) || 0;
+        // Exacte class-token "pnt" — niet "delta_pnt" (bonus-seconden bij een tussensprint/top,
+        // vaak leeg), die anders de echte puntenwaarde overschrijft met 0/NaN.
+        if (/(^|\s)pnt(\s|$)/.test(cls) && !cls.includes("uci")) classPts = parseInt(text) || 0;
       }
       if ((classBib > 0 || classSlug) && classPts > 0) {
         const existing = results.find(r =>
