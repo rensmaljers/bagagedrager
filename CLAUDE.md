@@ -18,6 +18,19 @@ Fantasy cycling game ("wielerspel") where players pick one rider per stage and c
 - Frontend communicates via Supabase REST API (PostgREST) + één realtime channel
 - Git workflow: commit and push directly to `main`. Grote/risicovolle features op een aparte branch, mergen na akkoord (bv. `rad-theater`).
 
+## Skills (`.claude/skills/`)
+Diepere kennis per domein — laad de skill vóór je in dat domein werkt:
+- `frontend-architectuur` — App.svelte-shell, $state/appState, cache+stale-guard-patroon, realtime, {@html}, admin-lazy, build/SW
+- `design-system` — tokens, trui-systeem, typografie, dark/light
+- `scoring-klassementen` — de vier klassementen, views, DNF/te-laat-regels
+- `rls-security` — policies per tabel, RPC-only picks, guard-trigger, owner-views
+- `cron-edge-functions` — alle functies, auth-patronen, schedules, deploy, debuggen
+- `notificaties` — web push end-to-end, service worker, e-mail-heraanzet
+- `pcs-sync` — parser, sync-paden, renner-matching, PCS-HTML-valkuilen
+- `nieuwe-competitie` — draaiboek nieuwe ronde/klassiekers, sync-pcs-race, bib-regels, pot/invites
+- `etappe-visuals` — ASO-afbeeldingen scrapen en seeden
+- `verify` — end-to-end browserverificatie (testaccount + Playwright)
+
 ## Key files (Svelte)
 - `public/index.html` — slank mount-punt: inline kritieke CSS + fonts + theme-script + tooltip-engine + `<div id="svelte-root">`. Wat vóór de eerste paint zichtbaar is óók hier aanpassen.
 - `public/style.css` — het volledige design system (geïmporteerd in main.ts). Componenten gebruiken deze klassen; secties Tokens→Base→Layout→Components→Views→Motion→Responsive.
@@ -30,6 +43,7 @@ Fantasy cycling game ("wielerspel") where players pick one rider per stage and c
 - `supabase/functions/tests/` — Deno-tests (PCS-parsing incl. TTT/ITT, dropouts, pcs-fetch-retry, web push RFC 8291-vector)
 
 ### Valkuilen frontend
+Volledig patroon-overzicht: skill `frontend-architectuur`.
 - Wijzig je iets dat vóór de eerste paint zichtbaar is (body-achtergrond, thema, nav): pas het aan in **zowel** `public/index.html` (inline kritieke CSS) als `public/style.css`.
 - HTML-string-helpers (`teamBadge`, `avatarHtml`, `riderDisplay`, `icon`) geven strings terug → renderen met `{@html ...}`. Niet herschrijven.
 - Admin blijft lazy (dynamic import) — niets opstart-kritieks erin.
@@ -53,15 +67,16 @@ De klassementen zitten in de views `general_classification` en `stage_picks_publ
 - DNF/DNS/OTL = same GC penalty as late; 0 points in all other classifications
 - Bonification seconds stored per rider in `stage_results.bonification_seconds` (scraped from PCS or entered manually by admin). NOT derived from finish position.
 - Klassiekers: één competitie met meerdere "etappes" (koersen) en per-etappe startlijsten in `stage_riders`
+- Nieuwe ronde/competitie opzetten: zie skill `nieuwe-competitie`
 
-## RLS (sinds migratie 058, gehardend in 073/074)
+## RLS (sinds migratie 058, gehardend in 073/074) — zie skill `rls-security`
 - `picks`: eigen picks altijd leesbaar; van anderen pas na deadline/lock; admins alles. **INSERT-policy verwijderd (073)** — schrijven kan alléén via de RPC's `submit_pick`/`withdraw_pick`/`assign_random_riders`/`admin_upsert_pick`, zodat deadline/DNF/renner-al-gebruikt-regels niet te omzeilen zijn.
 - `profiles`: publiek leesbaar; eigen profiel schrijfbaar behalve `is_admin`/`is_ai`/`email` — die kolommen blokkeert een trigger voor niet-admins (073, was een privilege-escalatie).
 - `competition_participants`: basistabel alleen admin-leesbaar (paid_at privé); de pot leest `has_paid` uit de view **`competition_pot_status`** (074).
 - SECURITY DEFINER-functies krijgen `SET search_path = public`.
 - Realtime respecteert RLS — events voor verborgen rijen komen niet binnen.
 
-## Cron & edge functions
+## Cron & edge functions — zie skill `cron-edge-functions`
 Cron-jobs (pg_cron + pg_net, zie `cron.job`):
 - `auto-rad` (*/10 min) — Rad van Fortuin na deadline (`rad_assigned`-vlag voorkomt dubbel draaien)
 - `auto-lock-stages` (*/10 min) — pure SQL UPDATE, geen edge function
@@ -81,7 +96,7 @@ Conventies:
 - Gedeelde code in `_shared/`; importeer nooit uit een andere functie-map (top-level `Deno.serve` van die functie kaapt dan alle requests).
 - SECURITY DEFINER functies krijgen `SET search_path = public` (migratie 060).
 
-## Notificaties
+## Notificaties — zie skill `notificaties`
 - **Push**: werkt volledig (VAPID-keys: public hardcoded, private als secret). iOS alleen als geïnstalleerde PWA.
 - **E-mail**: uitgeschakeld (migratie 056) — geen eigen domein, dus Resend heeft geen geldige afzender. Her-aanzetten: domein verifiëren bij Resend → `EMAIL_FROM`-secret zetten → cron uit migratie 034 terugzetten → `#email-remind-row` in index.html weer tonen. `RESEND_API_KEY` staat al als secret.
 
