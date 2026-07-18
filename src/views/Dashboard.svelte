@@ -209,6 +209,7 @@
 
   async function loadShareData(standings: any[]) {
     shareData = null;
+    if (!appState.profile?.is_admin) return; // deel-knop is admin-only
     const loadCompId = appState.activeCompId;
     const now = Date.now();
     const lastFinished = activeStages()
