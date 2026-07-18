@@ -20,6 +20,19 @@ self.addEventListener('activate', (event) => {
   })());
 });
 
+// Oude gehashte bundles stapelen zich anders eeuwig op (elke deploy nieuwe hashes).
+// Cap alleen /assets/ — fontbestanden hebben vaste namen en blijven in gebruik.
+// Cache.keys() is insertion-order, dus de oudste (= oudste deploy) vliegt er eerst uit;
+// de bundles van de huidige versie zijn het laatst toegevoegd en blijven staan.
+const MAX_ASSET_ENTRIES = 24;
+async function pruneAssets(cache) {
+  const keys = await cache.keys();
+  const assets = keys.filter((req) => new URL(req.url).pathname.startsWith('/assets/'));
+  for (const req of assets.slice(0, Math.max(0, assets.length - MAX_ASSET_ENTRIES))) {
+    await cache.delete(req);
+  }
+}
+
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (event.request.method !== 'GET') return;
@@ -31,7 +44,7 @@ self.addEventListener('fetch', (event) => {
       const hit = await cache.match(event.request);
       if (hit) return hit;
       const res = await fetch(event.request);
-      if (res.ok) cache.put(event.request, res.clone());
+      if (res.ok) event.waitUntil(cache.put(event.request, res.clone()).then(() => pruneAssets(cache)));
       return res;
     })());
     return;

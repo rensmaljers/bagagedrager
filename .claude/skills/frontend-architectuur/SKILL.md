@@ -60,7 +60,8 @@ Thin PostgREST-wrappers: `supaRest(table, {method, filters, body, select})`, `su
 
 - `npm run build` = svelte-check (**0-baseline, gate**) → Vite → kopieert `sw.js`/manifest/iconen handmatig naar `dist/` (staan buiten Vite's pipeline). `npm run typecheck` = tsc over `src/**`, 0 errors houden.
 - **First-paint-regel**: alles wat vóór de eerste paint zichtbaar is (body-bg, thema, loader, nav) staat inline in `public/index.html` (kritieke CSS + blocking theme-script) — wijzig het dáár én in `public/style.css`. Fonts self-hosted met preload; geen CDN.
-- Service worker `public/sw.js`: `/assets/` + `/fonts/` cache-first (immutable hashes), navigaties network-first met shell-fallback; Supabase/PCS-requests worden niet geïntercept.
+- Service worker `public/sw.js`: `/assets/` + `/fonts/` cache-first (immutable hashes), navigaties network-first met shell-fallback; Supabase/PCS-requests worden niet geïntercept. `/assets/` is gecapt op 24 entries (oudste eruit — Cache.keys() is insertion-order; fonts blijven staan) zodat oude deploy-bundles zich niet eeuwig opstapelen.
+- **Node ≥ 22 lokaal** (`.nvmrc`) — Vite 8/rolldown eist `^20.19 || >=22.12`; op oudere Node faalt de build met `ERR_REQUIRE_ESM`. Zie je "Cannot find native binding", dan is het de npm-optional-deps-bug: `npm install --no-save @rolldown/binding-darwin-arm64@<rolldown-versie>`.
 
 ## Checklist nieuwe view
 
