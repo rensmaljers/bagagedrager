@@ -1620,6 +1620,12 @@ code, pre { color: var(--text); }
 }
 .my-status-next strong { color: var(--text); }
 .my-status-pick { color: var(--green); font-weight: 600; }
+.my-status-share { display: flex; justify-content: flex-end; margin-top: 0.9rem; }
+.my-status-share .btn { display: inline-flex; align-items: center; gap: 0.4rem; }
+@media (max-width: 768px) {
+  .my-status-share { justify-content: stretch; }
+  .my-status-share .btn { width: 100%; justify-content: center; min-height: 40px; }
+}
 
 /* --- Pick: rennerselectie --- */
 .pick-card {

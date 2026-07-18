@@ -75,6 +75,7 @@
   import { icon } from '../lib/icons';
   import { supaRest } from '../lib/api';
   import { activeScoringMode, activeStages, riderPhoto } from '../lib/helpers';
+  import { buildDagbericht } from '../lib/share';
   import RadTheater from './RadTheater.svelte';
   import { focusTrap } from '../lib/focus-trap';
 
@@ -200,6 +201,45 @@
     a2hsBanner = true;
   });
 
+  // --- Dagverslag delen (WhatsApp) ---
+  // Data wordt na loadStandings op de achtergrond opgehaald; het bericht zelf
+  // wordt pas bij de klik gebouwd (buildDagbericht randomiseert opener/feitjes,
+  // dus elke klik geeft een verse variant).
+  let shareData: any = $state(null);
+
+  async function loadShareData(standings: any[]) {
+    shareData = null;
+    const loadCompId = appState.activeCompId;
+    const now = Date.now();
+    const lastFinished = activeStages()
+      .filter((s: any) => (s.locked || now > new Date(s.deadline).getTime()) && s.winner_name)
+      .sort((a: any, b: any) => (b.stage_number || 0) - (a.stage_number || 0))[0];
+    if (!lastFinished) return;
+    const picks = await supaRest('stage_picks_public', {
+      filters: `stage_id=eq.${lastFinished.id}`,
+      select: 'display_name,rider_name,is_random,is_late,dnf,finish_position,effective_game_points,num_pickers',
+    });
+    if (appState.activeCompId !== loadCompId) return; // stale-guard
+    const comp = appState.competitions.find((c: any) => c.id === loadCompId);
+    shareData = {
+      stage: lastFinished,
+      picks: picks || [],
+      standings,
+      scoringMode: activeScoringMode(),
+      compName: comp?.name || '',
+    };
+  }
+
+  function shareDagbericht() {
+    if (!shareData) return;
+    const msg = buildDagbericht(shareData);
+    if (navigator.share) {
+      navigator.share({ text: msg }).catch(() => {});
+    } else {
+      window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
+    }
+  }
+
   // --- H2H overlay state (reactief i.p.v. window.openH2H) ---
   let h2hOpen = $state(false);
   let h2hHtml = $state('');
@@ -239,7 +279,7 @@
       loading = false;
       cardMode = 'all';
       vm = { gc: null, points: null, mountain: null, combativity: null, game: null };
-      statusComp = null; statusEntries = []; statusNext = null; welcome = null; potVM = null;
+      statusComp = null; statusEntries = []; statusNext = null; welcome = null; potVM = null; shareData = null;
       return;
     }
     noComp = false;
@@ -513,6 +553,9 @@
 
     // Pot kaart — asynchroon renderen (blokkeert standings niet)
     renderPotCard(standings).catch(() => {});
+
+    // Dagverslag-deelknop: data op de achtergrond klaarzetten
+    loadShareData(standings).catch(() => {});
 
     // Rad-theater: check of er ongeziene Rad-picks zijn (of ?radtest=1)
     if (!radTheater) buildRadTheater().catch(() => {});
@@ -928,6 +971,14 @@
               {:else}
                 <button class="btn btn-accent btn-sm" onclick={goPick}>Kies je renner</button>
               {/if}
+            </div>
+          {/if}
+          {#if shareData}
+            <div class="my-status-share">
+              <button class="btn btn-outline-warning btn-sm" onclick={shareDagbericht} title="Deelt een samenvatting van de laatste etappe via WhatsApp">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                Deel dagverslag in de groepsapp
+              </button>
             </div>
           {/if}
         </div>
