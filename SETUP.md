@@ -1,137 +1,67 @@
-# Bagagedrager Tour - Setup Guide
+# Bagagedrager — Setup
 
-## 1. Supabase Setup
+Hoe je het spel vanaf nul op een eigen Supabase + Netlify-omgeving zet. Draait het al en wil je een nieuwe ronde opzetten? Zie de skill `.claude/skills/nieuwe-competitie/`.
 
-### Create project
-1. Go to [supabase.com](https://supabase.com) and create a new project
-2. Note your **Project URL** and **Anon Key** from Settings → API
+## 1. Supabase
 
-### Run migrations
-1. Install Supabase CLI: `brew install supabase/tap/supabase`
-2. Link: `supabase link --project-ref YOUR_PROJECT_REF`
-3. Run migration: `supabase db push`
+### Project + migraties
 
-Or manually: copy `supabase/migrations/001_schema.sql` into the Supabase SQL Editor and run it.
+1. Maak een project aan op [supabase.com](https://supabase.com)
+2. `brew install supabase/tap/supabase`
+3. `supabase link --project-ref <jouw-project-ref>`
+4. `supabase db push` — zet het volledige schema, alle views/RPC's én de cron-schedules neer
 
-### Deploy Edge Functions
+De migraties activeren zelf de extensies `pg_cron` en `pg_net` en registreren alle cron-jobs; daar is geen handwerk voor nodig. **Let op**: de cron-job-bodies bevatten hardcoded function-URL's van het originele project — draai je op een eigen project-ref, pas die dan aan (zie `.claude/skills/cron-edge-functions/`).
+
+### CI voor migraties (optioneel, aanbevolen)
+
+`.github/workflows/deploy.yml` draait `supabase db push` automatisch bij elke push naar `main` die `supabase/migrations/**` raakt. Zet daarvoor de repo-secrets `SUPABASE_PROJECT_REF` en `SUPABASE_ACCESS_TOKEN`.
+
+### Edge functions deployen
+
+Alle browser- en cron-aangeroepen functies moeten met `--no-verify-jwt` gedeployed worden (auth gebeurt ín de functie):
+
 ```bash
-supabase functions deploy submit-pick
-supabase functions deploy admin-results
-supabase functions deploy admin-lock-stage
+for f in sync-pcs-results sync-pcs-race sync-pcs-photos auto-rad auto-sync \
+         auto-dns-check auto-remind auto-notify-results cron-refresh-specialties \
+         test-push test-email; do
+  supabase functions deploy "$f" --no-verify-jwt --project-ref <jouw-project-ref>
+done
 ```
 
-### Set an admin user
-After signing up, run in SQL Editor:
-```sql
-UPDATE profiles SET is_admin = true WHERE display_name = 'YourName';
-```
+### Secrets
 
-### (Optional) Cron to auto-lock stages
-In Supabase Dashboard → Database → Extensions, enable `pg_cron`, then:
-```sql
-SELECT cron.schedule(
-  'lock-stages',
-  '*/15 * * * *',  -- every 15 minutes
-  $$
-  UPDATE stages SET locked = true
-  WHERE deadline < now() AND locked = false;
-  $$
-);
-```
-
-## 2. Frontend Config
-
-Edit `public/app.js` and replace:
-```js
-const SUPABASE_URL = 'https://YOUR_PROJECT.supabase.co';
-const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
-```
-
-## 3. Netlify Deploy
-
-1. Push this repo to GitHub
-2. Connect to Netlify
-3. Build settings:
-   - **Publish directory:** `public`
-   - No build command needed (static files)
-4. Deploy!
-
-Or use Netlify CLI:
 ```bash
-npm install -g netlify-cli
-netlify deploy --prod --dir=public
+supabase secrets list   # wat er verwacht wordt
 ```
 
-## 4. Seed Data (optional)
+- **Web push**: VAPID-keypair genereren; de public key staat hardcoded in `src/lib/config.ts`, de private key gaat als secret (JWK-import-valkuil: zie `.claude/skills/notificaties/`).
+- **E-mail** (`RESEND_API_KEY`): staat uit zolang er geen eigen domein is — zie CLAUDE.md § Notificaties.
 
-### Add sample riders
+### Admin instellen
+
+Na registratie in de app, in de SQL Editor:
+
 ```sql
-INSERT INTO riders (bib_number, name, team) VALUES
-(1, 'Tadej Pogačar', 'UAE Team Emirates'),
-(2, 'Jonas Vingegaard', 'Team Visma-Lease a Bike'),
-(3, 'Remco Evenepoel', 'Soudal Quick-Step'),
-(11, 'Wout van Aert', 'Team Visma-Lease a Bike'),
-(12, 'Mathieu van der Poel', 'Alpecin-Deceuninck'),
-(21, 'Jasper Philipsen', 'Alpecin-Deceuninck'),
-(31, 'Primož Roglič', 'Red Bull-BORA-hansgrohe'),
-(41, 'Mads Pedersen', 'Lidl-Trek'),
-(51, 'Adam Yates', 'UAE Team Emirates'),
-(61, 'Biniam Girmay', 'Intermarché-Wanty');
+UPDATE profiles SET is_admin = true WHERE display_name = 'JouwNaam';
 ```
 
-### Add sample stages
-```sql
-INSERT INTO stages (stage_number, name, date, stage_type, deadline) VALUES
-(1, 'Lille → Dunkerque', '2025-07-05', 'flat', '2025-07-04 21:00:00+00'),
-(2, 'Dunkerque → Boulogne-sur-Mer', '2025-07-06', 'sprint', '2025-07-05 21:00:00+00'),
-(3, 'Valenciennes → Laon', '2025-07-07', 'mountain', '2025-07-06 21:00:00+00');
+## 2. Frontend
+
+Pas `SUPABASE_URL`, `SUPABASE_ANON_KEY` en `VAPID_PUBLIC_KEY` aan in `src/lib/config.ts`.
+
+```bash
+npm install
+npm run dev       # lokaal ontwikkelen
+npm run build     # productie-build → dist/
 ```
 
-## Architecture
+## 3. Netlify
 
-```
-public/
-  index.html          - Single page app (Bootstrap 5)
-  app.js              - All frontend logic (vanilla JS)
+1. Koppel de GitHub-repo aan Netlify
+2. Build-instellingen staan al in `netlify.toml`: command `npm run build`, publish `dist/`, Node 20
+3. Elke push naar `main` deployt automatisch (atomisch, ~15-30s)
 
-supabase/
-  migrations/
-    001_schema.sql    - Database schema, views, RLS policies
-  functions/
-    submit-pick/      - Submit/update a rider pick for a stage
-    admin-results/    - Admin: enter stage results
-    admin-lock-stage/ - Lock stages past deadline (cron-callable)
-```
+## 4. Data vullen
 
-## Key Queries
-
-### General Classification
-```sql
-SELECT * FROM general_classification ORDER BY total_time ASC;
-```
-
-### Points Classification
-```sql
-SELECT * FROM general_classification ORDER BY total_points DESC;
-```
-
-### Mountain Classification
-```sql
-SELECT * FROM general_classification ORDER BY total_mountain_points DESC;
-```
-
-### User's remaining riders
-```sql
-SELECT r.* FROM riders r
-WHERE r.id NOT IN (
-  SELECT rider_id FROM picks WHERE user_id = 'USER_UUID'
-);
-```
-
-### Stage deadline check
-```sql
-SELECT * FROM stages
-WHERE locked = false AND deadline > now()
-ORDER BY stage_number
-LIMIT 1;
-```
+Renners, etappes en startlijsten komen niet uit seed-SQL maar uit ProCyclingStats, via de admin-flow in de app (`sync-pcs-race` importeert een complete ronde inclusief startlijst). Het volledige draaiboek — competitie aanmaken, race importeren, visuals seeden, invites, pot — staat in `.claude/skills/nieuwe-competitie/`.

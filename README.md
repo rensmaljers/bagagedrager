@@ -1,96 +1,62 @@
-# Bagagedrager
+# Bagagedrager — Het Wielerspel
 
-Een wielerspel waarin spelers per etappe één renner kiezen en strijden om het beste klassement. Geschikt voor Tour de France, Giro d'Italia, Vuelta a España en voorjaarsklassiekers.
+Een fantasy-wielerspel waarin spelers per etappe **één renner** kiezen en strijden om vier klassementen. Geschikt voor grote rondes (Tour, Giro, Vuelta) én voorjaarsklassiekers.
+
+**Live**: [bagagedrager.netlify.app](https://bagagedrager.netlify.app)
 
 ## Hoe werkt het?
 
-- Elke etappe kies je **één renner**
+- Elke etappe kies je **één renner**, vóór de starttijd van de etappe (deadline = starttijd)
 - Elke renner mag je maar **één keer** gebruiken per competitie
-- De tijd, punten en bergpunten van jouw renner worden jouw score
-- **Deadline:** 23:00 de avond vóór de etappe
-- Te laat? Je krijgt de tijd van de laatste renner en 0 punten
+- De tijd, sprintpunten en bergpunten van jouw renner worden jouw score; bonificatieseconden tellen mee in het algemeen klassement
+- **Te laat of geen keuze?** Het Rad van Fortuin wijst een willekeurige ongebruikte renner toe, met als tijdstraf het slechtste tijdverschil van het hele veld
+- **DNF/DNS/OTL**: dezelfde tijdstraf, 0 punten in de overige klassementen
+- Klassiekers: één competitie met meerdere koersen en per-koers startlijsten
 
 ## Klassementen
 
 | Klassement | Trui | Criteria |
 |---|---|---|
-| Algemeen | Geel | Laagste totale tijd |
-| Punten | Groen | Meeste punten |
+| Algemeen | Geel | Laagste totale tijd (tijdverschillen minus bonificaties) |
+| Punten | Groen | Meeste sprintpunten |
 | Berg | Bolletjes | Meeste bergpunten |
+| Spel | Wit | Punten naar aankomstpositie (1e=100 … 20e=5), met deelfactor als meerdere spelers dezelfde renner kozen |
 
-## Tech Stack
+## Tech stack
 
 | Component | Technologie |
 |---|---|
-| Frontend | Vanilla JS + Bootstrap 5 |
-| Backend | Supabase (PostgreSQL + Auth + Edge Functions) |
-| Hosting | Netlify |
+| Frontend | Svelte 5 (runes) + TypeScript, eigen CSS-design-system, Vite |
+| Backend | Supabase (PostgreSQL + RLS + Edge Functions + Auth + pg_cron) |
+| Hosting | Netlify (auto-deploy bij push naar `main`) |
+| Data | ProCyclingStats-scraping (resultaten, startlijsten, renner-data) |
+| Notificaties | Web push (VAPID), ook op iOS als geïnstalleerde PWA |
 
-## Project Structuur
+## Projectstructuur
 
 ```
-public/
-├── index.html          SPA met alle pagina's
-└── app.js              Frontend logica
-
+public/            Mount-punt (index.html), design system (style.css), service worker, PWA-assets
+src/
+├── App.svelte     Shell: auth, navbar, hash-routing, realtime
+├── lib/           State ($state-runes), api, supabase-client, notificaties, helpers
+└── views/         Dashboard, Pick, History, Peloton, Admin (lazy), Account, modals
 supabase/
-├── migrations/
-│   ├── 001_schema.sql          Basis schema (riders, stages, picks, etc.)
-│   └── 002_competitions.sql    Multi-competitie ondersteuning
-├── functions/
-│   ├── submit-pick/            Keuze indienen met validatie
-│   ├── admin-results/          Resultaten invoeren (admin)
-│   └── admin-lock-stage/       Etappes vergrendelen (cron)
-└── config.toml
+├── migrations/    Al het schema én de business-logica (views, RPC's, cron-schedules)
+└── functions/     Edge functions: PCS-sync, Rad van Fortuin, push-crons (+ _shared/ en tests/)
+.claude/           Claude Code-setup: 12 projectskills, agents, settings, hooks
 ```
 
-## Snel Starten
+## Automatisering
 
-### 1. Supabase
+Alles draait vanzelf via pg_cron + edge functions: etappes locken op de deadline, het Rad van Fortuin voor te late spelers, uitslagen syncen (~20 min na de finish, met vangnet-passes), herinnerings- en uitslag-pushmeldingen, een niet-starters-check vlak voor de start en een wekelijkse refresh van renner-data.
 
-Maak een project aan op [supabase.com](https://supabase.com) en voer de migrations uit in de SQL Editor:
+## Ontwikkelen
 
 ```bash
-# Of via CLI
-supabase link --project-ref <jouw-project-ref>
-supabase db push
+npm run dev         # Vite dev-server
+npm run build       # svelte-check (0-errors-gate) → Vite → dist/
+npm run typecheck   # tsc over src/**
+deno test --allow-read supabase/functions/tests/   # PCS-parser + web push-tests
 ```
 
-### 2. Configuratie
-
-Pas `SUPABASE_URL` en `SUPABASE_ANON_KEY` aan in `public/app.js`.
-
-### 3. Edge Functions deployen
-
-```bash
-supabase functions deploy submit-pick
-supabase functions deploy admin-results
-supabase functions deploy admin-lock-stage
-```
-
-### 4. Admin instellen
-
-```sql
-UPDATE profiles SET is_admin = true WHERE display_name = 'JouwNaam';
-```
-
-### 5. Deployen
-
-Push naar GitHub en koppel aan Netlify.
-
-## Admin Panel
-
-Admins hebben toegang tot:
-
-- **Gebruikers** — Overzicht van alle spelers, admin rechten toekennen
-- **Competities** — Tour, Giro, Vuelta of klassiekers aanmaken
-- **Renners** — Renners toevoegen en beheren
-- **Etappes** — Etappes per competitie, vergrendelen/ontgrendelen
-- **Resultaten** — Tijden, punten en bergpunten invoeren per etappe
-
-## Spelregels
-
-- Maximaal **50 spelers** per spel
-- Eén renner per etappe, elke renner **maximaal één keer** per competitie
-- DNF/DNS renners: tijd van de laatste renner, behaalde punten blijven staan
-- Te laat ingediende keuze: laatste tijd, 0 punten, 0 bergpunten
+Installatie en deployment: zie [SETUP.md](SETUP.md). Architectuur en werkwijze per domein: zie [CLAUDE.md](CLAUDE.md) en de skills in `.claude/skills/`.

@@ -36,6 +36,7 @@ Diepere kennis per domein — laad de skill vóór je in dat domein werkt:
 ## Claude Code-setup (`.claude/settings.json`)
 - Permission-allowlist voor veilige commando's (typecheck/build/tests/git-leesacties/supabase-lists) — schrijvende acties (db push, deploy, git push) prompten altijd.
 - Stop-hook `.claude/hooks/typecheck-stop.sh`: draait `npm run typecheck` zodra er ongecommitte wijzigingen in `src/` staan en blokkeert de beurt bij errors (de 0-errors-gate).
+- Agent `pcs-debug` (`.claude/agents/`): PCS-scraping-problemen onderzoeken (parser vs. sync-pad vs. PCS-HTML-wijziging) — levert diagnose + fixvoorstel + test, grijpt zelf niet in.
 
 ## Key files (Svelte)
 - `public/index.html` — slank mount-punt: inline kritieke CSS + fonts + theme-script + tooltip-engine + `<div id="svelte-root">`. Wat vóór de eerste paint zichtbaar is óók hier aanpassen.

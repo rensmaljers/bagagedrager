@@ -5,7 +5,7 @@ description: De migratie-werkwijze — nummering (NNN_naam.sql, uniek, volgende 
 
 # Migraties
 
-Kernprincipe: **er is geen staging — `supabase db push` draait direct op productie.** Elke migratie is definitief; denk vooraf na over bestaande rijen (backfill/defaults) en test lees-varianten eerst met `supabase db query "select ..." --linked`.
+Kernprincipe: **er is geen staging — migraties draaien direct op productie.** Dat gebeurt langs twee wegen: lokaal via `supabase db push`, én automatisch via GitHub Actions (`.github/workflows/deploy.yml` draait `db push` bij elke push naar `main` die `supabase/migrations/**` raakt). **Een migratie naar `main` pushen = hem deployen.** Elke migratie is definitief; denk vooraf na over bestaande rijen (backfill/defaults) en test lees-varianten eerst met `supabase db query "select ..." --linked`.
 
 ## Nummering & bestandsvorm
 
@@ -40,7 +40,7 @@ Views, RPC's en cron-schedules worden bij wijziging **volledig opnieuw gedefinie
 ## Na een schema-wijziging
 
 ```bash
-supabase db push                    # migratie toepassen (direct productie!)
+supabase db push                    # direct toepassen (óf: committen naar main — CI pusht dan)
 supabase gen types typescript --linked > src/lib/database.types.ts   # types hergenereren
 npm run typecheck                   # 0-errors-gate — frontend mee-updaten als hij breekt
 ```
