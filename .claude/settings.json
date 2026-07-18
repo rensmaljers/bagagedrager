@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run typecheck)",
+      "Bash(npm run build)",
+      "Bash(npm run preview*)",
+      "Bash(npm install)",
+      "Bash(npx svelte-check*)",
+      "Bash(tsc --noEmit*)",
+      "Bash(deno test*)",
+      "Bash(deno check*)",
+      "Bash(git status*)",
+      "Bash(git log*)",
+      "Bash(git diff*)",
+      "Bash(git show*)",
+      "Bash(git branch*)",
+      "Bash(supabase secrets list*)",
+      "Bash(supabase functions list*)",
+      "Bash(supabase migration list*)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/typecheck-stop.sh",
+            "timeout": 120,
+            "statusMessage": "Typecheck-gate (0 errors) controleren..."
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -30,6 +30,12 @@ Diepere kennis per domein — laad de skill vóór je in dat domein werkt:
 - `nieuwe-competitie` — draaiboek nieuwe ronde/klassiekers, sync-pcs-race, bib-regels, pot/invites
 - `etappe-visuals` — ASO-afbeeldingen scrapen en seeden
 - `verify` — end-to-end browserverificatie (testaccount + Playwright)
+- `migraties` — nummering, leidende-migratie-principe, db push direct op productie, types hergenereren
+- `gezondheidscheck` — productie-runbook: cron-runs, edge-function-fouten, Rad/uitslag-status, site-check
+
+## Claude Code-setup (`.claude/settings.json`)
+- Permission-allowlist voor veilige commando's (typecheck/build/tests/git-leesacties/supabase-lists) — schrijvende acties (db push, deploy, git push) prompten altijd.
+- Stop-hook `.claude/hooks/typecheck-stop.sh`: draait `npm run typecheck` zodra er ongecommitte wijzigingen in `src/` staan en blokkeert de beurt bij errors (de 0-errors-gate).
 
 ## Key files (Svelte)
 - `public/index.html` — slank mount-punt: inline kritieke CSS + fonts + theme-script + tooltip-engine + `<div id="svelte-root">`. Wat vóór de eerste paint zichtbaar is óók hier aanpassen.
