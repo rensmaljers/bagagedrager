@@ -80,7 +80,7 @@
       // PostgREST max-rows=1000 is server-side; bij ~150 renners × 7+ etappes raak je die limiet.
       // Door te filteren op picked rider IDs blijf je altijd ver onder 1000 rijen.
       allPicksForStages = await supaRest('picks', {
-        select: 'stage_id,rider_id',
+        select: 'stage_id,rider_id,is_random',
         filters: `stage_id=in.(${stageIds.join(',')})`,
       });
       const pickedIds = [...new Set(allPicksForStages.map((p: any) => p.rider_id))];
@@ -116,10 +116,13 @@
         winnerNames[r.stage_id] = wr?.name || '?';
       }
     }
-    // Straftijd per etappe: MAX tijdsverschil van gekozen renners die wél finishten
+    // Straftijd per etappe: MAX tijdsverschil van door spelers gekozen renners die
+    // wél finishten, Rad (is_random) uitgezonderd — consistent met chosen_penalty_gap
+    // (migratie 085).
     const penaltyGaps: Record<number, number> = {};
     const pickedRiderIds: Record<number, Set<number>> = {};
     for (const p of allPicksForStages) {
+      if (p.is_random) continue;
       if (!pickedRiderIds[p.stage_id]) pickedRiderIds[p.stage_id] = new Set();
       pickedRiderIds[p.stage_id].add(p.rider_id);
     }
@@ -153,6 +156,10 @@
       const stageLabel = stage ? (stage.stage_number === 0 ? 'Proloog' : `Etappe ${stage.stage_number}`) : '?';
       const winnerName = winnerNames[pick.stage_id] || null;
       const isWinner = !!(result && !pick.is_late && !result.dnf && result.finish_position === 1);
+      // Scoort de pick punten? Bij DNF/DNS/te-laat = nee → 0 sprint/berg/spel,
+      // net als effective_* in de views (een afgestapte renner die eerder punten
+      // pakte levert ze niet op).
+      const scored = !!(result && !pick.is_late && !result.dnf && result.finish_position != null);
       let timeCell: string;
       if (!histIsClassic && result) {
         timeCell = result.finish_position === 1
@@ -163,7 +170,7 @@
       } else {
         timeCell = result ? formatTime(result.time_seconds) : '-';
       }
-      return { pick, stage, rider, result, gp, timeGap, bonif, rowClass, numPickers, sharingPct, stageLabel, winnerName, isWinner, timeCell };
+      return { pick, stage, rider, result, gp, timeGap, bonif, rowClass, numPickers, sharingPct, stageLabel, winnerName, isWinner, scored, timeCell };
     });
 
     // Stats
@@ -262,8 +269,8 @@
                 <td><div class="rider-cell">{@html riderDisplay(row.rider?.name, row.rider?.photo_url, row.rider?.id)} <span class="team-badge-sm">{@html row.rider ? teamBadge(row.rider.team) : ''}</span></div></td>
                 <td class="time text-end">{row.timeCell}</td>
                 {#if !isClassic}<td class="text-end tnum">{row.bonif ? '-' + row.bonif + 's' : '-'}</td>{/if}
-                <td class="text-end tnum">{row.result ? (row.pick.is_late ? '0' : row.result.points) : '-'}</td>
-                <td class="text-end tnum">{row.result ? (row.pick.is_late ? '0' : row.result.mountain_points) : '-'}</td>
+                <td class="text-end tnum">{row.result ? (row.scored ? row.result.points : '0') : '-'}</td>
+                <td class="text-end tnum">{row.result ? (row.scored ? row.result.mountain_points : '0') : '-'}</td>
                 {#if !isClassic}
                   <td class="text-end tnum">{#if row.isWinner}<span style="color:var(--green);font-weight:700;">{@html icon('star', '', 11)} 1</span>{:else}{row.result ? '0' : '-'}{/if}</td>
                 {:else}
