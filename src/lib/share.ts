@@ -53,16 +53,29 @@ export function buildDagbericht(d: ShareData): string {
     lines.push(`🏆 ${stage.winner_name} wint${suffix}`);
   }
 
-  // --- Dagwinnaar spelklassement ---
-  const best = Math.max(0, ...picks.map((p) => p.effective_game_points || 0));
-  if (best > 0) {
-    const toppers = picks.filter((p) => (p.effective_game_points || 0) === best);
-    lines.push(
-      toppers.length === 1
-        ? `⭐ Dagwinnaar: *${toppers[0].display_name}* — ${toppers[0].rider_name} (${best} pt)`
-        : `⭐ Dagwinnaars: *${opsomming(toppers.map((p) => p.display_name))}* (elk ${best} pt)`
-    );
+  // --- Truien van de dag: beste speler per klassement op DEZE etappe ---
+  // Punt-truien (groen/berg/spel): hoogste effective_* van de dag. Geel (AK):
+  // kleinste tijdverlies van de dag — alleen tonen bij een kleine kopgroep,
+  // anders is het op een sprintetappe de halve deelnemerslijst.
+  const dagLijn = (emoji: string, label: string, valFn: (p: any) => number) => {
+    const best = Math.max(0, ...picks.map(valFn));
+    if (best <= 0) return null;
+    const w = picks.filter((p) => valFn(p) === best);
+    const via = w.length === 1 ? ` — ${w[0].rider_name}` : '';
+    return `${emoji} ${label}: ${opsomming(w.map((p) => p.display_name))}${via} (${best} pt)`;
+  };
+  const truiLijnen: string[] = [];
+  if (!isClassic && picks.length) {
+    const dayGap = (p: any) => (p.dnf_penalty_gap ?? p.time_gap ?? 0) - (p.bonification ?? 0);
+    const minGap = Math.min(...picks.map(dayGap));
+    const geel = picks.filter((p) => dayGap(p) === minGap);
+    if (geel.length <= 3) truiLijnen.push(`🟡 Beste tijd: ${opsomming(geel.map((p) => p.display_name))}${geel.length === 1 ? ` — ${geel[0].rider_name}` : ''}`);
   }
+  const groen = dagLijn('🟢', 'Meeste punten', (p) => p.effective_points || 0);
+  const berg = dagLijn('🔴', 'Meeste bergpunten', (p) => p.effective_mountain_points || 0);
+  const spel = dagLijn('⚪', 'Meeste spelpunten', (p) => p.effective_game_points || 0);
+  for (const l of [groen, berg, spel]) if (l) truiLijnen.push(l);
+  if (truiLijnen.length) lines.push('', '*Truien van de dag*', ...truiLijnen);
 
   // --- Feitjes-pool: alleen kandidaten waarvoor de data er echt is ---
   const feitjes: string[] = [];

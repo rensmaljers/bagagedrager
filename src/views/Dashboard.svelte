@@ -218,7 +218,7 @@
     if (!lastFinished) return;
     const picks = await supaRest('stage_picks_public', {
       filters: `stage_id=eq.${lastFinished.id}`,
-      select: 'display_name,rider_name,is_random,is_late,dnf,finish_position,effective_game_points,num_pickers',
+      select: 'display_name,rider_name,is_random,is_late,dnf,finish_position,effective_points,effective_mountain_points,effective_game_points,time_gap,dnf_penalty_gap,bonification,num_pickers',
     });
     if (appState.activeCompId !== loadCompId) return; // stale-guard
     const comp = appState.competitions.find((c: any) => c.id === loadCompId);
