@@ -20,15 +20,21 @@ self.addEventListener('activate', (event) => {
   })());
 });
 
-// Oude gehashte bundles stapelen zich anders eeuwig op (elke deploy nieuwe hashes).
-// Cap alleen /assets/ — fontbestanden hebben vaste namen en blijven in gebruik.
-// Cache.keys() is insertion-order, dus de oudste (= oudste deploy) vliegt er eerst uit;
-// de bundles van de huidige versie zijn het laatst toegevoegd en blijven staan.
+// Oude gehashte JS/CSS-bundles stapelen zich anders eeuwig op (elke deploy nieuwe
+// hashes). We cappen daarom alléén .js/.css onder /assets/. Fonts en afbeeldingen
+// staan óók in /assets/ (Vite hasht ze daarheen) maar hun naam blijft over deploys
+// gelijk; omdat cache-first een hit nooit her-insert, zouden ze vooraan in de
+// insertion-order blijven staan en als eerste sneuvelen terwijl de huidige versie
+// ze nog nodig heeft. Die sluiten we dus uit. De bundles van de huidige versie zijn
+// het laatst toegevoegd en overleven de cap.
 const MAX_ASSET_ENTRIES = 24;
 async function pruneAssets(cache) {
   const keys = await cache.keys();
-  const assets = keys.filter((req) => new URL(req.url).pathname.startsWith('/assets/'));
-  for (const req of assets.slice(0, Math.max(0, assets.length - MAX_ASSET_ENTRIES))) {
+  const bundles = keys.filter((req) => {
+    const p = new URL(req.url).pathname;
+    return p.startsWith('/assets/') && (p.endsWith('.js') || p.endsWith('.css'));
+  });
+  for (const req of bundles.slice(0, Math.max(0, bundles.length - MAX_ASSET_ENTRIES))) {
     await cache.delete(req);
   }
 }
