@@ -16,7 +16,7 @@ Het wielerspel: elke speler kiest 1 renner per etappe vóór de starttijd (deadl
 
 Beide views worden **als owner** uitgevoerd en omzeilen RLS bewust — zodat klassementen compleet blijven, ook met renners/picks die een speler zelf niet mag zien.
 
-De views worden telkens in één migratie volledig opnieuw gedefinieerd (`DROP VIEW` + `CREATE VIEW`). De laatste volledige definitie is leidend (**nu migratie 075**) — zoek de hoogst genummerde migratie die `CREATE VIEW general_classification` bevat:
+De views worden telkens in één migratie volledig opnieuw gedefinieerd (`DROP VIEW` + `CREATE VIEW`). De laatste volledige definitie is leidend (**nu migratie 085**) — zoek de hoogst genummerde migratie die `CREATE VIEW general_classification` bevat:
 
 ```bash
 grep -rl "CREATE VIEW general_classification" supabase/migrations/ | sort
@@ -40,7 +40,8 @@ Wil je iets aan scoring wijzigen? Maak een **nieuwe migratie** met de volledige 
 
 Een gekozen renner die **niet finisht** (DNF/DNS/OTL/DSQ) of een **te-late pick** levert geen punten en een GC-straf op:
 
-- **GC/tijd-straf** = het *slechtste tijdverschil van het hele veld* (de hekkensluiter) op die etappe. Geldt gelijk voor elke niet-finisher/te-laat (migratie 063). (Eerder, migr. 059/062, was dit de slechtste gekozen finisher met veld-fallback — vervangen omdat niet-finishen dan even mild kon tellen als de traagste gekozen finisher.)
+- **GC/tijd-straf** = het slechtste tijdverschil van een door spelers **gekozen renner die finishte**, met het **Rad (`is_random`) uitgezonderd** (te-late picks tellen wél mee in de pool). Geldt gelijk voor elke niet-finisher/te-laat (DNF/DNS/OTL/te-laat). Zit sinds **migratie 085** in de functie `chosen_penalty_gap(stage)` — `SECURITY DEFINER` omdat hij álle picks moet zien (anders zou RLS de uitkomst laten afhangen van wie de view bevraagt); fallback als geen gekozen renner finishte → hekkensluiter hele veld → 0. Beide views roepen die functie aan, zodat GC en per-etappe consistent blijven.
+  - *Historie van deze regel*: 059/062 = traagste gekozen finisher met veld-fallback; **063** = hele veld (hekkensluiter); **085** = traagste gekozen renner (Rad uit) na spelersfeedback dat de hele-veld-straf te zwaar aanvoelde.
 - **Punten/berg/spel** = 0.
 
 ### "Niet gefinisht" = geen finish-positie

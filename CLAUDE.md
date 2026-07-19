@@ -60,17 +60,17 @@ Volledig patroon-overzicht: skill `frontend-architectuur`.
 - Live-verificatie tegen productie: zie `.claude/skills/verify` (testaccount + Playwright-recept).
 
 ## Scoring system (4 classifications)
-1. **Algemeen Klassement (GC)** — Sum of time gaps to stage winner, minus `bonification_seconds` from `stage_results`. DNF/DNS/late = slechtste tijdverschil van het **hele veld** op die etappe (de hekkensluiter, migratie 063). No sharing penalty.
+1. **Algemeen Klassement (GC)** — Sum of time gaps to stage winner, minus `bonification_seconds` from `stage_results`. DNF/DNS/late = slechtste tijdverschil van een door spelers **gekozen renner die finishte**, Rad (`is_random`) uitgezonderd (te-late picks tellen mee); zit in functie `chosen_penalty_gap`, **migratie 085** (verving de hele-veld-hekkensluiter uit 063 na spelersfeedback). No sharing penalty.
 2. **Puntenklassement (Points)** — Sum of sprint points from PCS Points Classification. No sharing penalty.
 3. **Bergklassement (Mountain)** — Sum of KOM points from PCS Mountain/KOM Classification. No sharing penalty.
 4. **Spelklassement (Game)** — Points based on finish position (1st=100, 2nd=80, ..., 20th=5) with sharing multiplier penalty when multiple players pick the same rider. De deelpenalty telt **alleen bewuste, scorende picks** (`NOT is_late AND NOT is_random`, migratie 074) — te-late en Rad-picks straffen de eerlijke picker niet.
 
-De klassementen zitten in de views `general_classification` en `stage_picks_public` (**laatst volledig gedefinieerd in migratie 075**; 074 verving 063 met de deelpenalty-fix). Views draaien als owner en omzeilen RLS — bewust, zodat klassementen compleet blijven.
+De klassementen zitten in de views `general_classification` en `stage_picks_public` (**laatst volledig gedefinieerd in migratie 085**, die de DNF-straf naar `chosen_penalty_gap` verplaatste; daarvoor 075/074). Views draaien als owner en omzeilen RLS — bewust, zodat klassementen compleet blijven.
 
 ## Game rules
 - Pick 1 rider per stage before the start time (deadline = start_time)
 - Each rider can only be used once per competition
-- Late/no pick → "Rad van Fortuin" assigns a random unused rider; GC penalty = slechtste tijdverschil van het hele veld (migratie 063)
+- Late/no pick → "Rad van Fortuin" assigns a random unused rider; GC penalty = slechtste tijdverschil van een gekozen renner die finishte, Rad uitgezonderd (migratie 085, `chosen_penalty_gap`)
 - DNF/DNS/OTL = same GC penalty as late; 0 points in all other classifications
 - Bonification seconds stored per rider in `stage_results.bonification_seconds` (scraped from PCS or entered manually by admin). NOT derived from finish position.
 - Klassiekers: één competitie met meerdere "etappes" (koersen) en per-etappe startlijsten in `stage_riders`
