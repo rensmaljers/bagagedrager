@@ -29,6 +29,7 @@
     { id: 'admin-import', label: 'Import' },
     { id: 'admin-pot', label: 'Pot' },
     { id: 'admin-audit', label: 'Audit-log' },
+    { id: 'admin-feedback', label: 'Feedback' },
   ];
   let adminSub = $state('admin-users');
 
@@ -459,6 +460,34 @@
     (riders || []).forEach((r: any) => { auditRiderMap[r.id] = r.name; });
 
     auditLoaded = true;
+  }
+
+  // --- Feedback ---
+  let feedbackRows = $state<any[]>([]);
+  let feedbackLoaded = $state(false);
+
+  async function loadFeedback() {
+    const rows = await supaRest('feedback', {
+      select: 'id,message,context,created_at,resolved,profiles(display_name)',
+      filters: 'order=created_at.desc&limit=200',
+    });
+    feedbackRows = rows || [];
+    feedbackLoaded = true;
+  }
+
+  async function toggleFeedbackResolved(row: any) {
+    try {
+      await supaPatch('feedback', `id=eq.${row.id}`, { resolved: !row.resolved });
+      row.resolved = !row.resolved;
+    } catch (e: any) { toast('Bijwerken mislukte: ' + (e?.message || ''), 'error'); }
+  }
+
+  async function deleteFeedback(row: any) {
+    if (!confirm('Dit bericht verwijderen?')) return;
+    try {
+      await supaDelete('feedback', `id=eq.${row.id}`);
+      feedbackRows = feedbackRows.filter((r) => r.id !== row.id);
+    } catch (e: any) { toast('Verwijderen mislukte: ' + (e?.message || ''), 'error'); }
   }
 
   // =====================
@@ -1544,6 +1573,7 @@
     loadAdminResults();
     loadAdminPot();
     loadAdminAudit();
+    loadFeedback();
   }
 
   onMount(() => {
@@ -2226,6 +2256,41 @@
                 {/each}
               </tbody>
             </table>
+          </div>
+        {/if}
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin: Feedback -->
+  <div class="admin-sub" class:active={adminSub === 'admin-feedback'} id="admin-feedback">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Feedback &amp; vragen</h5>
+        <button class="btn btn-sm btn-outline-secondary" onclick={() => loadFeedback()}>↻ Vernieuwen</button>
+      </div>
+      <div class="card-body">
+        {#if !feedbackLoaded}
+          <p class="text-muted">Laden…</p>
+        {:else if feedbackRows.length === 0}
+          <p class="text-muted">Nog geen feedback ontvangen.</p>
+        {:else}
+          <div class="feedback-admin-list">
+            {#each feedbackRows as row (row.id)}
+              <div class="feedback-admin-item" class:resolved={row.resolved}>
+                <div class="feedback-admin-meta">
+                  <strong>{row.profiles?.display_name || 'Onbekend'}</strong>
+                  <span class="text-muted">· {new Date(row.created_at).toLocaleString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                  {#if row.context}<span class="feedback-admin-context">{row.context}</span>{/if}
+                  {#if row.resolved}<span class="badge bg-success">afgehandeld</span>{/if}
+                </div>
+                <div class="feedback-admin-msg">{row.message}</div>
+                <div class="feedback-admin-actions">
+                  <button class="btn btn-ghost btn-sm" onclick={() => toggleFeedbackResolved(row)}>{row.resolved ? 'Heropenen' : 'Markeer afgehandeld'}</button>
+                  <button class="btn btn-ghost btn-sm text-danger" onclick={() => deleteFeedback(row)}>Verwijderen</button>
+                </div>
+              </div>
+            {/each}
           </div>
         {/if}
       </div>

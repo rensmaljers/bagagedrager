@@ -230,6 +230,7 @@
   import Account from './views/Account.svelte';
   import PlayerModal from './views/PlayerModal.svelte';
   import RiderModal from './views/RiderModal.svelte';
+  import FeedbackBar from './views/FeedbackBar.svelte';
 
   // initApp draaien zodra er een sessie is (boot én login/signup via Auth.svelte)
   let appStarted = false;
@@ -471,6 +472,8 @@
           {/await}
         {/if}
       {/key}
+
+      <FeedbackBar />
     </div>
   </div>
 {/if}
