@@ -106,16 +106,21 @@ export function buildDagbericht(d: ShareData): string {
 
   for (const feit of shuffle(feitjes).slice(0, 2)) lines.push(feit);
 
-  // --- Tussenstand ---
-  const game = [...standings].sort((a, b) => (b.total_game_points || 0) - (a.total_game_points || 0));
+  // --- Tussenstand: de vier klassementen bij naam ---
+  const top3 = (arr: any[], val: (s: any) => string) => arr.slice(0, 3).map((s) => `${s.display_name} ${val(s)}`).join(' · ');
   lines.push('', `*Tussenstand — ${d.compName}*`);
   if (gc.length) {
     const top = gc.slice(0, 3).map((s, i) => (i === 0 ? s.display_name : `${s.display_name} ${formatGap(s.total_time - gc[0].total_time)}`));
-    lines.push(`🟡 ${top.join(' · ')}`);
+    lines.push(`🟡 AK: ${top.join(' · ')}`);
   }
-  if (game.length) {
-    lines.push(`⚪ ${game.slice(0, 3).map((s) => `${s.display_name} ${s.total_game_points || 0}`).join(' · ')}`);
+  if (!isClassic) {
+    const pts = [...standings].sort((a, b) => (b.total_points || 0) - (a.total_points || 0));
+    if (pts.length && (pts[0].total_points || 0) > 0) lines.push(`🟢 Punten: ${top3(pts, (s) => `${s.total_points || 0}`)}`);
+    const mtn = [...standings].sort((a, b) => (b.total_mountain_points || 0) - (a.total_mountain_points || 0));
+    if (mtn.length && (mtn[0].total_mountain_points || 0) > 0) lines.push(`🔴 Berg: ${top3(mtn, (s) => `${s.total_mountain_points || 0}`)}`);
   }
+  const game = [...standings].sort((a, b) => (b.total_game_points || 0) - (a.total_game_points || 0));
+  if (game.length) lines.push(`⚪ Spel: ${top3(game, (s) => `${s.total_game_points || 0}`)}`);
 
   lines.push('', 'bagagedrager.netlify.app');
   return lines.join('\n');
