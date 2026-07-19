@@ -9,7 +9,7 @@ Een fantasy-wielerspel waarin spelers per etappe **één renner** kiezen en stri
 - Elke etappe kies je **één renner**, vóór de starttijd van de etappe (deadline = starttijd)
 - Elke renner mag je maar **één keer** gebruiken per competitie
 - De tijd, sprintpunten en bergpunten van jouw renner worden jouw score; bonificatieseconden tellen mee in het algemeen klassement
-- **Te laat of geen keuze?** Het Rad van Fortuin wijst een willekeurige ongebruikte renner toe, met als tijdstraf het slechtste tijdverschil van het hele veld
+- **Te laat of geen keuze?** Het Rad van Fortuin wijst een willekeurige ongebruikte renner toe. Als tijdstraf krijg je het slechtste tijdverschil van een door spelers gekozen renner die finishte (het Rad telt niet mee)
 - **DNF/DNS/OTL**: dezelfde tijdstraf, 0 punten in de overige klassementen
 - Klassiekers: één competitie met meerdere koersen en per-koers startlijsten
 

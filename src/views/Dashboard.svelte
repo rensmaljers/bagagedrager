@@ -992,7 +992,7 @@
     <div class="col-lg-7 standings-col" id="standings-main">
       <div id="gc-card" style:display={cardMode === 'classic' ? 'none' : null}>
         <div class="card standings-main-card">
-          <div class="card-header jersey-gc"><h5 class="mb-0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-jersey" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Algemeen Klassement <span class="info-tooltip" data-tip="Totaal tijdsverschil met de etappewinnaar per etappe.\nBonificatie: 1e −10s, 2e −6s, 3e −4s.\nTe laat of DNF = slechtste tijd.">&#9432;</span></h5></div>
+          <div class="card-header jersey-gc"><h5 class="mb-0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-jersey" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Algemeen Klassement <span class="info-tooltip" data-tip="Totaal tijdsverschil met de etappewinnaar per etappe.\nBonificatie: 1e −10s, 2e −6s, 3e −4s.\nTe laat of DNF = slechtste tijd van een gekozen renner (Rad telt niet mee).">&#9432;</span></h5></div>
           {@render heroBlock('gc', vm.gc)}
           <div class="card-body p-0 table-responsive-wrapper">
             <table class="table table-sm table-striped mb-0">

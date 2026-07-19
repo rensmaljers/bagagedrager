@@ -270,9 +270,9 @@
         <ul class="ps-3 mb-3">
           <li><strong>Kies 1 renner per etappe</strong> — voor de starttijd van die etappe.</li>
           <li><strong>Elke renner mag maar 1x</strong> gebruikt worden per ronde.</li>
-          <li><strong>Te laat?</strong> Je keuze telt, maar je krijgt de slechtste tijd + 0 punten.</li>
+          <li><strong>Te laat?</strong> Je keuze telt, maar je krijgt de straftijd (zie DNF) + 0 punten.</li>
           <li><strong>Geen keuze?</strong> Het Rad van Fortuin wijst je een willekeurige renner toe.</li>
-          <li><strong>DNF?</strong> Dezelfde straf als te laat: slechtste tijdsverschil van alle gekozen renners die finishten.</li>
+          <li><strong>DNF, DNS of te laat?</strong> Als straftijd krijg je het <strong>slechtste tijdverschil van een door spelers gekozen renner die finishte</strong> — het Rad telt daarbij niet mee. Plus 0 punten in de andere klassementen.</li>
         </ul>
         <p class="mb-2"><strong>Grote rondes</strong> <span class="badge bg-secondary" style="font-size:0.65rem;">Tour, Giro, Vuelta</span></p>
         <ul class="ps-3 mb-3">

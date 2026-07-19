@@ -500,7 +500,7 @@
 
   {#if isLocked}
     <div id="pick-locked-msg" class="alert alert-warning" style="font-size:0.85rem;">
-      {@html icon('lock', '', 14)} Deze etappe is vergrendeld. Je kunt nog wel kiezen, maar krijgt de slechtste tijd + 0 punten (te laat straf).
+      {@html icon('lock', '', 14)} Deze etappe is vergrendeld. Je kunt nog wel kiezen, maar krijgt de straftijd + 0 punten (te laat).
     </div>
   {/if}
 
