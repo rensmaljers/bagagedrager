@@ -2,10 +2,17 @@
 export function $(id: string): any { return document.getElementById(id); }
 
 // --- HTML ESCAPING ---
+// Escapet ook " en ' — cruciaal: de output belandt niet alleen in tekst maar ook
+// in attribuutwaarden (img-src in avatarHtml/riderDisplay, style-color in H2H).
+// Zonder quote-escaping kan een door de speler gekozen avatar_url uit het
+// src-attribuut breken en JS injecteren bij elke kijker (audit 19-07-2026).
 export function escapeHtml(str: any): string {
-  const d = document.createElement('div');
-  d.textContent = str;
-  return d.innerHTML;
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 // --- FORMAT HELPERS ---
@@ -48,7 +55,10 @@ export function riderDisplay(name: string, photoUrl: string | null, riderId?: nu
 
 export function avatarHtml(name: string, avatarUrl: string, size: string): string {
   const cls = size === 'sm' ? 'avatar avatar-sm' : size === 'lg' ? 'avatar avatar-lg' : 'avatar';
-  const initials = (name || '?').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
+  // Alleen letters/cijfers houden: initials gaat in een inline onerror-JS-string,
+  // dus een quote/hoek in de weergavenaam mag daar niet uit kunnen breken.
+  const initials = (name || '?').split(' ').map((w: string) => w[0] || '').join('')
+    .slice(0, 2).toUpperCase().replace(/[^\p{L}\p{N}]/gu, '') || '?';
   if (avatarUrl) {
     return `<span class="${cls}"><img src="${escapeHtml(avatarUrl)}" alt="" loading="lazy" decoding="async" onerror="this.parentElement.innerHTML='${initials}'"></span>`;
   }
