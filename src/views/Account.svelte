@@ -273,6 +273,7 @@
           <li><strong>Te laat?</strong> Je keuze telt, maar je krijgt de straftijd (zie DNF) + 0 punten.</li>
           <li><strong>Geen keuze?</strong> Het Rad van Fortuin wijst je een willekeurige renner toe.</li>
           <li><strong>DNF, DNS of te laat?</strong> Als straftijd krijg je het <strong>slechtste tijdverschil van een door spelers gekozen renner die finishte</strong> — het Rad telt daarbij niet mee. Plus 0 punten in de andere klassementen.</li>
+          <li><strong>Renner valt uit ná punten pakken?</strong> Alleen wie de etappe <strong>uitrijdt</strong> levert punten op. Pakt je renner bijvoorbeeld het bergpunt op de eerste klim maar valt hij daarna uit, dan vervallen die punten toch — je krijgt 0 punten (sprint, berg én spel) plus de straftijd.</li>
         </ul>
         <p class="mb-2"><strong>Grote rondes</strong> <span class="badge bg-secondary" style="font-size:0.65rem;">Tour, Giro, Vuelta</span></p>
         <ul class="ps-3 mb-3">
