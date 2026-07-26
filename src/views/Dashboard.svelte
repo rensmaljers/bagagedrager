@@ -75,7 +75,7 @@
   import { icon } from '../lib/icons';
   import { supaRest } from '../lib/api';
   import { activeScoringMode, activeStages, riderPhoto } from '../lib/helpers';
-  import { buildDagbericht } from '../lib/share';
+  import { buildDagbericht, buildRondeVerslag } from '../lib/share';
   import RadTheater from './RadTheater.svelte';
   import { focusTrap } from '../lib/focus-trap';
 
@@ -233,12 +233,46 @@
 
   function shareDagbericht() {
     if (!shareData) return;
-    const msg = buildDagbericht(shareData);
+    shareText(buildDagbericht(shareData));
+  }
+
+  function shareText(msg: string) {
     if (navigator.share) {
       navigator.share({ text: msg }).catch(() => {});
     } else {
       window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank', 'noopener');
     }
+  }
+
+  // --- Eindronde-verslag: verschijnt zodra de ronde compleet is (laatste etappe
+  // gelockt én uitslag binnen). Admin-only, net als het dagverslag. ---
+  let rondeData: any = $state(null);
+
+  async function loadRondeData(standings: any[]) {
+    rondeData = null;
+    if (!appState.profile?.is_admin) return;
+    const loadCompId = appState.activeCompId;
+    const stagesSorted = activeStages().slice().sort((a: any, b: any) => (a.stage_number || 0) - (b.stage_number || 0));
+    const lastStage = stagesSorted[stagesSorted.length - 1];
+    if (!lastStage || !lastStage.locked || !lastStage.winner_name) return; // ronde nog niet klaar
+    const allPicks = await supaRest('stage_picks_public', {
+      filters: `competition_id=eq.${loadCompId}`,
+      select: 'display_name,rider_name,stage_number,is_random,is_late,dnf,effective_game_points',
+    });
+    if (appState.activeCompId !== loadCompId) return; // stale-guard
+    const comp = appState.competitions.find((c: any) => c.id === loadCompId);
+    rondeData = {
+      standings,
+      allPicks: allPicks || [],
+      compName: comp?.name || '',
+      scoringMode: activeScoringMode(),
+      stageCount: stagesSorted.filter((s: any) => s.locked).length,
+    };
+  }
+
+  function shareRondeVerslag() {
+    if (!rondeData) return;
+    shareText(buildRondeVerslag(rondeData));
   }
 
   // --- H2H overlay state (reactief i.p.v. window.openH2H) ---
@@ -280,7 +314,7 @@
       loading = false;
       cardMode = 'all';
       vm = { gc: null, points: null, mountain: null, combativity: null, game: null };
-      statusComp = null; statusEntries = []; statusNext = null; welcome = null; potVM = null; shareData = null;
+      statusComp = null; statusEntries = []; statusNext = null; welcome = null; potVM = null; shareData = null; rondeData = null;
       return;
     }
     noComp = false;
@@ -557,6 +591,7 @@
 
     // Dagverslag-deelknop: data op de achtergrond klaarzetten
     loadShareData(standings).catch(() => {});
+    loadRondeData(standings).catch(() => {});
 
     // Rad-theater: check of er ongeziene Rad-picks zijn (of ?radtest=1)
     if (!radTheater) buildRadTheater().catch(() => {});
@@ -974,12 +1009,20 @@
               {/if}
             </div>
           {/if}
-          {#if shareData}
+          {#if shareData || rondeData}
             <div class="my-status-share">
-              <button class="btn btn-outline-warning btn-sm" onclick={shareDagbericht} title="Deelt een samenvatting van de laatste etappe via WhatsApp">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-                Deel dagverslag in de groepsapp
-              </button>
+              {#if rondeData}
+                <button class="btn btn-accent btn-sm" onclick={shareRondeVerslag} title="Deelt een eindverslag van de hele ronde via WhatsApp">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>
+                  Deel eindronde-verslag
+                </button>
+              {/if}
+              {#if shareData}
+                <button class="btn btn-outline-warning btn-sm" onclick={shareDagbericht} title="Deelt een samenvatting van de laatste etappe via WhatsApp">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                  Deel dagverslag in de groepsapp
+                </button>
+              {/if}
             </div>
           {/if}
         </div>

@@ -138,3 +138,85 @@ export function buildDagbericht(d: ShareData): string {
   lines.push('', 'bagagedrager.netlify.app');
   return lines.join('\n');
 }
+
+// --- Eindronde-verslag: samenvatting van de HELE ronde (truien, podium, superlatieven) ---
+export interface RondeData {
+  standings: any[]; // general_classification-rijen van de ronde
+  allPicks: any[]; // stage_picks_public over alle etappes
+  compName: string;
+  scoringMode: string;
+  stageCount: number; // aantal voltooide etappes
+}
+
+const RONDE_OPENERS = [
+  'De ronde zit erop — tijd voor de eindafrekening.',
+  'De laatste renner is binnen. Dit was de ronde.',
+  'Alles bij elkaar opgeteld: dit is er van de ronde geworden.',
+  'De truien zijn vergeven. De eindbalans.',
+  'Drie weken (of een campagne) later: wie ging ermee vandoor?',
+];
+
+export function buildRondeVerslag(d: RondeData): string {
+  const { standings, allPicks } = d;
+  const isClassic = d.scoringMode === 'classic';
+  const lines: string[] = [pickRandom(RONDE_OPENERS), '', `🏆 *${d.compName} — eindverslag*`];
+
+  const gc = [...standings].sort((a, b) => a.total_time - b.total_time);
+  const game = [...standings].sort((a, b) => (b.total_game_points || 0) - (a.total_game_points || 0));
+  const pts = [...standings].sort((a, b) => (b.total_points || 0) - (a.total_points || 0));
+  const mtn = [...standings].sort((a, b) => (b.total_mountain_points || 0) - (a.total_mountain_points || 0));
+  const cmb = [...standings].sort((a, b) => (b.total_combativity_points || 0) - (a.total_combativity_points || 0));
+
+  // --- Eindwinnaars per trui ---
+  lines.push('', '*De truien*');
+  if (!isClassic && gc.length) {
+    lines.push(`🟡 Geel — algemeen: *${gc[0].display_name}*`);
+    if (pts.length && (pts[0].total_points || 0) > 0) lines.push(`🟢 Groen — punten: *${pts[0].display_name}* (${pts[0].total_points})`);
+    if (mtn.length && (mtn[0].total_mountain_points || 0) > 0) lines.push(`🔴 Bolletjes — berg: *${mtn[0].display_name}* (${mtn[0].total_mountain_points})`);
+  }
+  if (game.length) lines.push(`⚪ Wit — spel: *${game[0].display_name}* (${game[0].total_game_points || 0})`);
+  if (cmb.length && (cmb[0].total_combativity_points || 0) > 0) lines.push(`🥊 Strijdlust: *${cmb[0].display_name}* (${cmb[0].total_combativity_points}× etappewinnaar geraden)`);
+
+  // --- Podium hoofdklassement (grote ronde: AK; klassieker: spel) ---
+  const podium = isClassic ? game : gc;
+  if (podium.length >= 2) {
+    lines.push('', `*Podium ${isClassic ? 'spel' : 'algemeen'}*`);
+    const medals = ['🥇', '🥈', '🥉'];
+    podium.slice(0, 3).forEach((s, i) => {
+      const detail = isClassic
+        ? `${s.total_game_points || 0} pt`
+        : (i === 0 ? 'leider' : formatGap(s.total_time - gc[0].total_time).replace(/^\+/, '') + ' achter');
+      lines.push(`${medals[i]} ${s.display_name} — ${detail}`);
+    });
+  }
+
+  // --- Superlatieven uit alle picks ---
+  const feitjes: string[] = [];
+
+  const scoringPicks = allPicks.filter((p) => !p.is_late && !p.is_random && !p.dnf);
+  if (scoringPicks.length) {
+    const best = scoringPicks.reduce((a, b) => ((b.effective_game_points || 0) > (a.effective_game_points || 0) ? b : a));
+    if ((best.effective_game_points || 0) > 0)
+      feitjes.push(`💥 Grootste dagklapper: ${best.display_name} met ${best.rider_name} (${best.effective_game_points} spelpunten in etappe ${best.stage_number})`);
+  }
+
+  const tally = (rows: any[], key: (p: any) => string) => {
+    const m: Record<string, number> = {};
+    for (const p of rows) { const k = key(p); m[k] = (m[k] || 0) + 1; }
+    return Object.entries(m).sort((a, b) => b[1] - a[1])[0];
+  };
+
+  const radTop = tally(allPicks.filter((p) => p.is_random), (p) => p.display_name);
+  if (radTop && radTop[1] >= 2) feitjes.push(`🎡 Vaakst aan het Rad overgeleverd: ${radTop[0]} (${radTop[1]}×)`);
+
+  const lateTop = tally(allPicks.filter((p) => p.is_late), (p) => p.display_name);
+  if (lateTop && lateTop[1] >= 2) feitjes.push(`⏰ Meeste te-late keuzes: ${lateTop[0]} (${lateTop[1]}×)`);
+
+  const riderTop = tally(allPicks.filter((p) => !p.is_random), (p) => p.rider_name);
+  if (riderTop && riderTop[1] >= 3) feitjes.push(`⭐ Populairste renner: ${riderTop[0]} (${riderTop[1]}× gekozen)`);
+
+  if (feitjes.length) { lines.push('', '*Opvallend*'); for (const f of shuffle(feitjes)) lines.push(f); }
+
+  lines.push('', `${d.stageCount} etappes · ${standings.length} deelnemers`, 'bagagedrager.netlify.app');
+  return lines.join('\n');
+}
