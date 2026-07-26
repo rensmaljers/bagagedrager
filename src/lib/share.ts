@@ -135,7 +135,7 @@ export function buildDagbericht(d: ShareData): string {
   const game = [...standings].sort((a, b) => (b.total_game_points || 0) - (a.total_game_points || 0));
   if (game.length) lines.push(`⚪ Spel: ${top3(game, (s) => `${s.total_game_points || 0}`)}`);
 
-  lines.push('', 'bagagedrager.netlify.app');
+  lines.push('', 'https://bagagedrager.netlify.app');
   return lines.join('\n');
 }
 
@@ -245,6 +245,6 @@ export function buildRondeVerslag(d: RondeData): string {
 
   if (feitjes.length) { lines.push('', '*Opvallend*'); for (const f of shuffle(feitjes)) lines.push(f); }
 
-  lines.push('', `${d.stageCount} etappes · ${standings.length} deelnemers`, 'bagagedrager.netlify.app');
+  lines.push('', `${d.stageCount} etappes · ${standings.length} deelnemers`, 'https://bagagedrager.netlify.app');
   return lines.join('\n');
 }
