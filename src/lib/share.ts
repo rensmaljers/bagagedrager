@@ -146,6 +146,10 @@ export interface RondeData {
   compName: string;
   scoringMode: string;
   stageCount: number; // aantal voltooide etappes
+  pot?: {
+    totalPot: number;
+    rows: { label: string; winners: any[]; amountEach: number }[];
+  } | null; // potVM uit Dashboard; null als er geen inleg is
 }
 
 const RONDE_OPENERS = [
@@ -188,6 +192,30 @@ export function buildRondeVerslag(d: RondeData): string {
         : (i === 0 ? 'leider' : formatGap(s.total_time - gc[0].total_time).replace(/^\+/, '') + ' achter');
       lines.push(`${medals[i]} ${s.display_name} — ${detail}`);
     });
+  }
+
+  // --- Rode lantaarn: hekkensluiter van het hoofdklassement. Alleen bij 4+
+  // deelnemers, anders staat dezelfde speler ook al op het podium. ---
+  if (podium.length >= 4) {
+    const last = podium[podium.length - 1];
+    const detail = isClassic
+      ? `${last.total_game_points || 0} pt`
+      : `${formatGap(last.total_time - gc[0].total_time).replace(/^\+/, '')} achter`;
+    const quip = pickRandom([
+      'chapeau voor het uitrijden',
+      'iemand moet de bezemwagen gezelschap houden',
+      'volgend jaar revanche',
+      'de eer van de laatste plaats',
+    ]);
+    lines.push(`🏮 Rode lantaarn: ${last.display_name} — ${detail} (${quip})`);
+  }
+
+  // --- Prijzenpot: wie verdient wat ---
+  if (d.pot && d.pot.totalPot > 0) {
+    const potLijnen = d.pot.rows
+      .filter((r) => r.winners.length && r.amountEach > 0)
+      .map((r) => `💰 ${r.label}: ${opsomming(r.winners.map((w) => w.display_name))} — €${r.amountEach}${r.winners.length > 1 ? ' p.p.' : ''}`);
+    if (potLijnen.length) lines.push('', `*De prijzenpot — €${d.pot.totalPot}*`, ...potLijnen);
   }
 
   // --- Superlatieven uit alle picks ---

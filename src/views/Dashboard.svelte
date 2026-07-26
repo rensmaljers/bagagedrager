@@ -272,7 +272,8 @@
 
   function shareRondeVerslag() {
     if (!rondeData) return;
-    shareText(buildRondeVerslag(rondeData));
+    // potVM op deelmoment meegeven: renderPotCard laadt parallel aan loadRondeData
+    shareText(buildRondeVerslag({ ...rondeData, pot: potVM }));
   }
 
   // --- H2H overlay state (reactief i.p.v. window.openH2H) ---
