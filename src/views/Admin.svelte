@@ -640,6 +640,30 @@
     } catch (e: any) { toast(e.message, 'error'); }
   }
 
+  // Starttijd (= deadline) van een bestaande etappe — toont lokale uu:mm.
+  function stageTimeVal(s: any): string {
+    if (!s.start_time) return '';
+    const d = new Date(s.start_time);
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  }
+
+  async function updateStageStartTime(s: any, timeStr: string) {
+    const clean = (timeStr || '').trim();
+    if (!clean) return;
+    // Ingevoerde tijd is lokale (browser)tijd; combineer met de etappedatum en sla
+    // als UTC op. start_time = deadline (spelconventie: deadline is de starttijd).
+    const datePart = String(s.date).slice(0, 10);
+    const dt = new Date(`${datePart}T${clean}:00`);
+    if (isNaN(dt.getTime())) { toast('Ongeldige tijd (uu:mm)', 'error'); return; }
+    const iso = dt.toISOString();
+    try {
+      await supaPatch('stages', `id=eq.${s.id}`, { start_time: iso, deadline: iso });
+      const stage = appState.stages.find((x: any) => x.id === s.id);
+      if (stage) { stage.start_time = iso; stage.deadline = iso; }
+      toast('Starttijd bijgewerkt', 'success');
+    } catch (e: any) { toast(e.message, 'error'); }
+  }
+
   // =====================
   // PCS DIRECTE SYNC (edge functions)
   // =====================
@@ -1919,7 +1943,11 @@
                 <td>{s.name}</td>
                 <td>{#if comp}{comp.name}{:else}<span class="text-muted">-</span>{/if}</td>
                 <td>{new Date(s.date).toLocaleDateString('nl-NL')}</td>
-                <td>{s.start_time ? new Date(s.start_time).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                <td>
+                  <input type="time" class="form-control form-control-sm" value={stageTimeVal(s)}
+                         style="width:96px;font-size:0.72rem;" title="Starttijd = deadline (lokale tijd)"
+                         onchange={(e) => updateStageStartTime(s, e.currentTarget.value)}>
+                </td>
                 <td>{typeLabels[s.stage_type] || s.stage_type}</td>
                 <td>
                   <div class="input-group input-group-sm" style="min-width:180px;">
