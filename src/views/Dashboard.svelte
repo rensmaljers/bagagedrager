@@ -413,6 +413,10 @@
             ? Math.max(0, Math.min(100, (Number(formatFn(s, i)) / leaderVal) * 100))
             : null,
           showTrui: isLeader && !!jerseyClass,
+          // Rode lantaarn: alleen in het AK, bij 4+ spelers, en alleen als de
+          // laatste écht alleen laatste staat (strikt langzamer dan de voorlaatste
+          // — vangt ook de alles-op-0-situatie vóór de eerste uitslag af).
+          showLantaarn: classMode === 'gc' && sorted.length >= 4 && i === sorted.length - 1 && s.total_time > sorted[i - 1].total_time,
           showH2h: s.display_name !== myName,
         };
       });
@@ -916,7 +920,7 @@
           <tr
             style={row.isMe ? 'background:var(--accent-bg);' : undefined}
             class={row.isLeader ? `leader-row${t.jerseyClass ? ' wears ' + t.jerseyClass : ''}` : (row.extra ? 'standings-extra' : undefined)}
-          ><td class="tnum">{@html rankBadge(i)}{@html row.deltaHtml}</td><td><div class="d-flex align-items-center gap-2"><span class="player-click d-inline-flex align-items-center gap-2" role="button" tabindex="0" onclick={() => (ui.playerModalId = row.user_id)} onkeydown={(e) => { if (e.key === 'Enter') ui.playerModalId = row.user_id; }}>{@html avatarHtml(row.name, appState._avatarMap[row.name], 'sm')}{row.name}</span>{#if row.showTrui}<span class="trui-chip">trui</span>{/if}{#if row.showH2h}<button class="btn btn-ghost h2h-vs-btn" onclick={() => openH2H(row.name, t.mode)} aria-label="Vergelijk met {row.name}">vs</button>{/if}</div></td><td class="text-end tnum">{@html row.valueHtml}{#if row.barPct != null}<span class="score-bar score-bar-{t.mode}"><span style="width:{row.barPct}%"></span></span>{/if}</td></tr>
+          ><td class="tnum">{@html rankBadge(i)}{@html row.deltaHtml}</td><td><div class="d-flex align-items-center gap-2"><span class="player-click d-inline-flex align-items-center gap-2" role="button" tabindex="0" onclick={() => (ui.playerModalId = row.user_id)} onkeydown={(e) => { if (e.key === 'Enter') ui.playerModalId = row.user_id; }}>{@html avatarHtml(row.name, appState._avatarMap[row.name], 'sm')}{row.name}</span>{#if row.showTrui}<span class="trui-chip">trui</span>{/if}{#if row.showLantaarn}<span class="info-tooltip lantaarn-chip" data-tip="Rode lantaarn — de hekkensluiter van het klassement">🏮</span>{/if}{#if row.showH2h}<button class="btn btn-ghost h2h-vs-btn" onclick={() => openH2H(row.name, t.mode)} aria-label="Vergelijk met {row.name}">vs</button>{/if}</div></td><td class="text-end tnum">{@html row.valueHtml}{#if row.barPct != null}<span class="score-bar score-bar-{t.mode}"><span style="width:{row.barPct}%"></span></span>{/if}</td></tr>
         {/each}
         {#if t.collapsible}
           <tr class="standings-expand-row"><td colspan="3"><button type="button" class="standings-expand-btn" onclick={() => expanded[key] = !expanded[key]}>{expanded[key] ? `Toon top ${COMPACT_TOP}` : `Toon alle ${t.count} spelers`}</button></td></tr>

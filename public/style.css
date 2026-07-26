@@ -1079,6 +1079,8 @@ code, pre { color: var(--text); }
   transition: opacity var(--dur);
 }
 .info-tooltip:hover { opacity: 1; }
+/* Rode lantaarn bij de hekkensluiter in het AK — emoji niet dimmen zoals de ⓘ */
+.lantaarn-chip { opacity: 0.9; font-size: 0.85rem; }
 .tip-popup {
   position: fixed;
   z-index: 9999;
