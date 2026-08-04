@@ -135,6 +135,32 @@ Deno.test("KOM-tab met General+Today-split: sommeert Today-tabelletjes, negeert 
   assertEquals(b.mountain_points, 25);
 });
 
+// ---- Vrouwenkoers: bergklassement heet QOM, niet KOM ----
+// Tabs op bijv. Tour de France Femmes 2026: STAGE | GC | POINTS | QOM | YOUTH | TEAMS
+// (regressie: TdF Femmes 2026 etappe 1-2 kregen 0 bergpunten omdat alleen "KOM" gematcht werd).
+const QOM_STAGE = `
+<ul class="restabs">
+  <li><a data-id="1">STAGE</a></li>
+  <li><a data-id="2">GC</a></li>
+  <li><a data-id="3">POINTS</a></li>
+  <li><a data-id="4">QOM</a></li>
+  <li><a data-id="5">YOUTH</a></li>
+</ul>
+<div class="resTab" data-id="1"><table class="results"><tbody>
+  <tr><td class="bibs">1</td><td>x</td><td><a href="rider/climber-w">Climber W</a></td><td class="time ar"><font>3:43:33</font></td></tr>
+  <tr><td class="bibs">2</td><td>x</td><td><a href="rider/sprinter-w">Sprinter W</a></td><td class="time ar">,,</td></tr>
+</tbody></table></div>
+<div class="resTab" data-id="4"><table class="results"><tbody>
+  <tr><td class="bibs">1</td><td>x</td><td><a href="rider/climber-w">Climber W</a></td><td class="pnt">12</td></tr>
+</tbody></table></div>
+`;
+
+Deno.test("QOM-tab (vrouwenkoers) wordt als bergklassement gelezen", () => {
+  const results = parseStagePage(parseDoc(QOM_STAGE));
+  const w = results.find(r => r.pcs_slug === "climber-w")!;
+  assertEquals(w.mountain_points, 12);
+});
+
 // PCS toont in de Today-tabel voor een tussensprint/top met bonusseconden een extra
 // td.delta_pnt-kolom naast td.pnt. "delta_pnt" bevat de substring "pnt", dus een naïeve
 // cls.includes("pnt")-check matcht ook die kolom en overschrijft de echte puntenwaarde

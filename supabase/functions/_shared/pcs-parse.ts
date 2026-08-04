@@ -314,7 +314,8 @@ export function parseStagePage(doc: any): StageResult[] {
   }
 
   extractClassificationPoints(findTabDiv(doc, "POINTS"), results, "points");
-  extractClassificationPoints(findTabDiv(doc, "KOM"), results, "mountain_points");
+  // Vrouwenkoersen noemen het bergklassement QOM (Queen of the Mountains)
+  extractClassificationPoints(findTabDiv(doc, "KOM") || findTabDiv(doc, "QOM"), results, "mountain_points");
   extractBonifications(findTabTable(doc, "BONIS") || findTabTable(doc, "BONIFICATION"), results);
 
   return results;

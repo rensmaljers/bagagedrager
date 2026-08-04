@@ -281,6 +281,13 @@
     }
   });
 
+  // Eén-tik-wissel via de pills (2-3 actieve rondes); de select gebruikt onCompChange direct
+  function switchComp(id: number) {
+    if (id === appState.activeCompId) return;
+    appState.activeCompId = id;
+    onCompChange();
+  }
+
   async function onCompChange() {
     localStorage.setItem('bagagedrager_comp', String(appState.activeCompId));
     appState._cache.standings = null;
@@ -413,14 +420,29 @@
               <img id="comp-logo" class="comp-logo" alt="" src={activeComp.logo_url} onerror={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}>
             {/key}
           {/if}
-          <select id="comp-select" class="form-select form-select-sm" title="Wissel van ronde"
-            bind:value={appState.activeCompId} onchange={onCompChange}
-            style:border-color={compColor + '60'} style:background={compColor + '10'}>
-            {#each activeComps as c (c.id)}
-              <option value={c.id}>{c.country_flag || ''} {c.name}</option>
-            {/each}
-          </select>
-          <span id="comp-count" class="comp-count">{compCount}</span>
+          {#if activeComps.length >= 2 && activeComps.length <= 3}
+            <!-- 2-3 rondes: segmented pills — wisselen in één tik i.p.v. via de dropdown -->
+            <div class="comp-switch" role="group" aria-label="Wissel van ronde">
+              {#each activeComps as c (c.id)}
+                <button type="button" class="comp-switch-btn"
+                  class:active={c.id === appState.activeCompId}
+                  style:--pill-color={c.color || '#facc15'}
+                  aria-pressed={c.id === appState.activeCompId}
+                  onclick={() => switchComp(c.id)}>
+                  {c.country_flag || ''} {c.name}
+                </button>
+              {/each}
+            </div>
+          {:else}
+            <select id="comp-select" class="form-select form-select-sm" title="Wissel van ronde"
+              bind:value={appState.activeCompId} onchange={onCompChange}
+              style:border-color={compColor + '60'} style:background={compColor + '10'}>
+              {#each activeComps as c (c.id)}
+                <option value={c.id}>{c.country_flag || ''} {c.name}</option>
+              {/each}
+            </select>
+            <span id="comp-count" class="comp-count">{compCount}</span>
+          {/if}
           {#if syncInfo}
             <span id="comp-sync-info" class="comp-sync-info">{syncInfo}</span>
           {/if}
