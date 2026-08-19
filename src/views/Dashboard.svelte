@@ -173,6 +173,7 @@
   let potBanner = $state(false);
   let potDismissKey = $state('');
   let potPaymentUrl: string | null = $state(null);
+  let potStarted = $state(false);
   let potEntryFeeDisplay = $state(0);
   function dismissPotBanner() {
     if (potDismissKey) localStorage.setItem(potDismissKey, '1');
@@ -554,19 +555,18 @@
       statusNext = null;
     }
 
-    // Inleg-banner: betaalverzoek voor de prijzenpot, vanaf de startdag van
-    // etappe 1 tot de speler hem wegklikt (localStorage) of betaald heeft
-    // (competition_participants.has_paid, admin vinkt af) — port van main.
-    // Werkt voor elke ronde met entry_fee + payment_url ingevuld (admin, tab Rondes),
-    // niet meer hardcoded op één specifieke ronde.
+    // Inleg-banner: betaalverzoek voor de prijzenpot, zichtbaar zodra de ronde
+    // een inleg + betaallink heeft, tot de speler hem wegklikt (localStorage)
+    // of betaald heeft (competition_participants.has_paid, admin vinkt af).
+    // Werkt voor elke ronde met entry_fee + payment_url ingevuld (admin, tab Rondes).
     const stage1 = activeStages().find(s => s.stage_number === 1);
     potDismissKey = comp ? `bagagedrager_pot_${comp.id}_dismissed` : '';
     potPaymentUrl = comp?.payment_url || null;
     potEntryFeeDisplay = comp?.entry_fee || 0;
+    potStarted = !!(stage1 && new Date() >= new Date(new Date(stage1.start_time).toDateString()));
     const potKandidaat = !!(
       comp?.entry_fee && comp?.payment_url &&
-      potDismissKey && localStorage.getItem(potDismissKey) !== '1' &&
-      stage1 && new Date() >= new Date(new Date(stage1.start_time).toDateString())
+      potDismissKey && localStorage.getItem(potDismissKey) !== '1'
     );
     if (potKandidaat) {
       try {
@@ -955,14 +955,14 @@
     </div>
   {/if}
   <!-- Welkom-hero: zichtbaar zolang je nog geen pick hebt in de actieve ronde -->
-  <!-- Inleg-betaalverzoek: zichtbaar tijdens de Tour tot weggeklikt -->
+  <!-- Inleg-betaalverzoek: zichtbaar zodra inleg + betaallink bekend zijn, tot weggeklikt/betaald -->
   {#if potBanner}
     <div id="pot-banner-wrap" class="mb-4">
       <div class="card welcome-card">
         <div class="card-body">
           <div class="welcome-card-inner">
             <div>
-              <div class="welcome-card-title">De ronde is begonnen — doe je inleg in de pot</div>
+              <div class="welcome-card-title">{potStarted ? 'De ronde is begonnen' : 'De ronde komt eraan'} — doe je inleg in de pot</div>
               <div class="welcome-card-sub">Inleg is €{potEntryFeeDisplay},00. Betaal via het betaalverzoek — dat werkt met elke Nederlandse bank. Dank je wel!</div>
             </div>
             <div class="d-flex align-items-center gap-2 welcome-card-cta">
