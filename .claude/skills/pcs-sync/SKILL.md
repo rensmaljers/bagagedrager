@@ -33,7 +33,7 @@ Bij een meerdaagse ronde staat de PCS-link op `competitions.pcs_url` (`.../race/
 
 Frontend: `public/helpers.ts` → `buildPcsStageUrl`. Auto-sync heeft een spiegel hiervan (`buildStageUrl`). Houd ze gelijk.
 
-URL-vorm: `/race/<slug>/<jaar>/stage-N` (zónder `.php`). Kale `curl` wordt door Cloudflare geblokt; de edge function (datacenter-IP + browser-UA) komt er wél door. Lokaal testen kan met een Deno-scriptje dat `parseStagePage` importeert en de pagina fetcht met een browser-UA.
+URL-vorm: `/race/<slug>/<jaar>/stage-N` (zónder `.php`). **Cloudflare blokkeert sinds 22 aug 2026 álle niet-browser-requests** (JS-challenge, 403 "Just a moment..."), ook het datacenter-IP van de edge functions. `_shared/pcs-fetch.ts` valt daarom bij een 403 (of uitgeputte retries) terug op de **r.jina.ai-renderproxy** (`https://r.jina.ai/<pcs-url>` met `X-Return-Format: html` + `X-No-Cache: true`; optionele `JINA_API_KEY`-secret voor hogere rate limits). Lokaal testen: dezelfde jina-URL curl-en en de HTML door `parseStagePage` halen — kale curl naar PCS zelf krijgt altijd 403.
 
 ## Renner-matching → rider_id (verplicht vóór opslaan)
 

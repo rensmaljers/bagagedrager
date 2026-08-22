@@ -115,7 +115,7 @@ Parse-logica staat in `supabase/functions/_shared/pcs-parse.ts` (getest!):
 - **Bonification**: in `td.ar.cu600`, uses `″` (U+2033) for seconds. Multiple values (e.g. `2″-20″`) are summed. BONIS-tab overschrijft indien aanwezig.
 - **DNF/DNS/OTL/DSQ**: detected by checking ALL cells in a row (not just the time cell)
 - Manual DNF overrides are preserved on re-sync (migration 029)
-- URL-vorm: gebruik `/race/<slug>/<jaar>/stage-N` (zonder `.php`); Cloudflare blokkeert kale curl-requests, de edge function (datacenter-IP + browser-UA) komt er wel door
+- URL-vorm: gebruik `/race/<slug>/<jaar>/stage-N` (zonder `.php`); Cloudflare blokkeert sinds 22 aug 2026 álle niet-browser-requests (ook de edge function) — `_shared/pcs-fetch.ts` valt bij 403 automatisch terug op de r.jina.ai-renderproxy (optionele `JINA_API_KEY`-secret voor hogere rate limits)
 - Bij HTML-wijzigingen door PCS: test eerst live met Playwright/browser, leg de structuur vast in een test in `supabase/functions/tests/pcs-parse.test.ts`
 
 ## Common commands
