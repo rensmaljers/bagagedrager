@@ -33,7 +33,22 @@ Bij een meerdaagse ronde staat de PCS-link op `competitions.pcs_url` (`.../race/
 
 Frontend: `public/helpers.ts` → `buildPcsStageUrl`. Auto-sync heeft een spiegel hiervan (`buildStageUrl`). Houd ze gelijk.
 
-URL-vorm: `/race/<slug>/<jaar>/stage-N` (zónder `.php`). **Cloudflare blokkeert sinds 22 aug 2026 álle niet-browser-requests** (JS-challenge, 403 "Just a moment..."), ook het datacenter-IP van de edge functions. `_shared/pcs-fetch.ts` valt daarom bij een 403 (of uitgeputte retries) terug op de **r.jina.ai-renderproxy** (`https://r.jina.ai/<pcs-url>` met `X-Return-Format: html` + `X-No-Cache: true`; optionele `JINA_API_KEY`-secret voor hogere rate limits). Lokaal testen: dezelfde jina-URL curl-en en de HTML door `parseStagePage` halen — kale curl naar PCS zelf krijgt altijd 403.
+URL-vorm: `/race/<slug>/<jaar>/stage-N` (zónder `.php`). Voor het ophalen zelf: zie **Cloudflare-blok & renderproxy** hieronder — kale curl naar PCS krijgt altijd 403.
+
+## Cloudflare-blok & renderproxy (sinds 22 aug 2026)
+
+Op de openingsdag van de Vuelta 2026 zette PCS een Cloudflare **JS-challenge** aan die álle niet-browser-requests blokkeert — ook het datacenter-IP van de Supabase edge functions. Symptoom: elke sync faalt met `PCS status 403`, admin krijgt fout-pushes, `net._http_response` toont de 403 in de sync-result-JSON.
+
+`_shared/pcs-fetch.ts` lost dit op met een **fallback naar de r.jina.ai-renderproxy**, die de challenge in een echte browser oplost en de volledige HTML teruggeeft (de geteste parser werkt daar 1-op-1 op):
+
+- **Direct blijft primair** (sneller, gratis). Fallback bij een 403 (meteen, retry is zinloos) of na uitgeputte retries op 5xx/429/netwerkfout.
+- Proxy-call: `https://r.jina.ai/<volledige-pcs-url>` met headers `X-Return-Format: html` (rauwe HTML i.p.v. markdown) en `X-No-Cache: true` (verse render — uitslagen veranderen, jina cachet standaard).
+- **`JINA_API_KEY`** is een optionele Supabase-secret (`supabase secrets set JINA_API_KEY=...`) voor hogere rate limits; zonder key werkt de proxy ook maar met IP-gebonden limieten. Bij een volledige race-import (21 etappes) kan de gratis tier gaan knijpen — dan key zetten.
+- Een proxy-render duurt ~10–60 s. pg_net wacht maar kort → `net._http_response` kan `NULL` tonen terwijl de functie gewoon doorloopt en slaagt; kijk dan naar `stage_results` of de function-logs.
+
+**Error logging**: elke mislukte poging en elke fallback logt met `[pcs-fetch]`-prefix naar de edge-function-logs (dashboard → Functions → \<functie\> → Logs), inclusief poging-teller, URL en bij proxy-fouten een body-snippet (jina zet de echte reden — rate limit, render-fout — in de body). Falen béide kanalen, dan gooit `fetchPcsPage` één fout die het hele verhaal vertelt, bv. `PCS 403 (Cloudflare-blok) én renderproxy faalde (proxy status 429, 2 pogingen, geen JINA_API_KEY)` — die tekst belandt in sync-results, admin-pushes en `net._http_response`. Gedrag is vastgelegd in `tests/pcs-fetch.test.ts`.
+
+Lokaal testen: de jina-URL curl-en (mét de twee headers) en de HTML door `parseStagePage` halen; direct naar PCS curl-en geeft altijd de challenge-pagina ("Just a moment...", title-tag checken).
 
 ## Renner-matching → rider_id (verplicht vóór opslaan)
 

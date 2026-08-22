@@ -53,10 +53,13 @@ Deno.test("403 (Cloudflare-blok) valt direct terug op de renderproxy", async () 
   assertStringIncludes(stub.urls[1], "https://r.jina.ai/https://pcs/x");
 });
 
-Deno.test("403 waarbij ook de proxy faalt geeft het 403-blok terug", async () => {
+Deno.test("403 waarbij ook de proxy faalt gooit één fout met het hele verhaal", async () => {
   const stub = fetchStub([403, 500, 500]);
-  const res = await fetchPcsPage("https://pcs/x", { fetchFn: stub.fn, baseDelayMs: 1, proxyRetries: 1 });
-  assertEquals(res.status, 403); // callers rapporteren "PCS status 403"
+  await assertRejects(
+    () => fetchPcsPage("https://pcs/x", { fetchFn: stub.fn, baseDelayMs: 1, proxyRetries: 1 }),
+    Error,
+    "PCS 403 (Cloudflare-blok) én renderproxy faalde (proxy status 500",
+  );
   assertEquals(stub.getCalls(), 3); // 1 direct + 2 proxy-pogingen
 });
 
@@ -68,12 +71,12 @@ Deno.test("aanhoudende 503 probeert daarna de proxy en slaagt", async () => {
   assertStringIncludes(stub.urls[3], "https://r.jina.ai/");
 });
 
-Deno.test("alles faalt: duidelijke fout met proxy-vermelding", async () => {
+Deno.test("alles faalt: duidelijke fout met direct- én proxy-vermelding", async () => {
   const stub = fetchStub([503]);
   await assertRejects(
     () => fetchPcsPage("https://pcs/x", { fetchFn: stub.fn, retries: 2, baseDelayMs: 1, proxyRetries: 1 }),
     Error,
-    "proxy status 503 (direct + proxy geprobeerd)",
+    "PCS status 503 én renderproxy faalde (proxy status 503",
   );
   assertEquals(stub.getCalls(), 5); // 3 direct + 2 proxy
 });
