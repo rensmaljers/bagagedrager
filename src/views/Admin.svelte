@@ -2177,7 +2177,7 @@
       <div class="card-body">
         <p class="text-muted" style="font-size:0.8rem;">
           Snel renners ophalen via een ProCyclingStats race-URL.<br>
-          Open de browser console (F12) op <a href="https://www.procyclingstats.com" target="_blank" style="color:var(--accent)">procyclingstats.com</a> en plak dit script:
+          Open de browser console (F12) op <a href="https://www.procyclingstats.com" target="_blank" rel="noopener noreferrer" style="color:var(--accent)">procyclingstats.com</a> en plak dit script:
         </p>
         <pre class="p-2" style="background:var(--bg); border:1px solid var(--border); border-radius:8px; font-size:0.72rem; overflow-x:auto; white-space:pre-wrap;"><code id="pcs-script">{PCS_SCRIPT}</code></pre>
         <button class="btn btn-ghost btn-sm mt-1" onclick={() => navigator.clipboard.writeText(PCS_SCRIPT)}>Kopieer script</button>

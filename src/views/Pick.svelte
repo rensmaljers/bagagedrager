@@ -457,8 +457,8 @@
           <span id="pick-deadline" class="stage-hero-sub">{stageDetails}</span>
           {#if pcsStageUrl || newsUrl}
             <div class="stage-hero-links">
-              {#if pcsStageUrl}<a href={pcsStageUrl} target="_blank" rel="noopener" class="stage-link-chip" title="Uitslag en startlijst op ProCyclingStats">PCS ↗</a>{/if}
-              {#if newsUrl}<a href={newsUrl} target="_blank" rel="noopener" class="stage-link-chip" title="Nieuws over deze etappe">Nieuws ↗</a>{/if}
+              {#if pcsStageUrl}<a href={pcsStageUrl} target="_blank" rel="noopener noreferrer" class="stage-link-chip" title="Uitslag en startlijst op ProCyclingStats">PCS ↗</a>{/if}
+              {#if newsUrl}<a href={newsUrl} target="_blank" rel="noopener noreferrer" class="stage-link-chip" title="Nieuws over deze etappe">Nieuws ↗</a>{/if}
             </div>
           {/if}
         </div>
@@ -585,7 +585,7 @@
                     {/if}
                     <div class="flex-grow-1 min-width-0">
                       <div class="d-flex justify-content-between align-items-start">
-                        <div class="fw-bold d-flex align-items-center gap-1" style="font-size:0.88rem;"><span class="text-truncate">{r.name}</span>{#if r.pcs_slug}<a href="https://www.procyclingstats.com/rider/{r.pcs_slug}" target="_blank" rel="noopener" class="rider-pcs-icon ms-auto" title="Bekijk op PCS" onclick={(e) => e.stopPropagation()}>↗</a>{/if}</div>
+                        <div class="fw-bold d-flex align-items-center gap-1" style="font-size:0.88rem;"><span class="text-truncate">{r.name}</span>{#if r.pcs_slug}<a href="https://www.procyclingstats.com/rider/{r.pcs_slug}" target="_blank" rel="noopener noreferrer" class="rider-pcs-icon ms-auto" title="Bekijk op PCS" onclick={(e) => e.stopPropagation()}>↗</a>{/if}</div>
                         <span class="bib-badge">{r.bib_number}</span>
                       </div>
                       {#if riderSpecsHtml(r)}

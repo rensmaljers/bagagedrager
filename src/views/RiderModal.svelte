@@ -98,7 +98,7 @@
             <div class="pm-meta">
               {@html teamBadge(rider.team)}
               {#if isDnf}<span class="badge bg-danger">DNF</span>{/if}
-              {#if rider.pcs_slug}<a href="https://www.procyclingstats.com/rider/{rider.pcs_slug}" target="_blank" rel="noopener" class="pcs-link" title="Bekijk op PCS">PCS ↗</a>{/if}
+              {#if rider.pcs_slug}<a href="https://www.procyclingstats.com/rider/{rider.pcs_slug}" target="_blank" rel="noopener noreferrer" class="pcs-link" title="Bekijk op PCS">PCS ↗</a>{/if}
             </div>
             <div class="rm-facts">
               {#if rider.nationality}<span>{rider.nationality}</span>{/if}
