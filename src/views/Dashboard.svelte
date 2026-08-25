@@ -181,6 +181,18 @@
   }
   let potVM: any = $state(null);
 
+  // Mededeling geannuleerde rit: Vuelta 2026 etappe 3 (hagel, 24 aug). Alleen
+  // zichtbaar in de Vuelta-competitie (comp 39); weghalen na afloop van de ronde.
+  const ANNUL_BANNER_KEY = 'bagagedrager_annulering_rit3_dismissed';
+  let annulBanner = $state(false);
+  function dismissAnnulBanner() {
+    localStorage.setItem(ANNUL_BANNER_KEY, '1');
+    annulBanner = false;
+  }
+  $effect(() => {
+    annulBanner = appState.activeCompId === 39 && localStorage.getItem(ANNUL_BANNER_KEY) !== '1';
+  });
+
   // Beginscherm-tip: pushmeldingen voor renner/uitslag werken op iOS alleen als
   // geïnstalleerde PWA — niet ronde-specifiek, dus altijd relevant zolang niet standalone.
   const A2HS_BANNER_KEY = 'bagagedrager_a2hs_dismissed';
@@ -932,6 +944,22 @@
 
 <!-- Dashboard -->
 <div class="tab-section active" id="section-dashboard">
+  <!-- Mededeling: rit 3 Vuelta 2026 geannuleerd (hagel) — zichtbaar tot weggeklikt -->
+  {#if annulBanner}
+    <div id="annul-banner-wrap" class="mb-4">
+      <div class="card welcome-card">
+        <div class="card-body">
+          <div class="welcome-card-inner">
+            <div>
+              <div class="welcome-card-title">⛈️ Rit 3 geannuleerd</div>
+              <div class="welcome-card-sub">Etappe 3 (Gruissan – Font Romeu) is op 24 augustus door de organisatie stilgelegd en geannuleerd vanwege zware hagel. De rit telt in <strong>geen enkel klassement</strong> mee — geen punten, maar ook geen straftijd. Conform de <a href="#account" style="color:var(--accent);">spelregels</a> blijft je pick staan: de gekozen renner is verbruikt.</div>
+            </div>
+            <button class="btn btn-ghost welcome-card-cta" onclick={dismissAnnulBanner}>Snap ik</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  {/if}
   <!-- Beginscherm-tip: zichtbaar tot weggeklikt, op elk toestel dat niet als PWA draait -->
   {#if a2hsBanner}
     <div id="a2hs-banner-wrap" class="mb-4">

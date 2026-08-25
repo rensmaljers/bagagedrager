@@ -72,6 +72,7 @@ De klassementen zitten in de views `general_classification` en `stage_picks_publ
 - Each rider can only be used once per competition
 - Late/no pick → "Rad van Fortuin" assigns a random unused rider; GC penalty = slechtste tijdverschil van een gekozen renner die finishte, Rad uitgezonderd (migratie 085, `chosen_penalty_gap`)
 - DNF/DNS/OTL = same GC penalty as late; 0 points in all other classifications
+- **Geannuleerde/gestaakte rit zonder uitslag** (besluit 24 aug 2026, Vuelta rit 3/hagel): telt in geen enkel klassement mee (geen punten, geen straftijd — volgt vanzelf uit lege `stage_results`); picks blijven staan en de gekozen renner blijft verbruikt. Operationeel: `estimated_end_time` op NULL zetten zodat auto-sync-eta de rit overslaat en de admin-pushes stoppen.
 - Bonification seconds stored per rider in `stage_results.bonification_seconds` (scraped from PCS or entered manually by admin). NOT derived from finish position.
 - Klassiekers: één competitie met meerdere "etappes" (koersen) en per-etappe startlijsten in `stage_riders`
 - Nieuwe ronde/competitie opzetten: zie skill `nieuwe-competitie`
