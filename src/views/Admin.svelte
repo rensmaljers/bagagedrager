@@ -853,7 +853,8 @@
         || (r.bib_number && appState.riders.find((rd: any) => rd.bib_number === r.bib_number));
       const timeDisplay = i === 0 ? formatTime(r.time_seconds) : formatGap(r.time_seconds - pcsWinnerTime);
       const matchMark = rider ? '' : ' ⚠️ niet in startlijst';
-      return `${i + 1}. ${rider?.name || r.pcs_slug || '?'} — ${timeDisplay}${r.dnf ? ' (DNF)' : ''}${matchMark}`;
+      const suspectMark = r.suspect_team_mismatch ? ' ⚠️ team-mismatch, tijd checken' : '';
+      return `${i + 1}. ${rider?.name || r.pcs_slug || '?'} — ${timeDisplay}${r.dnf ? ' (DNF)' : ''}${matchMark}${suspectMark}`;
     }).join('<br>');
   }
 
@@ -908,10 +909,25 @@
 
       await supaPatch('competitions', `id=eq.${appState.activeCompId}`, { last_synced_at: new Date().toISOString() });
 
-      pcsResultsStatus = { text: `✅ ${matched} resultaten opgeslagen!` + (unmatched ? ` (${unmatched} onbekend)` : ''), cls: 'text-success' };
+      // PCS serveert soms (via Cloudflare) een pagina waarbij twee renners elkaars
+      // teamnaam — en dus mogelijk tijd — hebben; sync-pcs-results blokkeert daar niet
+      // meer op (zie pcs-parse.ts) maar meldt welke renners het betreft, zodat de admin
+      // ze even tegen de officiële PCS-uitslag kan natrekken.
+      const suspects: string[] = data.suspects || [];
+      const suspectWarning = suspects.length
+        ? ` ⚠️ Controleer handmatig: ${suspects.join(', ')} (PCS toonde een team-mismatch, tijd mogelijk verwisseld met buurrenner)`
+        : '';
+
+      pcsResultsStatus = {
+        text: `✅ ${matched} resultaten opgeslagen!` + (unmatched ? ` (${unmatched} onbekend)` : '') + suspectWarning,
+        cls: suspects.length ? 'text-warning' : 'text-success',
+      };
 
       // Toon Top 10 gebaseerd op PCS-uitslag (niet op payload-volgorde)
-      pcsResultsLog = top10LogHtml(data.results, 'Top 10 (PCS):');
+      pcsResultsLog = (suspects.length
+        ? `<div class="text-warning mb-2">⚠️ <strong>Controleer handmatig tegen PCS:</strong> ${suspects.join(', ')}<br>` +
+          `PCS toonde voor deze renner(s) een team-mismatch in de tabel — de tijd kan verwisseld zijn met de renner erboven/onder.</div>`
+        : '') + top10LogHtml(data.results, 'Top 10 (PCS):');
 
       loadAdminResults();
     } catch (e: any) {
