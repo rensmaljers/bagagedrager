@@ -355,12 +355,12 @@ Deno.test("pagina zonder tabs: eerste table.results gebruiken", () => {
   assertEquals(results[0].time_seconds, 4 * 3600 + 62);
 });
 
-// De renderproxy (r.jina.ai) fotografeert de pagina soms terwijl PCS 'm nog aan het
-// (her)sorteren is: twee renners die vlak na elkaar finishen kunnen dan een rij
-// opleveren waar de naam al bij de nieuwe renner hoort, maar het losse teamveldje
-// (en dus ook tijd/punten in diezelfde rij) nog van de vórige bewoner is — precies
-// wat er gebeurde met Carapaz/Skjelmose in etappe 4 Vuelta 2026: hun tijden stonden
-// verwisseld omdat de rijen elkaars teamnaam (en tijd) hadden.
+// PCS serveert (bevestigd rechtstreeks op procyclingstats.com, dus geen eigenaardigheid
+// van de renderproxy) soms een pagina waarbij twee vlak na elkaar finishende renners
+// elkaars teamnaam (en dus mogelijk tijd) hebben — precies wat er gebeurde met
+// Carapaz/Skjelmose in etappe 4 Vuelta 2026. Dit bleek na verloop van tijd bij bijna
+// elke etappe voor te komen (PCS-eigen CDN-inconsistentie), dus blokkeren we de sync
+// niet meer — we markeren de rij zodat de admin 'm kan natrekken.
 const TEAM_MISMATCH_STAGE = `
 <ul class="restabs"><li><a data-id="1">STAGE</a></li></ul>
 <div class="resTab" data-id="1"><table class="results"><tbody>
@@ -368,15 +368,19 @@ const TEAM_MISMATCH_STAGE = `
   <tr><td class="bibs">9</td><td>x</td><td class="ridername"><div class="cont"><a href="rider/carapaz">Carapaz Richard</a><div class="showIfMobile fs12 clr999">EF Education - EasyPost</div></div></td><td class="cu600"><a href="team/lidl-trek-2026">Lidl - Trek</a></td><td class="time ar"><font>3:17</font></td></tr>
 </tbody></table></div>`;
 
-Deno.test("STAGE-tab: team-mismatch tussen mobiel en desktop veld geeft duidelijke fout (kapotte renderproxy-snapshot)", () => {
-  assertThrows(
-    () => parseStagePage(parseDoc(TEAM_MISMATCH_STAGE)),
-    Error,
-    "team-mismatch",
-  );
+Deno.test("STAGE-tab: team-mismatch tussen mobiel en desktop veld blokkeert de sync niet, maar markeert de rij", () => {
+  const results = parseStagePage(parseDoc(TEAM_MISMATCH_STAGE));
+  assertEquals(results.length, 2);
+  const skjelmose = results.find(r => r.pcs_slug === "skjelmose")!;
+  const carapaz = results.find(r => r.pcs_slug === "carapaz")!;
+  assertEquals(skjelmose.suspect_team_mismatch, true);
+  assertEquals(carapaz.suspect_team_mismatch, true);
+  // Tijden worden gewoon opgeslagen (niet geblokkeerd), ondanks de markering
+  assertEquals(skjelmose.time_seconds > 0, true);
+  assertEquals(carapaz.time_seconds > 0, true);
 });
 
-Deno.test("STAGE-tab: consistente team-velden geven geen fout", () => {
+Deno.test("STAGE-tab: consistente team-velden geven geen markering", () => {
   const html = `
 <ul class="restabs"><li><a data-id="1">STAGE</a></li></ul>
 <div class="resTab" data-id="1"><table class="results"><tbody>
@@ -385,4 +389,5 @@ Deno.test("STAGE-tab: consistente team-velden geven geen fout", () => {
   const results = parseStagePage(parseDoc(html));
   assertEquals(results.length, 1);
   assertEquals(results[0].pcs_slug, "consistent-guy");
+  assertEquals(results[0].suspect_team_mismatch, false);
 });

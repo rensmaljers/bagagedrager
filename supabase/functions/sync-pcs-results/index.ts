@@ -66,10 +66,15 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: (e as Error).message }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // Renners met een team-mismatch (zie pcs-parse.ts) blokkeren de sync niet meer,
+    // maar de admin moet ze wel kunnen zien om tegen de officiële uitslag te checken.
+    const suspects = results.filter((r) => r.suspect_team_mismatch).map((r) => r.pcs_name || r.pcs_slug);
+
     return new Response(JSON.stringify({
       success: true,
       count: results.length,
       results,
+      suspects,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

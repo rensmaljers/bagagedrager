@@ -11,6 +11,10 @@ export interface StageResult {
   mountain_points: number;
   bonification_seconds: number;
   dnf: boolean;
+  // Team-veldje in naam-cel (betrouwbaar) komt niet overeen met het losse teamveldje
+  // ernaast — teken dat PCS deze rij zelf inconsistent serveert (zie parseTableResults).
+  // De rij wordt wél opgeslagen, maar de admin moet 'm handmatig tegen PCS controleren.
+  suspect_team_mismatch?: boolean;
 }
 
 export function parseTime(timeStr: string): number {
@@ -121,20 +125,18 @@ export function parseTableResults(table: any): { results: StageResult[]; winnerT
       pcs_name = riderLink.textContent?.trim() || null;
     }
 
-    // De renderproxy (r.jina.ai) fotografeert de pagina soms terwijl PCS 'm nog
-    // aan het (her)sorteren is — bij rijen die vlak na elkaar finishen kan dat een
-    // "kapotte" rij opleveren waar de naam al bij de nieuwe renner hoort maar losse
-    // cellen (team, punten, tijd) nog van de vórige bewoner van die rij zijn. Het
-    // mobiele teamveldje zit vast aan de naam-cel en is dus betrouwbaar; het losse
-    // teamveldje ernaast is een aparte cel en kan achterlopen. Komen ze niet overeen,
-    // dan is de hele rij (inclusief de tijd) niet te vertrouwen.
+    // PCS serveert (via Cloudflare, meerdere edge-locaties) soms een pagina waarbij
+    // twee vlak na elkaar finishende renners elkaars data door elkaar hebben — bevestigd
+    // door dezelfde rij rechtstreeks op procyclingstats.com te bekijken, dus geen
+    // eigenaardigheid van de renderproxy. Het mobiele teamveldje zit vast aan de naam-cel;
+    // het losse teamveldje ernaast is een aparte cel. Komen ze niet overeen, dan kan de
+    // hele rij (dus ook de tijd) een verwisseling met de buurrenner zijn. We blokkeren de
+    // sync niet meer (dat bleek bij bijna elke etappe raak te schieten zolang PCS dit niet
+    // zelf oplost) — de rij wordt gewoon opgeslagen, maar gemarkeerd zodat de admin 'm kan
+    // natrekken tegen de officiële uitslag.
     const mobileTeam = row.querySelector("td.ridername div.showIfMobile")?.textContent?.trim();
     const desktopTeam = row.querySelector("a[href*='team/']")?.textContent?.trim();
-    if (mobileTeam && desktopTeam && mobileTeam !== desktopTeam) {
-      throw new Error(
-        `PCS-pagina lijkt niet consistent gerenderd (team-mismatch bij ${pcs_name || pcs_slug}: "${mobileTeam}" vs "${desktopTeam}") — waarschijnlijk een tijdelijke render-hik van de proxy. Probeer het opnieuw.`,
-      );
-    }
+    const suspectTeamMismatch = !!(mobileTeam && desktopTeam && mobileTeam !== desktopTeam);
 
     for (const cell of cells) {
       const cls = cell.className || "";
@@ -214,6 +216,7 @@ export function parseTableResults(table: any): { results: StageResult[]; winnerT
         mountain_points: 0,
         bonification_seconds: bonus,
         dnf,
+        suspect_team_mismatch: suspectTeamMismatch,
       });
     }
   }
