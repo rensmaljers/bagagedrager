@@ -354,3 +354,35 @@ Deno.test("pagina zonder tabs: eerste table.results gebruiken", () => {
   assertEquals(results.length, 1);
   assertEquals(results[0].time_seconds, 4 * 3600 + 62);
 });
+
+// De renderproxy (r.jina.ai) fotografeert de pagina soms terwijl PCS 'm nog aan het
+// (her)sorteren is: twee renners die vlak na elkaar finishen kunnen dan een rij
+// opleveren waar de naam al bij de nieuwe renner hoort, maar het losse teamveldje
+// (en dus ook tijd/punten in diezelfde rij) nog van de vórige bewoner is — precies
+// wat er gebeurde met Carapaz/Skjelmose in etappe 4 Vuelta 2026: hun tijden stonden
+// verwisseld omdat de rijen elkaars teamnaam (en tijd) hadden.
+const TEAM_MISMATCH_STAGE = `
+<ul class="restabs"><li><a data-id="1">STAGE</a></li></ul>
+<div class="resTab" data-id="1"><table class="results"><tbody>
+  <tr><td class="bibs">8</td><td>x</td><td class="ridername"><div class="cont"><a href="rider/skjelmose">Skjelmose Mattias</a><div class="showIfMobile fs12 clr999">Lidl - Trek</div></div></td><td class="cu600"><a href="team/ef-education-easypost-2026">EF Education - EasyPost</a></td><td class="time ar"><font>2:57</font></td></tr>
+  <tr><td class="bibs">9</td><td>x</td><td class="ridername"><div class="cont"><a href="rider/carapaz">Carapaz Richard</a><div class="showIfMobile fs12 clr999">EF Education - EasyPost</div></div></td><td class="cu600"><a href="team/lidl-trek-2026">Lidl - Trek</a></td><td class="time ar"><font>3:17</font></td></tr>
+</tbody></table></div>`;
+
+Deno.test("STAGE-tab: team-mismatch tussen mobiel en desktop veld geeft duidelijke fout (kapotte renderproxy-snapshot)", () => {
+  assertThrows(
+    () => parseStagePage(parseDoc(TEAM_MISMATCH_STAGE)),
+    Error,
+    "team-mismatch",
+  );
+});
+
+Deno.test("STAGE-tab: consistente team-velden geven geen fout", () => {
+  const html = `
+<ul class="restabs"><li><a data-id="1">STAGE</a></li></ul>
+<div class="resTab" data-id="1"><table class="results"><tbody>
+  <tr><td class="bibs">1</td><td>x</td><td class="ridername"><div class="cont"><a href="rider/consistent-guy">Consistent Guy</a><div class="showIfMobile fs12 clr999">Team One</div></div></td><td class="cu600"><a href="team/team-one-2026">Team One</a></td><td class="time ar"><font>3:43:33</font></td></tr>
+</tbody></table></div>`;
+  const results = parseStagePage(parseDoc(html));
+  assertEquals(results.length, 1);
+  assertEquals(results[0].pcs_slug, "consistent-guy");
+});
