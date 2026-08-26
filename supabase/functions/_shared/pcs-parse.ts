@@ -121,6 +121,21 @@ export function parseTableResults(table: any): { results: StageResult[]; winnerT
       pcs_name = riderLink.textContent?.trim() || null;
     }
 
+    // De renderproxy (r.jina.ai) fotografeert de pagina soms terwijl PCS 'm nog
+    // aan het (her)sorteren is — bij rijen die vlak na elkaar finishen kan dat een
+    // "kapotte" rij opleveren waar de naam al bij de nieuwe renner hoort maar losse
+    // cellen (team, punten, tijd) nog van de vórige bewoner van die rij zijn. Het
+    // mobiele teamveldje zit vast aan de naam-cel en is dus betrouwbaar; het losse
+    // teamveldje ernaast is een aparte cel en kan achterlopen. Komen ze niet overeen,
+    // dan is de hele rij (inclusief de tijd) niet te vertrouwen.
+    const mobileTeam = row.querySelector("td.ridername div.showIfMobile")?.textContent?.trim();
+    const desktopTeam = row.querySelector("a[href*='team/']")?.textContent?.trim();
+    if (mobileTeam && desktopTeam && mobileTeam !== desktopTeam) {
+      throw new Error(
+        `PCS-pagina lijkt niet consistent gerenderd (team-mismatch bij ${pcs_name || pcs_slug}: "${mobileTeam}" vs "${desktopTeam}") — waarschijnlijk een tijdelijke render-hik van de proxy. Probeer het opnieuw.`,
+      );
+    }
+
     for (const cell of cells) {
       const cls = cell.className || "";
       const text = cell.textContent?.trim() || "";
