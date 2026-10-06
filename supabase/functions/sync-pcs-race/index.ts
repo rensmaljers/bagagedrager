@@ -1,7 +1,7 @@
 import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.46/deno-dom-wasm.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { fetchPcsPage } from "../_shared/pcs-fetch.ts";
-import { parseStageInfo, parseStageNav } from "../_shared/pcs-race-parse.ts";
+import { mapStageType, parseStageInfo, parseStageNav } from "../_shared/pcs-race-parse.ts";
 import { localToUtc } from "../_shared/tz.ts";
 
 const corsHeaders = {
@@ -16,16 +16,6 @@ const PCS_HEADERS = {
   "Accept-Language": "en-US,en;q=0.5",
 };
 
-function mapStageType(iconClass: string, name: string): string {
-  const n = name.toLowerCase();
-  if (n.includes("ttt") || n.includes("team time")) return "ttt";
-  if (n.includes("itt") || n.includes("(tt)") || n.includes("time trial") || n.includes("tijdrit")) return "tt";
-  if (iconClass.includes("p5") || iconClass.includes("p4")) return "mountain";
-  if (iconClass.includes("p3")) return "hills";
-  if (iconClass.includes("p2")) return "sprint";
-  if (iconClass.includes("p1")) return "flat";
-  return "flat";
-}
 
 async function fetchPCS(url: string): Promise<any> {
   const res = await fetchPcsPage(url);

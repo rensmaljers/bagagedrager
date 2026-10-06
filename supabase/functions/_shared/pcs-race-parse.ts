@@ -106,3 +106,18 @@ export function parseStageInfo(doc: any): StageInfo {
     profile_score: isFinite(ps) ? ps : null,
   };
 }
+
+// Etappetype uit het PCS-profielicoon (p1 vlak … p5 bergop) + naam (TT/TTT)
+export function mapStageType(iconClass: string, name: string): string {
+  const n = name.toLowerCase();
+  if (n.includes("ttt") || n.includes("team time")) return "ttt";
+  if (n.includes("itt") || n.includes("(tt)") || n.includes("time trial") || n.includes("tijdrit")) return "tt";
+  // Alleen het losse class-token p1..p5 — de nieuwe PCS-layout zet er o.a. "mg_rp4"
+  // (marge-class) naast, waar een includes("p4") ten onrechte op matchte (Guangxi:
+  // alle etappes werden "mountain").
+  const p = iconClass.match(/(?:^|\s)p([1-5])(?:\s|$)/)?.[1];
+  if (p === "5" || p === "4") return "mountain";
+  if (p === "3") return "hills";
+  if (p === "2") return "sprint";
+  return "flat";
+}

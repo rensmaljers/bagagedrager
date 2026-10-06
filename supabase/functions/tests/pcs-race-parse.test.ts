@@ -3,7 +3,7 @@
 //   deno test --allow-read supabase/functions/tests/
 import { assertEquals } from "jsr:@std/assert";
 import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.46/deno-dom-wasm.ts";
-import { parseStageInfo, parseStageNav } from "../_shared/pcs-race-parse.ts";
+import { mapStageType, parseStageInfo, parseStageNav } from "../_shared/pcs-race-parse.ts";
 
 function fixture(name: string) {
   const html = Deno.readTextFileSync(new URL(`./fixtures/${name}`, import.meta.url));
@@ -48,4 +48,15 @@ Deno.test("etappe-info: datum, starttijd, afstand, type, vertrek/aankomst", () =
 Deno.test("etappe-info: lege pagina geeft nulls (geen crash)", () => {
   const info = parseStageInfo(new DOMParser().parseFromString("<html><body></body></html>", "text/html")!);
   assertEquals([info.date, info.startTime, info.distance_km, info.parcoursIcon], [null, null, null, ""]);
+});
+
+Deno.test("etappetype: alleen het losse p1..p5-token telt (niet mg_rp4)", () => {
+  assertEquals(mapStageType("icon profile p2 mg_rp4", "Chongzuo - Chongzuo"), "sprint");
+  assertEquals(mapStageType("icon profile p1 mg_rp4", "A - B"), "flat");
+  assertEquals(mapStageType("icon profile p3 mg_rp4", "A - B"), "hills");
+  assertEquals(mapStageType("icon profile p5 mg_rp4", "A - B"), "mountain");
+  // Oude layout (zonder marge-class)
+  assertEquals(mapStageType("icon profile p4", "A - B"), "mountain");
+  assertEquals(mapStageType("", "Stage 1 (ITT) | Monaco - Monaco"), "tt");
+  assertEquals(mapStageType("icon profile p1", "Stage 3 (TTT) | A - B"), "ttt");
 });
