@@ -76,19 +76,26 @@
     let allResults: any[] = [];
     let allPicksForStages: any[] = [];
     if (stageIds.length) {
-      // Eerst picks ophalen, dan stage_results filteren op gekozen renners.
-      // PostgREST max-rows=1000 is server-side; bij ~150 renners × 7+ etappes raak je die limiet.
-      // Door te filteren op picked rider IDs blijf je altijd ver onder 1000 rijen.
+      // Eerst picks ophalen, dan stage_results van de gekozen renners.
+      // PostgREST max-rows=1000 is server-side en kapt stilletjes af. Eén query
+      // "alle etappes × alle ooit gekozen renners" liep daar in een grote ronde
+      // overheen (Vuelta: uitslagen vanaf ~etappe 13 ontbraken). Daarom per
+      // etappe alleen de renners die in díe etappe gekozen zijn (parallel).
       allPicksForStages = await supaRest('picks', {
         select: 'stage_id,rider_id,is_random',
         filters: `stage_id=in.(${stageIds.join(',')})`,
       });
-      const pickedIds = [...new Set(allPicksForStages.map((p: any) => p.rider_id))];
-      if (pickedIds.length) {
-        allResults = await supaRest('stage_results', {
-          filters: `stage_id=in.(${stageIds.join(',')})&rider_id=in.(${pickedIds.join(',')})`,
-        });
+      const ridersByStage = new Map<number, Set<number>>();
+      for (const p of allPicksForStages) {
+        if (!ridersByStage.has(p.stage_id)) ridersByStage.set(p.stage_id, new Set());
+        ridersByStage.get(p.stage_id)!.add(p.rider_id);
       }
+      const perStage = await Promise.all([...ridersByStage].map(([stageId, riderIds]) =>
+        supaRest('stage_results', {
+          filters: `stage_id=eq.${stageId}&rider_id=in.(${[...riderIds].join(',')})`,
+        })
+      ));
+      allResults = perStage.flat();
     }
 
     // Count how many players picked each rider per stage
