@@ -25,7 +25,8 @@ Views, RPC's en cron-schedules worden bij wijziging **volledig opnieuw gedefinie
 | Object | Leidende migratie |
 |---|---|
 | Views `general_classification` + `stage_picks_public` | 075 |
-| Pick-RPC's (`submit_pick`/`withdraw_pick`/`assign_random_riders`/`admin_upsert_pick`/`admin_delete_pick`) | 077 |
+| Pick-RPC's (`withdraw_pick`/`admin_upsert_pick`/`admin_delete_pick`) | 077 |
+| `submit_pick`, `assign_random_riders` + deelname-RPC's (`join_competition`/`leave_competition`/`admin_add_participant`) | 20261006120000 |
 | View `competition_pot_status` | 074 |
 | Trigger `guard_profile_privileges` | 073 |
 | Cron-schedules | per job — zie tabel in skill `cron-edge-functions` |

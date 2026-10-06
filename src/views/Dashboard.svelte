@@ -71,10 +71,10 @@
 
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { escapeHtml, formatTime, formatGap, formatDeadline, riderDisplay, avatarHtml } from '../lib/utils';
+  import { escapeHtml, formatTime, formatGap, formatDeadline, riderDisplay, avatarHtml, toast } from '../lib/utils';
   import { icon } from '../lib/icons';
   import { supaRest } from '../lib/api';
-  import { activeScoringMode, activeStages, riderPhoto } from '../lib/helpers';
+  import { activeScoringMode, activeStages, riderPhoto, isParticipant, competitionStarted, joinCompetition } from '../lib/helpers';
   import { buildDagbericht, buildRondeVerslag } from '../lib/share';
   import RadTheater from './RadTheater.svelte';
   import { focusTrap } from '../lib/focus-trap';
@@ -90,7 +90,28 @@
   let statusComp: any = $state(null);
   let statusEntries: { label: string; value: string; sub?: string; deltaHtml?: string; jersey?: string }[] = $state([]);
   let statusNext: { stageTitle: string; name: string | null; deadline: string; riderName: string | null } | null = $state(null);
-  let welcome: { compName: string; stageTitle: string; deadline: string } | null = $state(null);
+  let welcome: { compId: number; compName: string; stageTitle: string; deadline: string } | null = $state(null);
+  let joining = $state(false);
+  // 'join' = nog niet ingeschreven en ronde niet gestart; 'first-pick' = ingeschreven, nog geen pick
+  const welcomeMode = $derived.by(() => {
+    if (!welcome) return null;
+    if (!isParticipant(welcome.compId)) return competitionStarted(welcome.compId) ? null : 'join';
+    const compStageIds = new Set(appState.stages.filter((s: any) => s.competition_id === welcome!.compId).map((s: any) => s.id));
+    return appState.myPicks.some((p: any) => compStageIds.has(p.stage_id)) ? null : 'first-pick';
+  });
+
+  async function joinActiveCompetition() {
+    if (!welcome || joining) return;
+    joining = true;
+    try {
+      await joinCompetition(welcome.compId);
+      toast(`Je doet mee met ${welcome.compName}!`, 'success');
+    } catch (e: any) {
+      toast(e.message, 'error');
+    } finally {
+      joining = false;
+    }
+  }
   // Rad-theater: eenmalig per etappe, per apparaat (localStorage-vlag).
   // Getoond aan ÁLLE deelnemers zodra het Rad voor iemand gedraaid heeft
   // (Rad-picks van anderen zijn na de deadline zichtbaar via
@@ -537,10 +558,13 @@
       });
     }
     const myCvIdx = cv.findIndex(s => s.display_name === myName);
+    // Gedeelde positie: bij strijdlust staan veel spelers gelijk (0/1 geraden)
+    const myCvPts = myCvIdx >= 0 ? (cv[myCvIdx].total_combativity_points || 0) : 0;
+    const myCvRank = 1 + cv.filter(s => (s.total_combativity_points || 0) > myCvPts).length;
     if (myCvIdx >= 0) entries.push({
       label: 'Strijdlust',
-      value: `${cv[myCvIdx].total_combativity_points || 0}`,
-      sub: 'winnaars geraden',
+      value: `${myCvRank}e`,
+      sub: `${myCvPts} ${myCvPts === 1 ? 'winnaar' : 'winnaars'} geraden`,
       deltaHtml: deltaChip(cvDeltas?.get(cv[myCvIdx].user_id)),
     });
 
@@ -592,12 +616,13 @@
       potBanner = false;
     }
 
-    // Welkom-hero: deelname is impliciet (eerste pick = meedoen) — (was renderWelcomeCard)
-    const compStageIdSet = new Set(activeStages().map(s => s.id));
-    const hasPicks = appState.myPicks.some(p => compStageIdSet.has(p.stage_id));
-    welcome = (!comp || hasPicks || !nextOpen)
+    // Welkom-hero: inschrijven ("Ik doe mee") tot de ronde start, daarna als
+    // ingeschrevene zonder picks "kies je eerste renner". Wélke variant volgt
+    // reactief uit welcomeMode (inschrijven/eerste pick werken direct door).
+    welcome = (!comp || !nextOpen)
       ? null
       : {
+          compId: comp.id,
           compName: comp.name,
           stageTitle: nextOpen.stage_number === 0 ? 'de proloog' : `etappe ${nextOpen.stage_number}`,
           deadline: nextOpen.deadline,
@@ -1002,14 +1027,28 @@
       </div>
     </div>
   {/if}
-  {#if welcome}
+  {#if welcome && welcomeMode === 'join'}
     <div id="welcome-card-wrap" class="mb-4">
       <div class="card welcome-card">
         <div class="card-body">
           <div class="welcome-card-inner">
             <div>
-              <div class="welcome-card-title">Je doet nog niet mee aan {welcome.compName}</div>
-              <div class="welcome-card-sub">Kies je renner voor {welcome.stageTitle} en je zit in de koers — daarna doe je automatisch mee met alle klassementen. Deadline: {formatDeadline(welcome.deadline)}.</div>
+              <div class="welcome-card-title">Doe je mee met {welcome.compName}?</div>
+              <div class="welcome-card-sub">Schrijf je in vóór de start van {welcome.stageTitle} ({formatDeadline(welcome.deadline)}). Vergeet je daarna een etappe, dan kiest het Rad van Fortuin een renner voor je. Na de start kun je niet meer instappen.</div>
+            </div>
+            <button class="btn btn-accent btn-skew welcome-card-cta" disabled={joining} onclick={joinActiveCompetition}><span>{joining ? 'Bezig…' : 'Ik doe mee'}</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  {:else if welcome && welcomeMode === 'first-pick'}
+    <div id="welcome-card-wrap" class="mb-4">
+      <div class="card welcome-card">
+        <div class="card-body">
+          <div class="welcome-card-inner">
+            <div>
+              <div class="welcome-card-title">Je bent ingeschreven voor {welcome.compName}</div>
+              <div class="welcome-card-sub">Kies je renner voor {welcome.stageTitle}. Deadline: {formatDeadline(welcome.deadline)}.</div>
             </div>
             <button class="btn btn-accent btn-skew welcome-card-cta" onclick={goPick}><span>Kies je eerste renner</span></button>
           </div>

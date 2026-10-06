@@ -3,6 +3,7 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY, TEAMS, VAPID_PUBLIC_KEY } from './conf
 import { $, escapeHtml, formatTime, formatGap, formatDeadline, riderDisplay, avatarHtml, compBadge, skeletonRows, toast, confettiBurst } from './utils';
 import { supabase } from './supabase-client';
 import { icon } from './icons';
+import { supaRest, supaRpc } from './api';
 
 
 // Zoek foto bij rider_id
@@ -36,6 +37,37 @@ export function showError(msg) {
 
 export function activeStages() {
   return state.stages.filter(s => s.competition_id === state.activeCompId);
+}
+
+// --- Deelname per ronde ---
+// Inschrijven kan tot de eerste etappe start; daarna alleen nog via de admin.
+export function isParticipant(compId: number | null = state.activeCompId) {
+  return compId != null && state.myCompIds.includes(compId);
+}
+
+export function competitionStarted(compId: number | null = state.activeCompId) {
+  const now = Date.now();
+  return state.stages.some((s: any) => s.competition_id === compId && (s.locked || now >= new Date(s.deadline).getTime()));
+}
+
+export async function loadMyCompIds() {
+  const rows = await supaRest('competition_pot_status', {
+    select: 'competition_id',
+    filters: `user_id=eq.${state.session.user.id}`,
+  });
+  state.myCompIds = (rows || []).map((r: any) => r.competition_id);
+}
+
+export async function joinCompetition(compId: number) {
+  await supaRpc('join_competition', { p_competition_id: compId });
+  if (!state.myCompIds.includes(compId)) state.myCompIds = [...state.myCompIds, compId];
+}
+
+export async function leaveCompetition(compId: number) {
+  await supaRpc('leave_competition', { p_competition_id: compId });
+  state.myCompIds = state.myCompIds.filter((id: number) => id !== compId);
+  const compStageIds = new Set(state.stages.filter((s: any) => s.competition_id === compId).map((s: any) => s.id));
+  state.myPicks = state.myPicks.filter((p: any) => !compStageIds.has(p.stage_id));
 }
 
 export function activeScoringMode() {

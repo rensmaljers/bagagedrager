@@ -58,18 +58,21 @@ export type Database = {
         Row: {
           competition_id: number
           has_paid: boolean
+          joined_at: string
           paid_at: string | null
           user_id: string
         }
         Insert: {
           competition_id: number
           has_paid?: boolean
+          joined_at?: string
           paid_at?: string | null
           user_id: string
         }
         Update: {
           competition_id?: number
           has_paid?: boolean
+          joined_at?: string
           paid_at?: string | null
           user_id?: string
         }
@@ -707,6 +710,10 @@ export type Database = {
       }
     }
     Functions: {
+      admin_add_participant: {
+        Args: { p_competition_id: number; p_user_id: string }
+        Returns: Json
+      }
       admin_confirm_email: {
         Args: { target_user_id: string }
         Returns: undefined
@@ -749,8 +756,11 @@ export type Database = {
         Args: { p_stage_id: number }
         Returns: undefined
       }
+      competition_started: { Args: { p_competition_id: number }; Returns: boolean }
       delete_own_account: { Args: never; Returns: undefined }
       get_cron_secret: { Args: never; Returns: string }
+      join_competition: { Args: { p_competition_id: number }; Returns: Json }
+      leave_competition: { Args: { p_competition_id: number }; Returns: Json }
       position_to_game_points: { Args: { pos: number }; Returns: number }
       sharing_multiplier: { Args: { num_pickers: number }; Returns: number }
       submit_pick: {

@@ -7,7 +7,7 @@
   import { formatDeadline, riderDisplay, toast, confettiBurst } from '../lib/utils';
   import { icon } from '../lib/icons';
   import { supaRest, supaRpc } from '../lib/api';
-  import { activeStages, buildPcsStageUrl, buildStageNewsUrl, riderPhoto, teamBadge } from '../lib/helpers';
+  import { activeStages, buildPcsStageUrl, buildStageNewsUrl, riderPhoto, teamBadge, isParticipant, competitionStarted, joinCompetition, leaveCompetition } from '../lib/helpers';
 
   const typeLabels: Record<string, string> = { flat: '→', mountain: '▲', tt: '⏱', ttt: '⏱', sprint: '⚡', hills: '~' };
   const STAGE_TYPES: Record<string, { label: string; icon: string }> = {
@@ -58,6 +58,40 @@
   let deadlinePassed = $state(false);
   const isLocked = $derived(!!stage && (stage.locked || deadlinePassed || new Date() > new Date(stage.deadline)));
   const comp = $derived(stage ? appState.competitions.find((c: any) => c.id === stage.competition_id) : null);
+  // Deelname: kiezen kan alleen als ingeschrevene; inschrijven tot de ronde start
+  const pickCompId = $derived(stage?.competition_id ?? appState.activeCompId);
+  const joined = $derived(isParticipant(pickCompId));
+  const compStarted = $derived.by(() => { void deadlinePassed; return competitionStarted(pickCompId); });
+  let joinBusy = $state(false);
+
+  async function onJoin() {
+    if (pickCompId == null || joinBusy) return;
+    joinBusy = true;
+    try {
+      await joinCompetition(pickCompId);
+      toast('Je bent ingeschreven — kies je renner!', 'success');
+    } catch (e: any) {
+      toast(e.message, 'error');
+    } finally {
+      joinBusy = false;
+    }
+  }
+
+  async function onLeave() {
+    if (pickCompId == null || joinBusy) return;
+    if (!window.confirm('Uitschrijven voor deze ronde? Je eventuele keuzes worden verwijderd. Je kunt je tot de start opnieuw inschrijven.')) return;
+    joinBusy = true;
+    try {
+      await leaveCompetition(pickCompId);
+      appState.selectedRiderId = null;
+      appState._cache.standings = null; appState._cache.participants = null;
+      toast('Je bent uitgeschreven', 'success');
+    } catch (e: any) {
+      toast(e.message, 'error');
+    } finally {
+      joinBusy = false;
+    }
+  }
   const pcsStageUrl = $derived(stage ? buildPcsStageUrl(comp, stage.stage_number, stage) : null);
   const newsUrl = $derived(stage ? buildStageNewsUrl(comp, stage.stage_number, stage) : null);
   const pickStageLabel = $derived(stage ? (stage.stage_number === 0 ? 'Proloog' : `Etappe ${stage.stage_number}`) : '');
@@ -498,7 +532,28 @@
     </div>
   </div>
 
-  {#if isLocked}
+  {#if !joined}
+    <div id="pick-join-card" class="card welcome-card mb-3">
+      <div class="card-body">
+        <div class="welcome-card-inner">
+          {#if compStarted}
+            <div>
+              <div class="welcome-card-title">Deze ronde is al begonnen</div>
+              <div class="welcome-card-sub">Inschrijven kon tot de start van de eerste etappe. Je kunt wel alle klassementen en keuzes volgen.</div>
+            </div>
+          {:else}
+            <div>
+              <div class="welcome-card-title">Doe je mee met {comp?.name || 'deze ronde'}?</div>
+              <div class="welcome-card-sub">Schrijf je in om renners te kiezen. Vergeet je een etappe, dan kiest het Rad van Fortuin voor je. Na de start van de eerste etappe kun je niet meer instappen.</div>
+            </div>
+            <button class="btn btn-accent btn-skew welcome-card-cta" disabled={joinBusy} onclick={onJoin}><span>{joinBusy ? 'Bezig…' : 'Ik doe mee'}</span></button>
+          {/if}
+        </div>
+      </div>
+    </div>
+  {/if}
+
+  {#if joined && isLocked}
     <div id="pick-locked-msg" class="alert alert-warning" style="font-size:0.85rem;">
       {@html icon('lock', '', 14)} Deze etappe is vergrendeld. Je kunt nog wel kiezen, maar krijgt de straftijd + 0 punten (te laat).
     </div>
@@ -527,6 +582,14 @@
           </div>
         {/each}
       </div>
+    </div>
+  {/if}
+
+  {#if joined}
+  {#if !compStarted}
+    <div class="d-flex align-items-center gap-2 mb-2 text-muted" style="font-size:0.78rem;">
+      <span>Je bent ingeschreven voor {comp?.name || 'deze ronde'}</span>
+      <button type="button" class="btn btn-sm btn-ghost" disabled={joinBusy} onclick={onLeave}>Uitschrijven</button>
     </div>
   {/if}
 
@@ -636,5 +699,6 @@
         </div>
       </div>
     </div>
+  {/if}
   {/if}
 </div>

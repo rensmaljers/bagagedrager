@@ -14,7 +14,7 @@
   import { supabase } from './lib/supabase-client';
   import { supaRest } from './lib/api';
   import { toast } from './lib/utils';
-  import { activeScoringMode, activeStages } from './lib/helpers';
+  import { activeScoringMode, activeStages, loadMyCompIds } from './lib/helpers';
   import { setupDeadlineNotifications } from './lib/notifications';
 
   // Refresh-teller: bump = actieve view remount (vervangt activeTab.click()).
@@ -60,6 +60,7 @@
       savedCompId ? supaRest('riders', { filters: `competition_id=eq.${savedCompId}&order=bib_number` }) : Promise.resolve(null),
       savedCompId ? supaRest('general_classification', { filters: `competition_id=eq.${savedCompId}` }) : Promise.resolve(null),
       supaRest('team_shirts').catch(() => []),
+      loadMyCompIds().catch(() => {}),
     ]);
 
     appState.profile = profiles[0];
