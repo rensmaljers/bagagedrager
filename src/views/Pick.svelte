@@ -7,7 +7,7 @@
   import { formatDeadline, riderDisplay, toast, confettiBurst } from '../lib/utils';
   import { icon } from '../lib/icons';
   import { supaRest, supaRpc } from '../lib/api';
-  import { activeStages, buildPcsStageUrl, buildStageNewsUrl, riderPhoto, teamBadge, isParticipant, competitionStarted, joinCompetition, leaveCompetition } from '../lib/helpers';
+  import { activeStages, buildPcsStageUrl, buildStageNewsUrl, riderPhoto, teamBadge, isParticipant, isDns, competitionStarted, joinCompetition, leaveCompetition } from '../lib/helpers';
 
   const typeLabels: Record<string, string> = { flat: '→', mountain: '▲', tt: '⏱', ttt: '⏱', sprint: '⚡', hills: '~' };
   const STAGE_TYPES: Record<string, { label: string; icon: string }> = {
@@ -60,7 +60,8 @@
   const comp = $derived(stage ? appState.competitions.find((c: any) => c.id === stage.competition_id) : null);
   // Deelname: kiezen kan alleen als ingeschrevene; inschrijven tot de ronde start
   const pickCompId = $derived(stage?.competition_id ?? appState.activeCompId);
-  const joined = $derived(isParticipant(pickCompId));
+  const dns = $derived(isDns(pickCompId));
+  const joined = $derived(isParticipant(pickCompId) && !dns);
   const compStarted = $derived.by(() => { void deadlinePassed; return competitionStarted(pickCompId); });
   let joinBusy = $state(false);
 
@@ -536,7 +537,12 @@
     <div id="pick-join-card" class="card welcome-card mb-3">
       <div class="card-body">
         <div class="welcome-card-inner">
-          {#if compStarted}
+          {#if dns}
+            <div>
+              <div class="welcome-card-title">Je bent uit de koers (DNS)</div>
+              <div class="welcome-card-sub">Je hebt drie etappes op rij geen renner gekozen. Je staat onderaan de klassementen en doet niet meer mee voor de prijzen. Volgen kan natuurlijk nog steeds.</div>
+            </div>
+          {:else if compStarted}
             <div>
               <div class="welcome-card-title">Deze ronde is al begonnen</div>
               <div class="welcome-card-sub">Inschrijven kon tot de start van de eerste etappe. Je kunt wel alle klassementen en keuzes volgen.</div>

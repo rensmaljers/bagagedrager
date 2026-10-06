@@ -387,7 +387,7 @@
       // Skeleton alleen tonen bij echte network fetch
       loading = true;
 
-      const [standingsData, winnerResults, latestPicksData] = await Promise.all([
+      const [standingsData, winnerResults, latestPicksData, dnsData] = await Promise.all([
         supaRest('general_classification', { filters: `competition_id=eq.${appState.activeCompId}` }),
         compStageIds.length
           ? supaRest('stage_results', { filters: `stage_id=in.(${compStageIds.join(',')})&finish_position=eq.1&dnf=eq.false&time_seconds=gt.0`, select: 'stage_id,time_seconds' })
@@ -398,9 +398,11 @@
               select: 'user_id,time_gap,dnf_penalty_gap,bonification,effective_points,effective_mountain_points,effective_game_points,finish_position,dnf'
             })
           : Promise.resolve([]),
+        supaRest('competition_pot_status', { select: 'user_id', filters: `competition_id=eq.${appState.activeCompId}&is_dns=eq.true` }).catch(() => []),
       ]);
       if (appState.activeCompId !== compId) return; // comp gewisseld tijdens fetch — nieuwere load rendert
       standings = standingsData;
+      appState._cache.dnsIds = (dnsData || []).map((r: any) => r.user_id);
       (appState._cache as any).winnerTimeSum = (winnerResults || []).reduce((sum: number, r: any) => sum + r.time_seconds, 0);
       appState._cache.standings = standings;
       appState._cache.standingsCompId = appState.activeCompId;
@@ -412,6 +414,13 @@
     const mode = activeScoringMode();
     const isClassic = mode === 'classic';
     const myName = appState.profile?.display_name;
+
+    // DNS (3× op rij Rad): telt niet mee voor posities, prijzen en dagverslag —
+    // staat onderaan elk klassement met "DNS". Zonder picks na de DNS zou het
+    // AK-totaal anders kunstmatig laag zijn.
+    const dnsIdSet = new Set<string>(appState._cache.dnsIds || []);
+    const dnsStandings = standings.filter((s: any) => dnsIdSet.has(s.user_id));
+    standings = standings.filter((s: any) => !dnsIdSet.has(s.user_id));
 
     // Kaarten per scoring mode: hoofdkolom toont AK (grote ronde) of Spel (klassieker)
     cardMode = isClassic ? 'classic' : 'grand_tour';
@@ -452,12 +461,30 @@
           // — vangt ook de alles-op-0-situatie vóór de eerste uitslag af).
           showLantaarn: classMode === 'gc' && sorted.length >= 4 && i === sorted.length - 1 && s.total_time > sorted[i - 1].total_time,
           showH2h: s.display_name !== myName,
+          isDns: false,
         };
       });
+      for (const s of dnsStandings) {
+        const isMe = s.display_name === myName;
+        rows.push({
+          user_id: s.user_id,
+          name: s.display_name,
+          isMe,
+          isLeader: false,
+          extra: collapsible && !isMe,
+          deltaHtml: '',
+          valueHtml: '<span class="badge bg-secondary">DNS</span>',
+          barPct: null,
+          showTrui: false,
+          showLantaarn: false,
+          showH2h: false,
+          isDns: true,
+        });
+      }
       const hero = sorted.length > 0
         ? { name: sorted[0].display_name, label: heroLabel != null ? String(heroLabel) : null }
         : null;
-      return { mode: classMode || 'game', jerseyClass, rows, collapsible, count: sorted.length, hero };
+      return { mode: classMode || 'game', jerseyClass, rows, collapsible, count: rows.length, hero };
     }
 
     // Delta helpers: compute rank change vs. standings before the latest stage
@@ -566,6 +593,11 @@
       value: `${myCvRank}e`,
       sub: `${myCvPts} ${myCvPts === 1 ? 'winnaar' : 'winnaars'} geraden`,
       deltaHtml: deltaChip(cvDeltas?.get(cv[myCvIdx].user_id)),
+    });
+    if (dnsStandings.some((s: any) => s.display_name === myName)) entries.push({
+      label: 'Status',
+      value: 'DNS',
+      sub: '3× op rij geen keuze',
     });
 
     vm = newVm;
@@ -957,7 +989,7 @@
           <tr
             style={row.isMe ? 'background:var(--accent-bg);' : undefined}
             class={row.isLeader ? `leader-row${t.jerseyClass ? ' wears ' + t.jerseyClass : ''}` : (row.extra ? 'standings-extra' : undefined)}
-          ><td class="tnum">{@html rankBadge(i)}{@html row.deltaHtml}</td><td><div class="d-flex align-items-center gap-2"><span class="player-click d-inline-flex align-items-center gap-2" role="button" tabindex="0" onclick={() => (ui.playerModalId = row.user_id)} onkeydown={(e) => { if (e.key === 'Enter') ui.playerModalId = row.user_id; }}>{@html avatarHtml(row.name, appState._avatarMap[row.name], 'sm')}{row.name}</span>{#if row.showTrui}<span class="trui-chip">trui</span>{/if}{#if row.showLantaarn}<span class="info-tooltip lantaarn-chip" data-tip="Rode lantaarn — de hekkensluiter van het klassement">🏮</span>{/if}{#if row.showH2h}<button class="btn btn-ghost h2h-vs-btn" onclick={() => openH2H(row.name, t.mode)} aria-label="Vergelijk met {row.name}">vs</button>{/if}</div></td><td class="text-end tnum">{@html row.valueHtml}{#if row.barPct != null}<span class="score-bar score-bar-{t.mode}"><span style="width:{row.barPct}%"></span></span>{/if}</td></tr>
+          ><td class="tnum">{#if row.isDns}<span class="text-muted">–</span>{:else}{@html rankBadge(i)}{@html row.deltaHtml}{/if}</td><td><div class="d-flex align-items-center gap-2"><span class="player-click d-inline-flex align-items-center gap-2" role="button" tabindex="0" onclick={() => (ui.playerModalId = row.user_id)} onkeydown={(e) => { if (e.key === 'Enter') ui.playerModalId = row.user_id; }}>{@html avatarHtml(row.name, appState._avatarMap[row.name], 'sm')}{row.name}</span>{#if row.showTrui}<span class="trui-chip">trui</span>{/if}{#if row.showLantaarn}<span class="info-tooltip lantaarn-chip" data-tip="Rode lantaarn — de hekkensluiter van het klassement">🏮</span>{/if}{#if row.showH2h}<button class="btn btn-ghost h2h-vs-btn" onclick={() => openH2H(row.name, t.mode)} aria-label="Vergelijk met {row.name}">vs</button>{/if}</div></td><td class="text-end tnum">{@html row.valueHtml}{#if row.barPct != null}<span class="score-bar score-bar-{t.mode}"><span style="width:{row.barPct}%"></span></span>{/if}</td></tr>
         {/each}
         {#if t.collapsible}
           <tr class="standings-expand-row"><td colspan="3"><button type="button" class="standings-expand-btn" onclick={() => expanded[key] = !expanded[key]}>{expanded[key] ? `Toon top ${COMPACT_TOP}` : `Toon alle ${t.count} spelers`}</button></td></tr>

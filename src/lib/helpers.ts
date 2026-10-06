@@ -52,10 +52,16 @@ export function competitionStarted(compId: number | null = state.activeCompId) {
 
 export async function loadMyCompIds() {
   const rows = await supaRest('competition_pot_status', {
-    select: 'competition_id',
+    select: 'competition_id,is_dns',
     filters: `user_id=eq.${state.session.user.id}`,
   });
   state.myCompIds = (rows || []).map((r: any) => r.competition_id);
+  state.myDnsCompIds = (rows || []).filter((r: any) => r.is_dns).map((r: any) => r.competition_id);
+}
+
+// DNS: 3× op rij een Rad-renner → uit de koers voor deze ronde (definitief)
+export function isDns(compId: number | null = state.activeCompId) {
+  return compId != null && state.myDnsCompIds.includes(compId);
 }
 
 export async function joinCompetition(compId: number) {

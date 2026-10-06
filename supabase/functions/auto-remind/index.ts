@@ -43,12 +43,13 @@ Deno.serve(async (req: Request) => {
   const results = [];
 
   for (const stage of stages) {
-    // Deelnemers: ingeschreven spelers van deze competitie
+    // Deelnemers: ingeschreven spelers van deze competitie, zonder DNS
     // (zelfde definitie als het Rad van Fortuin in assign_random_riders)
     const { data: participants, error: participantsError } = await supabase
       .from("competition_participants")
       .select("user_id")
-      .eq("competition_id", stage.competition_id);
+      .eq("competition_id", stage.competition_id)
+      .is("dns_at", null);
 
     if (participantsError) {
       results.push({ stage_id: stage.id, error: participantsError.message });

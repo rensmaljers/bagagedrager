@@ -17,13 +17,28 @@
 --     gestarte etappes krijgt die speler een te-late Rad-pick (straftijd + 0 punten),
 --     zodat een late instapper geen AK-voordeel heeft.
 --   * Backfill: iedereen met picks in een ronde wordt deelnemer.
+--   * DNS: wie drie gestarte etappes op rij een Rad-renner kreeg (geen eigen
+--     keuze) is definitief uit de koers voor die ronde (dns_at). Het Rad slaat
+--     hem daarna over, submit_pick weigert hem en de frontend zet hem onderaan
+--     elk klassement met "DNS" en buiten de prijzen. Te-late Rad-picks van een
+--     door de admin toegevoegde laatkomer (is_late) tellen niet mee.
+--     competition_pot_status krijgt de kolom is_dns.
 --
 -- Leidend na deze migratie: submit_pick + assign_random_riders (was 077).
 -- Bestandsnaam met tijdstempel i.p.v. 087: er staat al een tijdstempel-migratie
 -- (20260829070425) live; een 087 zou daarvóór sorteren en db push laten weigeren.
 
 ALTER TABLE competition_participants
-  ADD COLUMN IF NOT EXISTS joined_at timestamptz NOT NULL DEFAULT now();
+  ADD COLUMN IF NOT EXISTS joined_at timestamptz NOT NULL DEFAULT now(),
+  ADD COLUMN IF NOT EXISTS dns_at timestamptz,
+  ADD COLUMN IF NOT EXISTS dns_stage_id int REFERENCES stages(id) ON DELETE SET NULL;
+
+-- Pot-view (leidend was 074) + publieke DNS-status. Nieuwe kolom achteraan,
+-- dus CREATE OR REPLACE mag; paid_at/dns_at blijven privé.
+CREATE OR REPLACE VIEW competition_pot_status AS
+  SELECT competition_id, user_id, has_paid, (dns_at IS NOT NULL) AS is_dns
+  FROM competition_participants;
+GRANT SELECT ON competition_pot_status TO authenticated, anon;
 
 -- Backfill: wie al picks heeft in een ronde doet mee (bestaande rijen blijven)
 INSERT INTO competition_participants (competition_id, user_id, joined_at)
@@ -220,6 +235,11 @@ BEGIN
     RAISE EXCEPTION 'Je doet niet mee aan deze ronde — schrijf je in vóór de start';
   END IF;
 
+  IF EXISTS (SELECT 1 FROM competition_participants
+             WHERE competition_id = v_comp_id AND user_id = v_user_id AND dns_at IS NOT NULL) THEN
+    RAISE EXCEPTION 'Je bent uit de koers (DNS): drie etappes op rij geen keuze';
+  END IF;
+
   v_is_late := (now() > v_stage.deadline) OR v_stage.locked;
 
   SELECT EXISTS(
@@ -272,7 +292,54 @@ END;
 $$;
 
 -- --------------------------------------------
--- assign_random_riders (leidend was 077) — loopt nu over deelnemers
+-- check_dns: na een Rad-toewijzing kijken of de speler de laatste drie
+-- gestarte etappes (t/m p_stage_id) allemaal een Rad-renner kreeg.
+-- Te-late Rad-picks (laatkomer via admin) tellen niet mee.
+-- --------------------------------------------
+CREATE OR REPLACE FUNCTION check_dns(p_stage_id int, p_user_id uuid)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_stage record;
+  v_total int;
+  v_rad int;
+BEGIN
+  SELECT competition_id, stage_number INTO v_stage FROM stages WHERE id = p_stage_id;
+  IF v_stage IS NULL THEN RETURN false; END IF;
+
+  WITH last3 AS (
+    SELECT s.id
+    FROM stages s
+    WHERE s.competition_id = v_stage.competition_id
+      AND s.stage_number <= v_stage.stage_number
+      AND (s.locked OR s.deadline <= now() OR s.id = p_stage_id)
+    ORDER BY s.stage_number DESC
+    LIMIT 3
+  )
+  SELECT COUNT(*),
+         COUNT(*) FILTER (WHERE p.is_random AND NOT p.is_late)
+  INTO v_total, v_rad
+  FROM last3 l
+  LEFT JOIN picks p ON p.stage_id = l.id AND p.user_id = p_user_id;
+
+  IF v_total = 3 AND v_rad = 3 THEN
+    UPDATE competition_participants
+    SET dns_at = now(), dns_stage_id = p_stage_id
+    WHERE competition_id = v_stage.competition_id
+      AND user_id = p_user_id
+      AND dns_at IS NULL;
+    RETURN true;
+  END IF;
+  RETURN false;
+END;
+$$;
+
+-- --------------------------------------------
+-- assign_random_riders (leidend was 077) — loopt nu over deelnemers,
+-- slaat DNS-spelers over en zet na drie Rad-picks op rij DNS
 -- --------------------------------------------
 CREATE OR REPLACE FUNCTION assign_random_riders(p_stage_id int)
 RETURNS jsonb
@@ -285,6 +352,7 @@ DECLARE
   v_user record;
   v_rider_id int;
   v_count int := 0;
+  v_dns int := 0;
 BEGIN
   PERFORM set_config('audit.source', 'assign_random_riders', true);
 
@@ -297,6 +365,7 @@ BEGIN
     SELECT cp.user_id
     FROM competition_participants cp
     WHERE cp.competition_id = v_comp_id
+      AND cp.dns_at IS NULL
       AND cp.user_id NOT IN (
         SELECT user_id FROM picks WHERE stage_id = p_stage_id
       )
@@ -325,10 +394,13 @@ BEGIN
       INSERT INTO picks (user_id, stage_id, rider_id, is_late, is_random)
       VALUES (v_user.user_id, p_stage_id, v_rider_id, false, true);
       v_count := v_count + 1;
+      IF check_dns(p_stage_id, v_user.user_id) THEN
+        v_dns := v_dns + 1;
+      END IF;
     END IF;
   END LOOP;
 
-  RETURN jsonb_build_object('assigned', v_count);
+  RETURN jsonb_build_object('assigned', v_count, 'dns', v_dns);
 END;
 $$;
 
@@ -337,6 +409,9 @@ $$;
 -- --------------------------------------------
 REVOKE EXECUTE ON FUNCTION assign_random_riders(int) FROM PUBLIC, anon, authenticated;
 GRANT  EXECUTE ON FUNCTION assign_random_riders(int) TO service_role;
+-- Interne helper: alleen vanuit assign_random_riders (draait als owner)
+REVOKE EXECUTE ON FUNCTION check_dns(int, uuid) FROM PUBLIC, anon, authenticated;
+GRANT  EXECUTE ON FUNCTION check_dns(int, uuid) TO service_role;
 
 DO $$
 DECLARE f text;

@@ -11,6 +11,8 @@ export const state: any = $state({
   myPicks: [] as any[],
   // Rondes waarvoor je bent ingeschreven (competition_participants)
   myCompIds: [] as number[],
+  // Rondes waarin je DNS bent (3× op rij geen keuze)
+  myDnsCompIds: [] as number[],
   dnfRiderIds: new Set<number>(),
   selectedRiderId: null as number | null,
   activeCompId: null as number | null,

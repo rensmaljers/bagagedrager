@@ -374,6 +374,7 @@
   let potLoaded = $state(false);
   let paidMap = $state<Record<string, boolean>>({});
   let potProfiles = $state<any[]>([]);
+  let potDnsIds = $state<Set<string>>(new Set());
 
   const potComp = $derived(appState.competitions.find((c: any) => c.id === potCompId));
   const potEntryFee = $derived(potComp?.entry_fee);
@@ -392,12 +393,13 @@
     if (!potCompId) return;
 
     const participants = await supaRest('competition_participants', {
-      select: 'user_id,has_paid',
+      select: 'user_id,has_paid,dns_at',
       filters: `competition_id=eq.${potCompId}`,
     });
     const map: Record<string, boolean> = {};
     (participants || []).forEach((p: any) => { map[p.user_id] = p.has_paid; });
     paidMap = map;
+    potDnsIds = new Set((participants || []).filter((p: any) => p.dns_at).map((p: any) => p.user_id));
 
     potProfiles = appState._cache.allProfiles || await supaRest('profiles', { filters: 'is_active=eq.true&order=display_name' });
     potLoaded = true;
@@ -2258,7 +2260,9 @@
                   <tr>
                     <td>{p.display_name || p.email || '?'}</td>
                     <td>
-                      {#if p.id in paidMap}
+                      {#if potDnsIds.has(p.id)}
+                        <span class="badge bg-secondary" title="3× op rij geen keuze — uit de koers">DNS</span>
+                      {:else if p.id in paidMap}
                         <span class="badge bg-success">Doet mee</span>
                       {:else}
                         <button class="btn btn-sm btn-outline-secondary" onclick={() => addParticipant(potCompId!, p.id, p.display_name || p.email || '?')}>Toevoegen</button>
