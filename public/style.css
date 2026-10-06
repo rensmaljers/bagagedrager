@@ -1671,6 +1671,7 @@ code, pre { color: var(--text); }
 .feedback-label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; }
 .feedback-form textarea { resize: vertical; }
 .feedback-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.6rem; }
+.feedback-kinds { display: flex; gap: 0.4rem; margin-bottom: 0.6rem; flex-wrap: wrap; }
 
 .feedback-admin-list { display: flex; flex-direction: column; gap: 0.75rem; }
 .feedback-admin-item { border: 1px solid var(--border); border-radius: var(--radius); padding: 0.75rem 0.9rem; }

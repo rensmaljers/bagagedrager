@@ -14,7 +14,7 @@
   import { supabase } from './lib/supabase-client';
   import { supaRest } from './lib/api';
   import { toast } from './lib/utils';
-  import { activeScoringMode, activeStages, loadMyCompIds } from './lib/helpers';
+  import { activeScoringMode, activeStages, competitionStarted, isParticipant, loadMyCompIds } from './lib/helpers';
   import { setupDeadlineNotifications } from './lib/notifications';
 
   // Refresh-teller: bump = actieve view remount (vervangt activeTab.click()).
@@ -85,7 +85,9 @@
     // (comp-select opties, banner, logo en sync-info volgen reactief)
     const activeComps = appState.competitions.filter((c: any) => c.is_active);
     const savedComp = savedCompId ? activeComps.find((c: any) => c.id === savedCompId) : null;
-    const activeComp = savedComp || activeComps[0];
+    // Zonder opgeslagen keuze: liefst een ronde waar je aan meedoet of die nog moet starten
+    const ownComp = activeComps.find((c: any) => appState.profile?.is_admin || isParticipant(c.id) || !competitionStarted(c.id));
+    const activeComp = savedComp || ownComp || activeComps[0];
     if (activeComp) appState.activeCompId = activeComp.id;
 
     if (preloadedRiders && appState.activeCompId === savedCompId) {
@@ -257,6 +259,12 @@
 
   // --- COMPETITIE (vervangt updateCompSelectOptions/updateSyncInfo/applyCompColor) ---
   const activeComps = $derived(appState.competitions.filter((c: any) => c.is_active));
+  // Gestarte rondes waar je niet aan meedoet staan apart onder "Volgen" (admins zien
+  // alles als eigen ronde). myCompIds + stages zijn reactief, dus inschrijven of de
+  // start van een ronde verschuift hem vanzelf.
+  const isFollowOnly = (c: any) => !appState.profile?.is_admin && !isParticipant(c.id) && competitionStarted(c.id);
+  const myComps = $derived(activeComps.filter((c: any) => !isFollowOnly(c)));
+  const followComps = $derived(activeComps.filter((c: any) => isFollowOnly(c)));
   const activeComp = $derived(appState.competitions.find((c: any) => c.id === appState.activeCompId));
   const compColor = $derived(activeComp?.color || '#facc15');
   const compCount = $derived(activeComps.length > 1 ? `${activeComps.length} rondes` : '');
@@ -422,7 +430,7 @@
               <img id="comp-logo" class="comp-logo" alt="" src={activeComp.logo_url} onerror={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}>
             {/key}
           {/if}
-          {#if activeComps.length >= 2 && activeComps.length <= 3}
+          {#if activeComps.length >= 2 && activeComps.length <= 3 && followComps.length === 0}
             <!-- 2-3 rondes: segmented pills — wisselen in één tik i.p.v. via de dropdown -->
             <div class="comp-switch" role="group" aria-label="Wissel van ronde">
               {#each activeComps as c (c.id)}
@@ -439,9 +447,22 @@
             <select id="comp-select" class="form-select form-select-sm" title="Wissel van ronde"
               bind:value={appState.activeCompId} onchange={onCompChange}
               style:border-color={compColor + '60'} style:background={compColor + '10'}>
-              {#each activeComps as c (c.id)}
-                <option value={c.id}>{c.country_flag || ''} {c.name}</option>
-              {/each}
+              {#if followComps.length && myComps.length}
+                <optgroup label="Mijn rondes">
+                  {#each myComps as c (c.id)}
+                    <option value={c.id}>{c.country_flag || ''} {c.name}</option>
+                  {/each}
+                </optgroup>
+                <optgroup label="Volgen">
+                  {#each followComps as c (c.id)}
+                    <option value={c.id}>{c.country_flag || ''} {c.name}</option>
+                  {/each}
+                </optgroup>
+              {:else}
+                {#each activeComps as c (c.id)}
+                  <option value={c.id}>{c.country_flag || ''} {c.name}</option>
+                {/each}
+              {/if}
             </select>
             <span id="comp-count" class="comp-count">{compCount}</span>
           {/if}

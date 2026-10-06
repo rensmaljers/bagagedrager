@@ -509,6 +509,8 @@
 
   // --- Feedback ---
   let feedbackRows = $state<any[]>([]);
+  // Type staat vooraan in de context ("Bug · tab:pick · …", FeedbackBar); oude berichten hebben geen type
+  const feedbackKind = (ctx: string | null) => ctx?.match(/^(Bug|Verbetering|Vraag) · /)?.[1] ?? null;
   let feedbackLoaded = $state(false);
 
   async function loadFeedback() {
@@ -2389,7 +2391,8 @@
                 <div class="feedback-admin-meta">
                   <strong>{row.profiles?.display_name || 'Onbekend'}</strong>
                   <span class="text-muted">· {new Date(row.created_at).toLocaleString('nl-NL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
-                  {#if row.context}<span class="feedback-admin-context">{row.context}</span>{/if}
+                  {#if feedbackKind(row.context)}<span class="badge {feedbackKind(row.context) === 'Bug' ? 'bg-danger' : feedbackKind(row.context) === 'Verbetering' ? 'bg-info' : 'bg-secondary'}">{feedbackKind(row.context)}</span>{/if}
+                  {#if row.context}<span class="feedback-admin-context">{row.context.replace(/^(Bug|Verbetering|Vraag) · /, '')}</span>{/if}
                   {#if row.resolved}<span class="badge bg-success">afgehandeld</span>{/if}
                 </div>
                 <div class="feedback-admin-msg">{row.message}</div>

@@ -40,6 +40,7 @@ export const ui: any = $state({
   authScreen: true,            // login/signup zichtbaar
   loading: true,               // eerste boot
   toast: null as { msg: string; type: string } | null,
+  feedbackOpen: false,                    // feedback-formulier (FeedbackBar) open — ook te openen vanaf Account
   playerModalId: null as string | null,   // user_id → speler-detailmodal open
   riderModalId: null as number | null,    // rider id → renner-detailmodal open
   joinCompId: null as number | null,      // competition id → inschrijf-popup (spelregels + akkoord) open

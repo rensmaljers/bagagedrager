@@ -273,6 +273,45 @@
     if (next >= 0 && next < compStages.length) selectStage(compStages[next].id);
   }
 
+  // Swipen naar vorige/volgende etappe (mobiel). Alleen een duidelijk horizontale
+  // veeg telt, zodat verticaal scrollen door de rennerlijst niet wisselt; vegen die
+  // in een invoerveld, keuzelijst of de (iframe-)routekaart beginnen tellen niet.
+  const SWIPE_MIN_PX = 60;
+  let swipeStart: { x: number; y: number } | null = null;
+
+  function onSwipeStart(e: TouchEvent) {
+    const target = e.target as HTMLElement | null;
+    if (e.touches.length !== 1 || target?.closest('input, select, textarea, iframe, .stage-route-frame')) {
+      swipeStart = null;
+      return;
+    }
+    swipeStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }
+
+  function onSwipeEnd(e: TouchEvent) {
+    if (!swipeStart) return;
+    const dx = e.changedTouches[0].clientX - swipeStart.x;
+    const dy = e.changedTouches[0].clientY - swipeStart.y;
+    swipeStart = null;
+    if (Math.abs(dx) >= SWIPE_MIN_PX && Math.abs(dx) > 2 * Math.abs(dy)) navigateStage(dx < 0 ? 1 : -1);
+  }
+
+  // Als action i.p.v. ontouch*-attributen: passive listeners (scrollen blijft soepel)
+  // en geen a11y-waarschuwing — vegen is een extra snelkoppeling naast de ‹ ›-knoppen.
+  function swipeNav(node: HTMLElement) {
+    const cancel = () => (swipeStart = null);
+    node.addEventListener('touchstart', onSwipeStart, { passive: true });
+    node.addEventListener('touchend', onSwipeEnd, { passive: true });
+    node.addEventListener('touchcancel', cancel, { passive: true });
+    return {
+      destroy() {
+        node.removeEventListener('touchstart', onSwipeStart);
+        node.removeEventListener('touchend', onSwipeEnd);
+        node.removeEventListener('touchcancel', cancel);
+      },
+    };
+  }
+
   function selectVisual(kind: string) {
     activeVisualKind = kind;
     if (kind === 'route') routeActivated = true;
@@ -460,7 +499,7 @@
   $effect(() => () => clearTimeout(searchTimer));
 </script>
 
-<div class="tab-section active" id="section-pick">
+<div class="tab-section active" id="section-pick" use:swipeNav>
   <!-- Etappe-hero: nav-balk boven, koersbord-titel, schuine stat-tegels, visual volle breedte -->
   <div class="card mb-3">
     <div class="stage-hero-nav">

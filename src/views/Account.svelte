@@ -15,6 +15,12 @@
   import { updateNotificationButton } from '../lib/notifications';
   import Spelregels from './Spelregels.svelte';
 
+  // Opent het feedbackformulier onderaan de app (FeedbackBar) en scrolt ernaartoe
+  function openFeedback() {
+    ui.feedbackOpen = true;
+    requestAnimationFrame(() => document.querySelector('.feedback-bar')?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+  }
+
   // Formulier-state (vanilla: loadAccountView vulde de inputs bij tab-open)
   let name = $state(appState.profile?.display_name || '');
   const email = appState.session?.user?.email || '';
@@ -268,6 +274,12 @@
       <div class="card-header"><h5 class="mb-0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg> Spelregels</h5></div>
       <div class="card-body" style="font-size:0.83rem; line-height:1.7;">
         <Spelregels />
+      </div>
+    </div>
+    <div class="card mt-3">
+      <div class="card-body d-flex align-items-center justify-content-between gap-2" style="font-size:0.83rem;">
+        <span>Iets gevonden dat niet klopt, of een idee voor de app?</span>
+        <button class="btn btn-sm btn-accent" style="white-space:nowrap;" onclick={openFeedback}>Bug of idee melden</button>
       </div>
     </div>
     <div class="card mt-3">
