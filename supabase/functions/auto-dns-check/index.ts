@@ -1,11 +1,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.46/deno-dom-wasm.ts";
 import { fetchPcsPage } from "../_shared/pcs-fetch.ts";
-import { parseDropoutsPage } from "../_shared/pcs-dropouts.ts";
+import { parseDropoutsPage, parseStartlistDropouts } from "../_shared/pcs-dropouts.ts";
 import { importVapidPrivateKey, sendPush } from "../_shared/webpush.ts";
 
 // Draait elke 30 minuten (cron, migratie 072). Vóór elke etappe checken we of
-// alle gepickte renners nog opstappen: PCS' dropouts-pagina wordt geparset,
+// alle gepickte renners nog opstappen: de uitvallers uit de PCS-startlijst worden geparset,
 // nieuwe uitvallers krijgen riders.dnf = true (waardoor submit_pick ze blokkeert
 // en het pick-grid ze grijs toont), en spelers met een pick op zo'n renner
 // krijgen een push zodat ze vóór de deadline kunnen wisselen.
@@ -57,13 +57,20 @@ Deno.serve(async (req: Request) => {
       let dropouts = dropoutsByComp.get(stage.competition_id);
       if (!dropouts) {
         const base = comp.pcs_url.replace(/\/$/, "").replace(STRIP_SUFFIX, "");
-        const res = await fetchPcsPage(`${base}/results/dropouts`);
+        // Sinds de PCS-ombouw (eind sept 2026) is de dropouts-pagina leeg; de
+        // startlijst markeert uitvallers ("(DNF #9)"). Oude pagina als vangnet.
+        const res = await fetchPcsPage(`${base}/startlist`);
         if (!res.ok) {
           results.push({ stage_id: stage.id, error: `PCS status ${res.status}` });
           continue;
         }
         const doc = new DOMParser().parseFromString(await res.text(), "text/html");
-        dropouts = doc ? parseDropoutsPage(doc) : [];
+        dropouts = doc ? parseStartlistDropouts(doc) : [];
+        if (!dropouts.length) {
+          const old = await fetchPcsPage(`${base}/results/dropouts`);
+          const oldDoc = old.ok ? new DOMParser().parseFromString(await old.text(), "text/html") : null;
+          dropouts = oldDoc ? parseDropoutsPage(oldDoc) : [];
+        }
         dropoutsByComp.set(stage.competition_id, dropouts);
       }
       if (!dropouts.length) {

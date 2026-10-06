@@ -112,6 +112,7 @@ Conventies:
 
 ## PCS scraping
 Parse-logica staat in `supabase/functions/_shared/pcs-parse.ts` (getest!):
+- **Sinds eind sept 2026 nieuwe PCS-layout** (`ul.unitTopnav` + `div.resultCont` + `table.unit.results`, kolommen via `th[data-code]`); parsers ondersteunen oud én nieuw — details en valkuilen in skill `pcs-sync` ("PCS-ombouw eind sept 2026"). Onderstaande punten beschrijven de oude layout (nog fallback).
 - PCS uses a **tabbed interface** (`ul.restabs` / `ul.resultTabs`) with tabs: Stage, GC, Points, KOM, BONIS
 - Each tab has `data-id` linking to `div.resTab[data-id="..."]` containing a `table.results`
 - **TTT (ploegentijdrit)**: STAGE-tab heeft géén `table.results` maar `ul.list.ttt-results` — per team een blok met teamtijd (`div.time`, formaat `32:52.170` mét milliseconden) en een geneste rennertabel; individuele achterstand in `<font class="blue">+0:14</font>`. Rennertijd = teamtijd + eigen gap.

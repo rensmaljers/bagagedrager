@@ -306,9 +306,217 @@ export function extractBonifications(bonisTable: any, results: StageResult[]) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Nieuwe PCS-layout (sinds ~eind sept 2026)
+// ---------------------------------------------------------------------------
+// PCS bouwde de uitslagpagina's om: geen ul.restabs/div.resTab/table.results meer,
+// maar tabbladen in ul.unitTopnav (a.resultNav met data-navid; tekst Stage / GC /
+// Points / KOM / Youth / Teams) en per weergave een div.resultCont[data-navid] met
+// een table.unit.results. Cellen hebben geen semantische class meer; de kolom
+// volgt uit de kop (th[data-code]: rnk, bib, rider, timelag, bonis, pnt, pnt_won …).
+// Per klassement is er een "General"-weergave (cumulatief, met kolom pnt_won =
+// punten van vandaag) en een "Today"-subweergave met per scorend moment een tabel
+// (tussensprint, bergtop, "Points at finish"). Bonificaties staan alléén nog in die
+// per-moment-tabellen (kolom bonis, "10″"), niet meer in de etappetabel.
+
+export function isUnitLayout(doc: any): boolean {
+  return !!doc.querySelector("ul.unitTopnav a.resultNav");
+}
+
+function navText(a: any): string {
+  return (a.textContent || "").replace(/\s+/g, " ").trim().toUpperCase();
+}
+
+// Kolomindex per data-code uit de kopregel van een unit-tabel
+function unitColumns(table: any): Record<string, number> {
+  const cols: Record<string, number> = {};
+  const head = table.querySelector("tr");
+  if (!head) return cols;
+  head.querySelectorAll("th").forEach((th: any, i: number) => {
+    const code = th.getAttribute("data-code");
+    if (code && cols[code] === undefined) cols[code] = i;
+  });
+  return cols;
+}
+
+function unitRows(table: any): { cells: any[]; row: any }[] {
+  const out: { cells: any[]; row: any }[] = [];
+  for (const row of table.querySelectorAll("tr")) {
+    const cells = [...row.querySelectorAll("td")];
+    if (cells.length) out.push({ cells, row });
+  }
+  return out;
+}
+
+function rowSlug(row: any): string | null {
+  const href = row.querySelector("a[href*='rider/']")?.getAttribute("href") || "";
+  return href.replace(/^.*rider\//, "").trim() || null;
+}
+
+function contTables(doc: any, navid: string | null): any[] {
+  if (!navid) return [];
+  const tables: any[] = [];
+  for (const cont of doc.querySelectorAll(`div.resultCont[data-navid="${navid}"]`)) {
+    tables.push(...cont.querySelectorAll("table"));
+  }
+  return tables;
+}
+
+// Top-tab zoeken op (een van de) trefwoorden; geeft data-navid terug
+function topNavId(doc: any, keywords: string[]): string | null {
+  for (const a of doc.querySelectorAll("ul.unitTopnav a.resultNav")) {
+    const t = navText(a);
+    if (keywords.some(k => t === k || t.startsWith(k))) return a.getAttribute("data-navid");
+  }
+  return null;
+}
+
+// "Today"-navid onder een klassement-tab (subnav met dezelfde parentid als de top-tab)
+function todayNavId(doc: any, keywords: string[]): string | null {
+  for (const a of doc.querySelectorAll("ul.unitTopnav a.resultNav")) {
+    const t = navText(a);
+    if (!keywords.some(k => t === k || t.startsWith(k))) continue;
+    const parentId = a.getAttribute("data-parentid");
+    const sub = doc.querySelector(`ul.unitSubnav[data-parentid="${parentId}"]`);
+    if (!sub) return null;
+    for (const s of sub.querySelectorAll("a.resultNav")) {
+      if (navText(s) === "TODAY") return s.getAttribute("data-navid");
+    }
+  }
+  return null;
+}
+
+function findResult(results: StageResult[], slug: string | null, bib: number): StageResult | undefined {
+  // Slug eerst over álle results, bib pas als fallback (zie extractClassificationPoints)
+  return (slug ? results.find(r => r.pcs_slug === slug) : undefined)
+    ?? (bib > 0 ? results.find(r => r.bib_number === bib) : undefined);
+}
+
+// Punten van vandaag uit een klassement: bij voorkeur kolom pnt_won van de
+// General-tabel; ontbreekt die, dan de som van kolom pnt over de Today-tabellen.
+function unitClassificationPoints(doc: any, keywords: string[], results: StageResult[], field: "points" | "mountain_points") {
+  const general = contTables(doc, topNavId(doc, keywords))[0];
+  const gCols = general ? unitColumns(general) : {};
+  if (general && gCols.pnt_won !== undefined) {
+    for (const { cells, row } of unitRows(general)) {
+      const pts = parseInt(cells[gCols.pnt_won]?.textContent?.trim() || "") || 0;
+      if (pts <= 0) continue;
+      const bib = gCols.bib !== undefined ? parseInt(cells[gCols.bib]?.textContent?.trim() || "") || 0 : 0;
+      const r = findResult(results, rowSlug(row), bib);
+      if (r) r[field] += pts;
+    }
+    return;
+  }
+  for (const table of contTables(doc, todayNavId(doc, keywords))) {
+    const cols = unitColumns(table);
+    if (cols.pnt === undefined) continue;
+    for (const { cells, row } of unitRows(table)) {
+      const pts = parseInt(cells[cols.pnt]?.textContent?.trim() || "") || 0;
+      if (pts <= 0) continue;
+      const bib = cols.bib !== undefined ? parseInt(cells[cols.bib]?.textContent?.trim() || "") || 0 : 0;
+      const r = findResult(results, rowSlug(row), bib);
+      if (r) r[field] += pts;
+    }
+  }
+}
+
+export function parseUnitResultsPage(doc: any): StageResult[] {
+  const stageNav = topNavId(doc, ["STAGE", "ÉTAPE", "ETAPA", "ETAPPE", "PROLOGUE", "RESULT"])
+    ?? doc.querySelector("ul.unitTopnav a.resultNav")?.getAttribute("data-navid") ?? null;
+  const table = contTables(doc, stageNav)[0];
+  if (!table) throw new Error("Geen resultaten-tabel gevonden op deze pagina");
+
+  const cols = unitColumns(table);
+  if (cols.rider === undefined || cols.timelag === undefined) {
+    throw new Error("Onbekende PCS-tabelopbouw (kolommen rider/timelag ontbreken)");
+  }
+
+  const results: StageResult[] = [];
+  let winnerTime = 0, lastTime = 0, position = 0;
+
+  for (const { cells, row } of unitRows(table)) {
+    const pcs_slug = rowSlug(row);
+    const bib = cols.bib !== undefined ? parseInt(cells[cols.bib]?.textContent?.trim() || "") || 0 : 0;
+    if (!pcs_slug && bib === 0) continue;
+    const pcs_name = row.querySelector("a[href*='rider/']")?.textContent?.trim() || null;
+
+    const rnkText = cols.rnk !== undefined ? cells[cols.rnk]?.textContent?.trim() || "" : "";
+    const timeCell = cells[cols.timelag];
+    const timeText = timeCell?.textContent?.trim() || "";
+    const dnf = /\b(dnf|dns|otl|dsq)\b/i.test(rnkText) || /\b(dnf|dns|otl|dsq)\b/i.test(timeText);
+
+    let time = 0;
+    if (!dnf) {
+      // Zelfde semantiek als de oude layout: rij 1 = absolute winnaarstijd,
+      // daarna achterstand; ",," of leeg = zelfde tijd als vorige; "*" = 3km-regel.
+      const parsed = parseTime(timeText);
+      if (parsed > 0) {
+        if (winnerTime === 0) { winnerTime = parsed; time = parsed; }
+        else time = winnerTime + parsed;
+        lastTime = time;
+      } else if (timeText.includes("*") && winnerTime > 0) {
+        time = winnerTime; lastTime = time;
+      } else {
+        time = lastTime;
+      }
+    }
+
+    // Mobiel teamveldje in de naam-cel vs. de losse teamcel (zie parseTableResults)
+    const mobileTeam = cells[cols.rider]?.querySelector("div.showIfMobile")?.textContent?.trim();
+    const desktopTeam = cols.riderteam !== undefined ? cells[cols.riderteam]?.textContent?.trim() : undefined;
+
+    position++;
+    results.push({
+      bib_number: bib,
+      pcs_slug,
+      pcs_name,
+      time_seconds: time || lastTime,
+      finish_position: dnf ? null : position,
+      points: 0,
+      mountain_points: 0,
+      bonification_seconds: 0,
+      dnf,
+      suspect_team_mismatch: !!(mobileTeam && desktopTeam && mobileTeam !== desktopTeam),
+    });
+  }
+
+  if (winnerTime === 0 && results.length > 0) {
+    throw new Error("Geen tijden gevonden — PCS toont waarschijnlijk nog de startlijst. Wacht tot de etappe klaar is en probeer opnieuw.");
+  }
+
+  unitClassificationPoints(doc, ["POINTS"], results, "points");
+  unitClassificationPoints(doc, ["KOM", "QOM", "MOUNTAIN"], results, "mountain_points");
+
+  // Bonificaties: som van kolom bonis ("10″", "2″-20″") over de per-moment-tabellen
+  // onder Points-Today (tussensprints + "Points at finish") en KOM-Today (bonificatie-
+  // bergtoppen). Bewust niet Youth/Teams/combativiteit: die tonen dezelfde bonificatie
+  // nogmaals en zouden dubbel tellen.
+  const momentTables = new Set<any>([
+    ...contTables(doc, todayNavId(doc, ["POINTS"])),
+    ...contTables(doc, todayNavId(doc, ["KOM", "QOM", "MOUNTAIN"])),
+  ]);
+  {
+    for (const t of momentTables) {
+      const tc = unitColumns(t);
+      if (tc.bonis === undefined) continue;
+      for (const { cells, row } of unitRows(t)) {
+        const txt = cells[tc.bonis]?.textContent || "";
+        const secs = [...txt.matchAll(/(\d+)″/g)].reduce((sum, m) => sum + parseInt(m[1]), 0);
+        if (secs <= 0) continue;
+        const b = tc.bib !== undefined ? parseInt(cells[tc.bib]?.textContent?.trim() || "") || 0 : 0;
+        const r = findResult(results, rowSlug(row), b);
+        if (r) r.bonification_seconds += secs;
+      }
+    }
+  }
+
+  return results;
+}
+
 // Volledige pagina-parse: tab-selectie (STAGE/TTT), uitslag, punten, KOM, bonificaties.
 // Gooit Error met Nederlandse melding bij ontbrekende of onvolledige data.
 export function parseStagePage(doc: any): StageResult[] {
+  if (isUnitLayout(doc)) return parseUnitResultsPage(doc);
   const hasTabs = doc.querySelectorAll("ul.restabs li a, ul.resultTabs li a").length > 0;
   const stageDiv = findTabDiv(doc, "STAGE") || findTabDiv(doc, "ÉTAPE") || findTabDiv(doc, "ETAPA")
     || findTabDiv(doc, "ETAPPE") || findTabDiv(doc, "PROLOGUE");

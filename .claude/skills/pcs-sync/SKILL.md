@@ -7,6 +7,19 @@ description: Hoe etappe-resultaten én startlijsten/race-data van ProCyclingStat
 
 Resultaten komen van ProCyclingStats (PCS) via scraping. De parse-logica is gedeeld en getest; de sync-paden eromheen verschillen.
 
+## PCS-ombouw eind sept 2026 — nieuwe layout (lees dit eerst)
+
+PCS heeft de site omgebouwd. Oude URL's (`race/<slug>/<jaar>/stage-N`, `/startlist`) werken nog via een redirect naar de nieuwe canonical (`race/<slug>-<jaar>-stage-N/results/results`, `race/<slug>-<jaar>-gc/...`), maar de HTML is anders. Alle parsers ondersteunen beide layouts (oude als fallback); vastgelegd in tests met echte, ingekorte pagina's in `supabase/functions/tests/fixtures/`.
+
+- **Uitslag** (`parseStagePage` → `parseUnitResultsPage`, herkend aan `ul.unitTopnav a.resultNav`): tabbladen Stage/GC/Points/KOM/Youth/Teams, per weergave een `div.resultCont[data-navid]` met `table.unit.results`. Cellen hebben geen class meer → kolom via `th[data-code]` (`rnk`, `bib`, `rider`, `riderteam`, `timelag`, `bonis`, `pnt`, `pnt_won`). DNF/DNS staat in `rnk`. Tijd in `timelag` (zelfde semantiek: winnaarstijd, `,,`, gap, honderdsten bij TT).
+  - Punten/bergpunten van vandaag = kolom **`pnt_won`** van de General-tabel onder Points/KOM (fallback: som `pnt` over de Today-tabellen).
+  - **Bonificaties** staan alleen nog in de per-moment-tabellen onder Points-Today ("Points at finish", tussensprints) en KOM-Today ("KOM Sprint"); niet in de Stage-tabel. Youth/Teams/combativiteit bewust overslaan (dubbeltelling).
+  - Gevalideerd tegen de opgeslagen Vuelta 2026-uitslagen (et. 1, 4, 9, 13, 21): tijden, punten, KOM, bonificaties en DNF renner-voor-renner gelijk. TTT in de nieuwe layout is nog niet gezien → bij een ploegentijdrit eerst controleren.
+- **Etappelijst** (`_shared/pcs-race-parse.ts`): `/stages` is nu een lege statistiekpagina. `parseStageNav` haalt de etappes uit het etappemenu (`<option value="race/<slug>-<jaar>-stage-N/stages">Stage N | A - B</option>`); `parseStageInfo` leest per etappepagina Date / Start time / Distance / Parcours type-icoon / Departure / Arrival / Vertical meters / Profile score. `sync-pcs-race` valt hierop terug als de oude tabel leeg is.
+- **Uitvallers**: `/results/dropouts` redirect naar de uitslag en de nieuwe dropouts-statistiek is leeg (JS/nog niet gevuld). `auto-dns-check` gebruikt daarom `parseStartlistDropouts`: de startlijst markeert uitvallers als `NAAM (DNF #9)` / `(DNS #12)`. Oude pagina blijft vangnet.
+- **Startlijst**: ongewijzigd (`ul.startlist_v4`), werkt nog.
+- **Starttijden zijn lokale tijd van de koers**, terwijl `sync-pcs-race` ze als CET/CEST interpreteert (`cetOffsetForDate`). Voor races buiten Midden-Europa (bv. Tour of Guangxi, UTC+8) liggen deadlines dan uren te laat → na import controleren/corrigeren.
+
 ## De gedeelde parser — gebruik altijd deze
 
 `supabase/functions/_shared/pcs-parse.ts` → `parseStagePage(doc)` geeft `StageResult[]` terug met `{ bib_number, pcs_slug, pcs_name, time_seconds, finish_position, points, mountain_points, bonification_seconds, dnf }`.

@@ -1,6 +1,7 @@
 import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.46/deno-dom-wasm.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { fetchPcsPage } from "../_shared/pcs-fetch.ts";
+import { parseStageInfo, parseStageNav } from "../_shared/pcs-race-parse.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -578,6 +579,7 @@ Deno.serve(async (req) => {
     // 1. Fetch & parse stages
     log.push("📅 Etappes ophalen...");
     let stages: any[] = [];
+    let stagesFromNav = false; // nieuwe PCS-layout: details al per etappe opgehaald
 
     // Helper: parse alle race-info uit ruwe PCS HTML
     function parseRaceInfo(rawHtml: string) {
@@ -701,6 +703,48 @@ Deno.serve(async (req) => {
       try {
         const stagesDoc = await fetchPCS(baseUrl + "/stages");
         stages = parseStages(stagesDoc, raceYear);
+        if (!stages.length) {
+          // Nieuwe PCS-layout (eind sept 2026): geen etappetabel meer op /stages.
+          // Etappes uit het etappemenu, details (datum/start/afstand/type/profiel)
+          // van elke etappepagina — zie _shared/pcs-race-parse.ts.
+          const nav = parseStageNav(stagesDoc);
+          if (nav.length) {
+            stagesFromNav = true;
+            log.push(`ℹ️ Nieuwe PCS-layout: ${nav.length} etappes uit het etappemenu, details per etappe ophalen...`);
+            for (const ns of nav) {
+              let info: ReturnType<typeof parseStageInfo> | null = null;
+              let profileUrl: string | null = null;
+              try {
+                const stageDoc = await fetchPCS(`https://www.procyclingstats.com/${ns._href}`);
+                info = parseStageInfo(stageDoc);
+                for (const img of stageDoc.querySelectorAll("img")) {
+                  const src = img.getAttribute("src") || "";
+                  if (src.includes("profile")) {
+                    profileUrl = src.startsWith("http") ? src : `https://www.procyclingstats.com/${src}`;
+                    break;
+                  }
+                }
+              } catch (e) {
+                log.push(`⚠️ Etappe ${ns.stage_number}: details niet opgehaald (${(e as Error).message})`);
+              }
+              if (!info?.date) log.push(`⚠️ Etappe ${ns.stage_number}: geen datum gevonden op PCS`);
+              stages.push({
+                stage_number: ns.stage_number,
+                name: ns.name,
+                date: info?.date || "",
+                stage_type: mapStageType(info?.parcoursIcon || "", ns.name),
+                distance_km: info?.distance_km ?? null,
+                departure: info?.departure || ns.departure,
+                arrival: info?.arrival || ns.arrival,
+                vertical_meters: info?.vertical_meters ?? null,
+                profile_score: info?.profile_score ?? null,
+                profile_image_url: profileUrl,
+                _href: ns._href,
+                _startTime: info?.startTime || undefined,
+              });
+            }
+          }
+        }
         log.push(`✅ ${stages.length} etappes gevonden`);
       } catch (e) {
         log.push(`⚠️ Etappes: ${e.message}`);
@@ -726,7 +770,7 @@ Deno.serve(async (req) => {
     // 3. Fetch stage details (profielen + starttijden)
     let stageProfiles: Record<number, string> = {};
     let stageStartTimes: Record<number, string> = {};
-    if (stages.length > 0 && !comp?.is_one_day) {
+    if (stages.length > 0 && !comp?.is_one_day && !stagesFromNav) {
       log.push("🏔️ Etappedetails ophalen...");
       try {
         const details = await fetchStageDetails(stages);

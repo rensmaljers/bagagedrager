@@ -16,6 +16,32 @@ export interface Dropout {
 
 const TYPES = new Set(["DNF", "DNS", "OTL", "DSQ"]);
 
+// Nieuwe PCS-layout (sinds ~eind sept 2026): /results/dropouts stuurt door naar de
+// algemene uitslag en de nieuwe statistiekpagina (…-gc/stages/dropouts) is leeg.
+// De startlijst markeert uitvallers wél, achter de rennernaam in hetzelfde <li>:
+//   <a href="rider/kaden-groves">GROVES Kaden</a> (DNF #9)
+//   <a href="rider/pablo-torres-arias">TORRES Pablo</a>* (DNS #12)
+// "#N" is het etappenummer; ontbreekt het, dan is stage_number null. "#P" voor
+// de proloog is een aanname (nog niet op PCS gezien) en geeft stage_number 0.
+const STARTLIST_MARK = /\((DNF|DNS|OTL|DSQ)(?:\s*#\s*(\d+|P))?\)/i;
+
+export function parseStartlistDropouts(doc: any): Dropout[] {
+  const out: Dropout[] = [];
+  const seen = new Set<string>();
+  for (const a of [...doc.querySelectorAll('a[href*="rider/"]')] as any[]) {
+    const li = a.closest("li");
+    if (!li) continue;
+    const m = (li.textContent || "").match(STARTLIST_MARK);
+    if (!m) continue;
+    const slug = (a.getAttribute("href") || "").split("rider/")[1]?.split(/[/?#]/)[0];
+    if (!slug || seen.has(slug)) continue;
+    seen.add(slug);
+    const stage_number = m[2] === undefined ? null : m[2].toUpperCase() === "P" ? 0 : parseInt(m[2]);
+    out.push({ pcs_slug: slug, name: a.textContent.trim(), type: m[1].toUpperCase(), stage_number });
+  }
+  return out;
+}
+
 export function parseDropoutsPage(doc: any): Dropout[] {
   const tables = [...doc.querySelectorAll("table")];
   const table = tables.find((t: any) => {
