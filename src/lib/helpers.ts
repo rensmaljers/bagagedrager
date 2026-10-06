@@ -1,5 +1,5 @@
 import { state } from './state.svelte';
-import { SUPABASE_URL, SUPABASE_ANON_KEY, TEAMS, VAPID_PUBLIC_KEY } from './config';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, TEAMS, VAPID_PUBLIC_KEY, RULES_VERSION } from './config';
 import { $, escapeHtml, formatTime, formatGap, formatDeadline, riderDisplay, avatarHtml, compBadge, skeletonRows, toast, confettiBurst } from './utils';
 import { supabase } from './supabase-client';
 import { icon } from './icons';
@@ -64,8 +64,10 @@ export function isDns(compId: number | null = state.activeCompId) {
   return compId != null && state.myDnsCompIds.includes(compId);
 }
 
+// Alleen aanroepen vanuit JoinModal: de speler heeft daar de spelregels
+// gezien en akkoord gegeven; RULES_VERSION wordt server-side vastgelegd.
 export async function joinCompetition(compId: number) {
-  await supaRpc('join_competition', { p_competition_id: compId });
+  await supaRpc('join_competition', { p_competition_id: compId, p_rules_version: RULES_VERSION });
   if (!state.myCompIds.includes(compId)) state.myCompIds = [...state.myCompIds, compId];
 }
 

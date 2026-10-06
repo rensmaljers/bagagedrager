@@ -74,7 +74,7 @@
   import { escapeHtml, formatTime, formatGap, formatDeadline, riderDisplay, avatarHtml, toast } from '../lib/utils';
   import { icon } from '../lib/icons';
   import { supaRest } from '../lib/api';
-  import { activeScoringMode, activeStages, riderPhoto, isParticipant, competitionStarted, joinCompetition } from '../lib/helpers';
+  import { activeScoringMode, activeStages, riderPhoto, isParticipant, competitionStarted } from '../lib/helpers';
   import { buildDagbericht, buildRondeVerslag } from '../lib/share';
   import RadTheater from './RadTheater.svelte';
   import { focusTrap } from '../lib/focus-trap';
@@ -91,7 +91,6 @@
   let statusEntries: { label: string; value: string; sub?: string; deltaHtml?: string; jersey?: string }[] = $state([]);
   let statusNext: { stageTitle: string; name: string | null; deadline: string; riderName: string | null } | null = $state(null);
   let welcome: { compId: number; compName: string; stageTitle: string; deadline: string } | null = $state(null);
-  let joining = $state(false);
   // 'join' = nog niet ingeschreven en ronde niet gestart; 'first-pick' = ingeschreven, nog geen pick
   const welcomeMode = $derived.by(() => {
     if (!welcome) return null;
@@ -100,17 +99,9 @@
     return appState.myPicks.some((p: any) => compStageIds.has(p.stage_id)) ? null : 'first-pick';
   });
 
-  async function joinActiveCompetition() {
-    if (!welcome || joining) return;
-    joining = true;
-    try {
-      await joinCompetition(welcome.compId);
-      toast(`Je doet mee met ${welcome.compName}!`, 'success');
-    } catch (e: any) {
-      toast(e.message, 'error');
-    } finally {
-      joining = false;
-    }
+  // Inschrijven loopt via de spelregels-popup (JoinModal, akkoord verplicht)
+  function joinActiveCompetition() {
+    if (welcome) ui.joinCompId = welcome.compId;
   }
   // Rad-theater: eenmalig per etappe, per apparaat (localStorage-vlag).
   // Getoond aan ÁLLE deelnemers zodra het Rad voor iemand gedraaid heeft
@@ -1068,7 +1059,7 @@
               <div class="welcome-card-title">Doe je mee met {welcome.compName}?</div>
               <div class="welcome-card-sub">Schrijf je in vóór de start van {welcome.stageTitle} ({formatDeadline(welcome.deadline)}). Vergeet je daarna een etappe, dan kiest het Rad van Fortuin een renner voor je. Na de start kun je niet meer instappen.</div>
             </div>
-            <button class="btn btn-accent btn-skew welcome-card-cta" disabled={joining} onclick={joinActiveCompetition}><span>{joining ? 'Bezig…' : 'Ik doe mee'}</span></button>
+            <button class="btn btn-accent btn-skew welcome-card-cta" onclick={joinActiveCompetition}><span>Ik doe mee</span></button>
           </div>
         </div>
       </div>

@@ -375,6 +375,7 @@
   let paidMap = $state<Record<string, boolean>>({});
   let potProfiles = $state<any[]>([]);
   let potDnsIds = $state<Set<string>>(new Set());
+  let potRules = $state<Record<string, string>>({});
 
   const potComp = $derived(appState.competitions.find((c: any) => c.id === potCompId));
   const potEntryFee = $derived(potComp?.entry_fee);
@@ -393,9 +394,11 @@
     if (!potCompId) return;
 
     const participants = await supaRest('competition_participants', {
-      select: 'user_id,has_paid,dns_at',
+      select: 'user_id,has_paid,dns_at,rules_accepted_at,rules_version',
       filters: `competition_id=eq.${potCompId}`,
     });
+    potRules = Object.fromEntries((participants || []).filter((p: any) => p.rules_accepted_at)
+      .map((p: any) => [p.user_id, `Spelregels (versie ${p.rules_version}) geaccepteerd op ${new Date(p.rules_accepted_at).toLocaleString('nl-NL')}`]));
     const map: Record<string, boolean> = {};
     (participants || []).forEach((p: any) => { map[p.user_id] = p.has_paid; });
     paidMap = map;
@@ -2264,6 +2267,7 @@
                         <span class="badge bg-secondary" title="3× op rij geen keuze — uit de koers">DNS</span>
                       {:else if p.id in paidMap}
                         <span class="badge bg-success">Doet mee</span>
+                        {#if potRules[p.id]}<span class="info-tooltip ms-1" data-tip={potRules[p.id]}>✓ regels</span>{/if}
                       {:else}
                         <button class="btn btn-sm btn-outline-secondary" onclick={() => addParticipant(potCompId!, p.id, p.display_name || p.email || '?')}>Toevoegen</button>
                       {/if}

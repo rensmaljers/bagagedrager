@@ -3,11 +3,11 @@
   // Gedrag 1-op-1; DOM-manipulatie vervangen door runes/derived markup.
   // LET OP: alias verplicht — een lokale binding met de naam `state` schaduwt
   // de $state-rune (compiler leest $state dan als store-subscription).
-  import { state as appState } from '../lib/state.svelte';
+  import { state as appState, ui } from '../lib/state.svelte';
   import { formatDeadline, riderDisplay, toast, confettiBurst } from '../lib/utils';
   import { icon } from '../lib/icons';
   import { supaRest, supaRpc } from '../lib/api';
-  import { activeStages, buildPcsStageUrl, buildStageNewsUrl, riderPhoto, teamBadge, isParticipant, isDns, competitionStarted, joinCompetition, leaveCompetition } from '../lib/helpers';
+  import { activeStages, buildPcsStageUrl, buildStageNewsUrl, riderPhoto, teamBadge, isParticipant, isDns, competitionStarted, leaveCompetition } from '../lib/helpers';
 
   const typeLabels: Record<string, string> = { flat: '→', mountain: '▲', tt: '⏱', ttt: '⏱', sprint: '⚡', hills: '~' };
   const STAGE_TYPES: Record<string, { label: string; icon: string }> = {
@@ -65,17 +65,9 @@
   const compStarted = $derived.by(() => { void deadlinePassed; return competitionStarted(pickCompId); });
   let joinBusy = $state(false);
 
-  async function onJoin() {
-    if (pickCompId == null || joinBusy) return;
-    joinBusy = true;
-    try {
-      await joinCompetition(pickCompId);
-      toast('Je bent ingeschreven — kies je renner!', 'success');
-    } catch (e: any) {
-      toast(e.message, 'error');
-    } finally {
-      joinBusy = false;
-    }
+  // Inschrijven loopt via de spelregels-popup (JoinModal, akkoord verplicht)
+  function onJoin() {
+    if (pickCompId != null) ui.joinCompId = pickCompId;
   }
 
   async function onLeave() {
@@ -552,7 +544,7 @@
               <div class="welcome-card-title">Doe je mee met {comp?.name || 'deze ronde'}?</div>
               <div class="welcome-card-sub">Schrijf je in om renners te kiezen. Vergeet je een etappe, dan kiest het Rad van Fortuin voor je. Na de start van de eerste etappe kun je niet meer instappen.</div>
             </div>
-            <button class="btn btn-accent btn-skew welcome-card-cta" disabled={joinBusy} onclick={onJoin}><span>{joinBusy ? 'Bezig…' : 'Ik doe mee'}</span></button>
+            <button class="btn btn-accent btn-skew welcome-card-cta" onclick={onJoin}><span>Ik doe mee</span></button>
           {/if}
         </div>
       </div>

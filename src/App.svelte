@@ -231,6 +231,7 @@
   import Account from './views/Account.svelte';
   import PlayerModal from './views/PlayerModal.svelte';
   import RiderModal from './views/RiderModal.svelte';
+  import JoinModal from './views/JoinModal.svelte';
   import FeedbackBar from './views/FeedbackBar.svelte';
 
   // initApp draaien zodra er een sessie is (boot én login/signup via Auth.svelte)
@@ -504,6 +505,7 @@
 <!-- Speler- & renner-detailmodals (app-breed; renderen alleen als ui.*ModalId gezet is) -->
 <PlayerModal />
 <RiderModal />
+<JoinModal />
 
 <!-- Foto hover preview -->
 <div id="photo-preview" style="position:fixed;z-index:9999;pointer-events:none;border-radius:10px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.5);"

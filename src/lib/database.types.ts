@@ -61,6 +61,8 @@ export type Database = {
           joined_at: string
           dns_at: string | null
           dns_stage_id: number | null
+          rules_accepted_at: string | null
+          rules_version: string | null
           paid_at: string | null
           user_id: string
         }
@@ -70,6 +72,8 @@ export type Database = {
           joined_at?: string
           dns_at?: string | null
           dns_stage_id?: number | null
+          rules_accepted_at?: string | null
+          rules_version?: string | null
           paid_at?: string | null
           user_id: string
         }
@@ -79,6 +83,8 @@ export type Database = {
           joined_at?: string
           dns_at?: string | null
           dns_stage_id?: number | null
+          rules_accepted_at?: string | null
+          rules_version?: string | null
           paid_at?: string | null
           user_id?: string
         }
@@ -766,7 +772,7 @@ export type Database = {
       competition_started: { Args: { p_competition_id: number }; Returns: boolean }
       delete_own_account: { Args: never; Returns: undefined }
       get_cron_secret: { Args: never; Returns: string }
-      join_competition: { Args: { p_competition_id: number }; Returns: Json }
+      join_competition: { Args: { p_competition_id: number; p_rules_version: string }; Returns: Json }
       leave_competition: { Args: { p_competition_id: number }; Returns: Json }
       position_to_game_points: { Args: { pos: number }; Returns: number }
       sharing_multiplier: { Args: { num_pickers: number }; Returns: number }

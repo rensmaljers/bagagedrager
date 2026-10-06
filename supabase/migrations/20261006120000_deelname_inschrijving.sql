@@ -23,6 +23,8 @@
 --     elk klassement met "DNS" en buiten de prijzen. Te-late Rad-picks van een
 --     door de admin toegevoegde laatkomer (is_late) tellen niet mee.
 --     competition_pot_status krijgt de kolom is_dns.
+--   * Spelregels-akkoord: join_competition vereist de regelversie en legt
+--     rules_accepted_at + rules_version vast (bewijs dat de speler akkoord ging).
 --
 -- Leidend na deze migratie: submit_pick + assign_random_riders (was 077).
 -- Bestandsnaam met tijdstempel i.p.v. 087: er staat al een tijdstempel-migratie
@@ -31,7 +33,11 @@
 ALTER TABLE competition_participants
   ADD COLUMN IF NOT EXISTS joined_at timestamptz NOT NULL DEFAULT now(),
   ADD COLUMN IF NOT EXISTS dns_at timestamptz,
-  ADD COLUMN IF NOT EXISTS dns_stage_id int REFERENCES stages(id) ON DELETE SET NULL;
+  ADD COLUMN IF NOT EXISTS dns_stage_id int REFERENCES stages(id) ON DELETE SET NULL,
+  -- Akkoord met de spelregels bij "Ik doe mee": tijdstip + versie (RULES_VERSION
+  -- in src/lib/config.ts). NULL bij backfill en admin-toevoegingen.
+  ADD COLUMN IF NOT EXISTS rules_accepted_at timestamptz,
+  ADD COLUMN IF NOT EXISTS rules_version text;
 
 -- Pot-view (leidend was 074) + publieke DNS-status. Nieuwe kolom achteraan,
 -- dus CREATE OR REPLACE mag; paid_at/dns_at blijven privé.
@@ -64,9 +70,10 @@ AS $$
 $$;
 
 -- --------------------------------------------
--- join_competition: speler schrijft zich in
+-- join_competition: speler schrijft zich in en gaat akkoord met de
+-- spelregels (versie verplicht — de frontend toont ze in de popup)
 -- --------------------------------------------
-CREATE OR REPLACE FUNCTION join_competition(p_competition_id int)
+CREATE OR REPLACE FUNCTION join_competition(p_competition_id int, p_rules_version text)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -79,12 +86,21 @@ BEGIN
     RAISE EXCEPTION 'Niet ingelogd';
   END IF;
 
+  IF coalesce(trim(p_rules_version), '') = '' THEN
+    RAISE EXCEPTION 'Akkoord met de spelregels is verplicht';
+  END IF;
+
   IF NOT EXISTS (SELECT 1 FROM competitions WHERE id = p_competition_id AND is_active) THEN
     RAISE EXCEPTION 'Ronde niet gevonden of niet actief';
   END IF;
 
   IF EXISTS (SELECT 1 FROM competition_participants
              WHERE competition_id = p_competition_id AND user_id = v_user_id) THEN
+    -- Al deelnemer (bv. door admin als betaald gemarkeerd): akkoord alsnog vastleggen
+    UPDATE competition_participants
+    SET rules_accepted_at = now(), rules_version = p_rules_version
+    WHERE competition_id = p_competition_id AND user_id = v_user_id
+      AND rules_accepted_at IS NULL;
     RETURN jsonb_build_object('success', true, 'already', true);
   END IF;
 
@@ -92,8 +108,8 @@ BEGIN
     RAISE EXCEPTION 'De ronde is al begonnen — inschrijven kan niet meer';
   END IF;
 
-  INSERT INTO competition_participants (competition_id, user_id)
-  VALUES (p_competition_id, v_user_id);
+  INSERT INTO competition_participants (competition_id, user_id, rules_accepted_at, rules_version)
+  VALUES (p_competition_id, v_user_id, now(), p_rules_version);
 
   RETURN jsonb_build_object('success', true);
 END;
@@ -418,7 +434,7 @@ DECLARE f text;
 BEGIN
   FOREACH f IN ARRAY ARRAY[
     'submit_pick(integer, integer)',
-    'join_competition(integer)',
+    'join_competition(integer, text)',
     'leave_competition(integer)',
     'admin_add_participant(integer, uuid)',
     'competition_started(integer)'
