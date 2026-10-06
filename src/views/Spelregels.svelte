@@ -10,7 +10,7 @@
   <li><strong>Elke renner mag maar 1x</strong> gebruikt worden per ronde.</li>
   <li><strong>Te laat?</strong> Je keuze telt, maar je krijgt de straftijd (zie DNF) + 0 punten.</li>
   <li><strong>Geen keuze?</strong> Het Rad van Fortuin wijst je een willekeurige renner toe.</li>
-  <li><strong>3 etappes op rij geen keuze = DNS.</strong> Krijg je drie keer achter elkaar een renner van het Rad, dan lig je definitief uit de koers voor die ronde: je staat onderaan elk klassement met "DNS", kunt niet meer kiezen en dingt niet meer mee naar de prijzen.</li>
+  <li><strong>3 etappes op rij geen keuze = DNS.</strong> Krijg je drie keer achter elkaar een renner van het Rad, dan lig je definitief uit de koers voor die ronde: je staat onderaan elk klassement met "DNS", kunt niet meer kiezen en dingt niet meer mee naar de prijzen. Je inleg krijg je niet terug — ook niet als je bewust stopt omdat je er niet goed voorstaat.</li>
   <li><strong>DNF, DNS of te laat?</strong> Als straftijd krijg je het <strong>slechtste tijdverschil van een door spelers gekozen renner die finishte</strong> — het Rad telt daarbij niet mee. Plus 0 punten in de andere klassementen.</li>
   <li><strong>Renner valt uit ná punten pakken?</strong> Alleen wie de etappe <strong>uitrijdt</strong> levert punten op. Pakt je renner bijvoorbeeld het bergpunt op de eerste klim maar valt hij daarna uit, dan vervallen die punten toch — je krijgt 0 punten (sprint, berg én spel) plus de straftijd.</li>
   <li><strong>Rit geannuleerd of gestaakt zonder uitslag?</strong> De rit telt in <strong>geen enkel klassement</strong> mee — geen punten, maar ook geen straftijd. Je pick blijft wél staan: de gekozen renner is <strong>verbruikt</strong> en kan niet opnieuw worden ingezet.</li>

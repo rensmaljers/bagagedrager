@@ -50,4 +50,5 @@ export const TEAMS: Record<string, { abbr: string; color: string; color2: string
 // Versie van de spelregels (src/views/Spelregels.svelte). Wordt per deelnemer
 // vastgelegd bij "Ik doe mee" (competition_participants.rules_version) —
 // verhoog bij elke inhoudelijke regelwijziging.
-export const RULES_VERSION = '2026-10-06';
+// 2026-10-06.2: inleg bij DNS wordt niet terugbetaald
+export const RULES_VERSION = '2026-10-06.2';
