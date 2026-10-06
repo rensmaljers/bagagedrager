@@ -46,3 +46,8 @@ export const TEAMS: Record<string, { abbr: string; color: string; color2: string
   'BEAT CC p/b Saxo':               { abbr: 'BEA', color: '#003399', color2: '#ffffff' },
   'Tarteletto - Isorex':            { abbr: 'TAR', color: '#0055a0', color2: '#e30613' },
 };
+
+// Versie van de spelregels (src/views/Spelregels.svelte). Wordt per deelnemer
+// vastgelegd bij "Ik doe mee" (competition_participants.rules_version) —
+// verhoog bij elke inhoudelijke regelwijziging.
+export const RULES_VERSION = '2026-10-06';

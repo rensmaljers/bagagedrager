@@ -9,6 +9,10 @@ export const state: any = $state({
   riders: [] as any[],
   stages: [] as any[],
   myPicks: [] as any[],
+  // Rondes waarvoor je bent ingeschreven (competition_participants)
+  myCompIds: [] as number[],
+  // Rondes waarin je DNS bent (3× op rij geen keuze)
+  myDnsCompIds: [] as number[],
   dnfRiderIds: new Set<number>(),
   selectedRiderId: null as number | null,
   activeCompId: null as number | null,
@@ -38,5 +42,6 @@ export const ui: any = $state({
   toast: null as { msg: string; type: string } | null,
   playerModalId: null as string | null,   // user_id → speler-detailmodal open
   riderModalId: null as number | null,    // rider id → renner-detailmodal open
+  joinCompId: null as number | null,      // competition id → inschrijf-popup (spelregels + akkoord) open
   h2hRequest: null as { name: string; mode: string } | null, // Dashboard opent H2H zodra gemount
 });

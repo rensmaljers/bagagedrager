@@ -374,6 +374,8 @@
   let potLoaded = $state(false);
   let paidMap = $state<Record<string, boolean>>({});
   let potProfiles = $state<any[]>([]);
+  let potDnsIds = $state<Set<string>>(new Set());
+  let potRules = $state<Record<string, string>>({});
 
   const potComp = $derived(appState.competitions.find((c: any) => c.id === potCompId));
   const potEntryFee = $derived(potComp?.entry_fee);
@@ -392,19 +394,44 @@
     if (!potCompId) return;
 
     const participants = await supaRest('competition_participants', {
-      select: 'user_id,has_paid',
+      select: 'user_id,has_paid,dns_at,rules_accepted_at,rules_version',
       filters: `competition_id=eq.${potCompId}`,
     });
+    potRules = Object.fromEntries((participants || []).filter((p: any) => p.rules_accepted_at)
+      .map((p: any) => [p.user_id, `Spelregels (versie ${p.rules_version}) geaccepteerd op ${new Date(p.rules_accepted_at).toLocaleString('nl-NL')}`]));
     const map: Record<string, boolean> = {};
     (participants || []).forEach((p: any) => { map[p.user_id] = p.has_paid; });
     paidMap = map;
+    potDnsIds = new Set((participants || []).filter((p: any) => p.dns_at).map((p: any) => p.user_id));
 
     potProfiles = appState._cache.allProfiles || await supaRest('profiles', { filters: 'is_active=eq.true&order=display_name' });
     potLoaded = true;
   }
 
+  // Deelnemer toevoegen — ook ná de start. De RPC geeft voor al gestarte
+  // etappes een te-late Rad-pick (straftijd + 0 punten), zodat een late
+  // instapper geen AK-voordeel heeft.
+  async function addParticipant(compId: number, userId: string, name: string) {
+    const started = appState.stages.some((s: any) => s.competition_id === compId && (s.locked || new Date() >= new Date(s.deadline)));
+    const msg = started
+      ? `${name} toevoegen aan deze ronde? De ronde is al begonnen: voor elke gestarte etappe krijgt ${name} een willekeurige renner met straftijd en 0 punten.`
+      : `${name} toevoegen aan deze ronde?`;
+    if (!window.confirm(msg)) return;
+    try {
+      const res = await supaRpc('admin_add_participant', { p_competition_id: compId, p_user_id: userId });
+      if (!(userId in paidMap)) paidMap[userId] = false;
+      toast(res?.late_picks ? `${name} toegevoegd (${res.late_picks} te-late picks)` : `${name} toegevoegd`, 'success');
+      appState._cache.standings = null; appState._cache.participants = null;
+    } catch (e: any) { toast(e.message, 'error'); }
+  }
+
   async function togglePotPayment(compId: number, userId: string, paid: boolean) {
     try {
+      // Betaald aanvinken van een niet-deelnemer: eerst via de RPC inschrijven
+      // (dekt het ná-de-start-geval met te-late picks af)
+      if (paid && !(userId in paidMap)) {
+        await supaRpc('admin_add_participant', { p_competition_id: compId, p_user_id: userId });
+      }
       await supaUpsert('competition_participants', {
         competition_id: compId,
         user_id: userId,
@@ -2204,7 +2231,7 @@
   <!-- Admin: Pot -->
   <div class="admin-sub" class:active={adminSub === 'admin-pot'} id="admin-pot">
     <div class="card mb-3">
-      <div class="card-header"><h5 class="mb-0">💰 Inlegpot beheren</h5></div>
+      <div class="card-header"><h5 class="mb-0">💰 Deelnemers &amp; inlegpot</h5></div>
       <div class="card-body">
         <div class="row g-2 align-items-end mb-3">
           <div class="col-auto">
@@ -2230,11 +2257,21 @@
         <div id="pot-players-table">
           {#if potLoaded}
             <table class="table table-sm table-striped">
-              <thead><tr><th>Speler</th><th>Betaald</th></tr></thead>
+              <thead><tr><th>Speler</th><th>Deelnemer</th><th>Betaald</th></tr></thead>
               <tbody>
                 {#each potProfiles as p (p.id)}
                   <tr>
                     <td>{p.display_name || p.email || '?'}</td>
+                    <td>
+                      {#if potDnsIds.has(p.id)}
+                        <span class="badge bg-secondary" title="3× op rij geen keuze — uit de koers">DNS</span>
+                      {:else if p.id in paidMap}
+                        <span class="badge bg-success">Doet mee</span>
+                        {#if potRules[p.id]}<span class="info-tooltip ms-1" data-tip={potRules[p.id]}>✓ regels</span>{/if}
+                      {:else}
+                        <button class="btn btn-sm btn-outline-secondary" onclick={() => addParticipant(potCompId!, p.id, p.display_name || p.email || '?')}>Toevoegen</button>
+                      {/if}
+                    </td>
                     <td>
                       <div class="form-check form-switch">
                         <input class="form-check-input" type="checkbox" checked={!!paidMap[p.id]}

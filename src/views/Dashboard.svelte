@@ -71,10 +71,10 @@
 
 <script lang="ts">
   import { untrack } from 'svelte';
-  import { escapeHtml, formatTime, formatGap, formatDeadline, riderDisplay, avatarHtml } from '../lib/utils';
+  import { escapeHtml, formatTime, formatGap, formatDeadline, riderDisplay, avatarHtml, toast } from '../lib/utils';
   import { icon } from '../lib/icons';
   import { supaRest } from '../lib/api';
-  import { activeScoringMode, activeStages, riderPhoto } from '../lib/helpers';
+  import { activeScoringMode, activeStages, riderPhoto, isParticipant, competitionStarted } from '../lib/helpers';
   import { buildDagbericht, buildRondeVerslag } from '../lib/share';
   import RadTheater from './RadTheater.svelte';
   import { focusTrap } from '../lib/focus-trap';
@@ -90,7 +90,19 @@
   let statusComp: any = $state(null);
   let statusEntries: { label: string; value: string; sub?: string; deltaHtml?: string; jersey?: string }[] = $state([]);
   let statusNext: { stageTitle: string; name: string | null; deadline: string; riderName: string | null } | null = $state(null);
-  let welcome: { compName: string; stageTitle: string; deadline: string } | null = $state(null);
+  let welcome: { compId: number; compName: string; stageTitle: string; deadline: string } | null = $state(null);
+  // 'join' = nog niet ingeschreven en ronde niet gestart; 'first-pick' = ingeschreven, nog geen pick
+  const welcomeMode = $derived.by(() => {
+    if (!welcome) return null;
+    if (!isParticipant(welcome.compId)) return competitionStarted(welcome.compId) ? null : 'join';
+    const compStageIds = new Set(appState.stages.filter((s: any) => s.competition_id === welcome!.compId).map((s: any) => s.id));
+    return appState.myPicks.some((p: any) => compStageIds.has(p.stage_id)) ? null : 'first-pick';
+  });
+
+  // Inschrijven loopt via de spelregels-popup (JoinModal, akkoord verplicht)
+  function joinActiveCompetition() {
+    if (welcome) ui.joinCompId = welcome.compId;
+  }
   // Rad-theater: eenmalig per etappe, per apparaat (localStorage-vlag).
   // Getoond aan ÁLLE deelnemers zodra het Rad voor iemand gedraaid heeft
   // (Rad-picks van anderen zijn na de deadline zichtbaar via
@@ -366,7 +378,7 @@
       // Skeleton alleen tonen bij echte network fetch
       loading = true;
 
-      const [standingsData, winnerResults, latestPicksData] = await Promise.all([
+      const [standingsData, winnerResults, latestPicksData, dnsData] = await Promise.all([
         supaRest('general_classification', { filters: `competition_id=eq.${appState.activeCompId}` }),
         compStageIds.length
           ? supaRest('stage_results', { filters: `stage_id=in.(${compStageIds.join(',')})&finish_position=eq.1&dnf=eq.false&time_seconds=gt.0`, select: 'stage_id,time_seconds' })
@@ -377,9 +389,11 @@
               select: 'user_id,time_gap,dnf_penalty_gap,bonification,effective_points,effective_mountain_points,effective_game_points,finish_position,dnf'
             })
           : Promise.resolve([]),
+        supaRest('competition_pot_status', { select: 'user_id', filters: `competition_id=eq.${appState.activeCompId}&is_dns=eq.true` }).catch(() => []),
       ]);
       if (appState.activeCompId !== compId) return; // comp gewisseld tijdens fetch — nieuwere load rendert
       standings = standingsData;
+      appState._cache.dnsIds = (dnsData || []).map((r: any) => r.user_id);
       (appState._cache as any).winnerTimeSum = (winnerResults || []).reduce((sum: number, r: any) => sum + r.time_seconds, 0);
       appState._cache.standings = standings;
       appState._cache.standingsCompId = appState.activeCompId;
@@ -391,6 +405,13 @@
     const mode = activeScoringMode();
     const isClassic = mode === 'classic';
     const myName = appState.profile?.display_name;
+
+    // DNS (3× op rij Rad): telt niet mee voor posities, prijzen en dagverslag —
+    // staat onderaan elk klassement met "DNS". Zonder picks na de DNS zou het
+    // AK-totaal anders kunstmatig laag zijn.
+    const dnsIdSet = new Set<string>(appState._cache.dnsIds || []);
+    const dnsStandings = standings.filter((s: any) => dnsIdSet.has(s.user_id));
+    standings = standings.filter((s: any) => !dnsIdSet.has(s.user_id));
 
     // Kaarten per scoring mode: hoofdkolom toont AK (grote ronde) of Spel (klassieker)
     cardMode = isClassic ? 'classic' : 'grand_tour';
@@ -431,12 +452,30 @@
           // — vangt ook de alles-op-0-situatie vóór de eerste uitslag af).
           showLantaarn: classMode === 'gc' && sorted.length >= 4 && i === sorted.length - 1 && s.total_time > sorted[i - 1].total_time,
           showH2h: s.display_name !== myName,
+          isDns: false,
         };
       });
+      for (const s of dnsStandings) {
+        const isMe = s.display_name === myName;
+        rows.push({
+          user_id: s.user_id,
+          name: s.display_name,
+          isMe,
+          isLeader: false,
+          extra: collapsible && !isMe,
+          deltaHtml: '',
+          valueHtml: '<span class="badge bg-secondary">DNS</span>',
+          barPct: null,
+          showTrui: false,
+          showLantaarn: false,
+          showH2h: false,
+          isDns: true,
+        });
+      }
       const hero = sorted.length > 0
         ? { name: sorted[0].display_name, label: heroLabel != null ? String(heroLabel) : null }
         : null;
-      return { mode: classMode || 'game', jerseyClass, rows, collapsible, count: sorted.length, hero };
+      return { mode: classMode || 'game', jerseyClass, rows, collapsible, count: rows.length, hero };
     }
 
     // Delta helpers: compute rank change vs. standings before the latest stage
@@ -537,11 +576,19 @@
       });
     }
     const myCvIdx = cv.findIndex(s => s.display_name === myName);
+    // Gedeelde positie: bij strijdlust staan veel spelers gelijk (0/1 geraden)
+    const myCvPts = myCvIdx >= 0 ? (cv[myCvIdx].total_combativity_points || 0) : 0;
+    const myCvRank = 1 + cv.filter(s => (s.total_combativity_points || 0) > myCvPts).length;
     if (myCvIdx >= 0) entries.push({
       label: 'Strijdlust',
-      value: `${cv[myCvIdx].total_combativity_points || 0}`,
-      sub: 'winnaars geraden',
+      value: `${myCvRank}e`,
+      sub: `${myCvPts} ${myCvPts === 1 ? 'winnaar' : 'winnaars'} geraden`,
       deltaHtml: deltaChip(cvDeltas?.get(cv[myCvIdx].user_id)),
+    });
+    if (dnsStandings.some((s: any) => s.display_name === myName)) entries.push({
+      label: 'Status',
+      value: 'DNS',
+      sub: '3× op rij geen keuze',
     });
 
     vm = newVm;
@@ -592,12 +639,13 @@
       potBanner = false;
     }
 
-    // Welkom-hero: deelname is impliciet (eerste pick = meedoen) — (was renderWelcomeCard)
-    const compStageIdSet = new Set(activeStages().map(s => s.id));
-    const hasPicks = appState.myPicks.some(p => compStageIdSet.has(p.stage_id));
-    welcome = (!comp || hasPicks || !nextOpen)
+    // Welkom-hero: inschrijven ("Ik doe mee") tot de ronde start, daarna als
+    // ingeschrevene zonder picks "kies je eerste renner". Wélke variant volgt
+    // reactief uit welcomeMode (inschrijven/eerste pick werken direct door).
+    welcome = (!comp || !nextOpen)
       ? null
       : {
+          compId: comp.id,
           compName: comp.name,
           stageTitle: nextOpen.stage_number === 0 ? 'de proloog' : `etappe ${nextOpen.stage_number}`,
           deadline: nextOpen.deadline,
@@ -932,7 +980,7 @@
           <tr
             style={row.isMe ? 'background:var(--accent-bg);' : undefined}
             class={row.isLeader ? `leader-row${t.jerseyClass ? ' wears ' + t.jerseyClass : ''}` : (row.extra ? 'standings-extra' : undefined)}
-          ><td class="tnum">{@html rankBadge(i)}{@html row.deltaHtml}</td><td><div class="d-flex align-items-center gap-2"><span class="player-click d-inline-flex align-items-center gap-2" role="button" tabindex="0" onclick={() => (ui.playerModalId = row.user_id)} onkeydown={(e) => { if (e.key === 'Enter') ui.playerModalId = row.user_id; }}>{@html avatarHtml(row.name, appState._avatarMap[row.name], 'sm')}{row.name}</span>{#if row.showTrui}<span class="trui-chip">trui</span>{/if}{#if row.showLantaarn}<span class="info-tooltip lantaarn-chip" data-tip="Rode lantaarn — de hekkensluiter van het klassement">🏮</span>{/if}{#if row.showH2h}<button class="btn btn-ghost h2h-vs-btn" onclick={() => openH2H(row.name, t.mode)} aria-label="Vergelijk met {row.name}">vs</button>{/if}</div></td><td class="text-end tnum">{@html row.valueHtml}{#if row.barPct != null}<span class="score-bar score-bar-{t.mode}"><span style="width:{row.barPct}%"></span></span>{/if}</td></tr>
+          ><td class="tnum">{#if row.isDns}<span class="text-muted">–</span>{:else}{@html rankBadge(i)}{@html row.deltaHtml}{/if}</td><td><div class="d-flex align-items-center gap-2"><span class="player-click d-inline-flex align-items-center gap-2" role="button" tabindex="0" onclick={() => (ui.playerModalId = row.user_id)} onkeydown={(e) => { if (e.key === 'Enter') ui.playerModalId = row.user_id; }}>{@html avatarHtml(row.name, appState._avatarMap[row.name], 'sm')}{row.name}</span>{#if row.showTrui}<span class="trui-chip">trui</span>{/if}{#if row.showLantaarn}<span class="info-tooltip lantaarn-chip" data-tip="Rode lantaarn — de hekkensluiter van het klassement">🏮</span>{/if}{#if row.showH2h}<button class="btn btn-ghost h2h-vs-btn" onclick={() => openH2H(row.name, t.mode)} aria-label="Vergelijk met {row.name}">vs</button>{/if}</div></td><td class="text-end tnum">{@html row.valueHtml}{#if row.barPct != null}<span class="score-bar score-bar-{t.mode}"><span style="width:{row.barPct}%"></span></span>{/if}</td></tr>
         {/each}
         {#if t.collapsible}
           <tr class="standings-expand-row"><td colspan="3"><button type="button" class="standings-expand-btn" onclick={() => expanded[key] = !expanded[key]}>{expanded[key] ? `Toon top ${COMPACT_TOP}` : `Toon alle ${t.count} spelers`}</button></td></tr>
@@ -1002,14 +1050,28 @@
       </div>
     </div>
   {/if}
-  {#if welcome}
+  {#if welcome && welcomeMode === 'join'}
     <div id="welcome-card-wrap" class="mb-4">
       <div class="card welcome-card">
         <div class="card-body">
           <div class="welcome-card-inner">
             <div>
-              <div class="welcome-card-title">Je doet nog niet mee aan {welcome.compName}</div>
-              <div class="welcome-card-sub">Kies je renner voor {welcome.stageTitle} en je zit in de koers — daarna doe je automatisch mee met alle klassementen. Deadline: {formatDeadline(welcome.deadline)}.</div>
+              <div class="welcome-card-title">Doe je mee met {welcome.compName}?</div>
+              <div class="welcome-card-sub">Schrijf je in vóór de start van {welcome.stageTitle} ({formatDeadline(welcome.deadline)}). Vergeet je daarna een etappe, dan kiest het Rad van Fortuin een renner voor je. Na de start kun je niet meer instappen.</div>
+            </div>
+            <button class="btn btn-accent btn-skew welcome-card-cta" onclick={joinActiveCompetition}><span>Ik doe mee</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  {:else if welcome && welcomeMode === 'first-pick'}
+    <div id="welcome-card-wrap" class="mb-4">
+      <div class="card welcome-card">
+        <div class="card-body">
+          <div class="welcome-card-inner">
+            <div>
+              <div class="welcome-card-title">Je bent ingeschreven voor {welcome.compName}</div>
+              <div class="welcome-card-sub">Kies je renner voor {welcome.stageTitle}. Deadline: {formatDeadline(welcome.deadline)}.</div>
             </div>
             <button class="btn btn-accent btn-skew welcome-card-cta" onclick={goPick}><span>Kies je eerste renner</span></button>
           </div>
