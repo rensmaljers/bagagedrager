@@ -122,6 +122,7 @@ export type Database = {
           pcs_url: string | null
           scoring_mode: string
           slug: string
+          timezone: string
           year: number
         }
         Insert: {
@@ -140,6 +141,7 @@ export type Database = {
           pcs_url?: string | null
           scoring_mode?: string
           slug: string
+          timezone?: string
           year: number
         }
         Update: {
@@ -158,6 +160,7 @@ export type Database = {
           pcs_url?: string | null
           scoring_mode?: string
           slug?: string
+          timezone?: string
           year?: number
         }
         Relationships: []

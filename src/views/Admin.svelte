@@ -301,6 +301,24 @@
     try { updateCompSelectOptions(); } catch { /* shell nog niet geport */ }
   }
 
+  // Tijdzones van de koers (competitions.timezone). PCS-starttijden zijn lokale
+  // tijd; sync-pcs-race rekent ermee naar UTC (_shared/tz.ts).
+  const TIMEZONES = [
+    { id: 'Europe/Amsterdam', label: 'Midden-Europa (NL/BE/FR/IT/ES/CH)' },
+    { id: 'Europe/London', label: 'VK / Ierland' },
+    { id: 'Europe/Lisbon', label: 'Portugal' },
+    { id: 'Europe/Athens', label: 'Oost-Europa (GR/RO/BG)' },
+    { id: 'Europe/Istanbul', label: 'Turkije' },
+    { id: 'Asia/Dubai', label: 'VAE (UAE Tour)' },
+    { id: 'Asia/Riyadh', label: 'Saoedi-Arabië / Oman' },
+    { id: 'Asia/Shanghai', label: 'China (Tour of Guangxi)' },
+    { id: 'Asia/Tokyo', label: 'Japan' },
+    { id: 'Australia/Adelaide', label: 'Australië (Tour Down Under)' },
+    { id: 'America/Toronto', label: 'Canada-oost (Québec/Montréal)' },
+    { id: 'America/Bogota', label: 'Colombia' },
+    { id: 'Africa/Kigali', label: 'Rwanda' },
+  ];
+
   async function updateCompField(compId: number, field: string, value: any) {
     try {
       await supaPatch('competitions', `id=eq.${compId}`, { [field]: value || null });
@@ -1803,7 +1821,7 @@
     <div class="card">
       <div class="card-body p-0">
         <table class="table table-sm table-striped mb-0">
-          <thead><tr><th>Naam</th><th>Jaar</th><th>Modus</th><th>Kleur</th><th>Vlag</th><th>Logo</th><th>PCS URL</th><th>Inleg</th><th>Betaallink</th><th>Sync</th><th>Actief</th><th>Acties</th></tr></thead>
+          <thead><tr><th>Naam</th><th>Jaar</th><th>Modus</th><th>Kleur</th><th>Vlag</th><th>Logo</th><th>PCS URL</th><th>Tijdzone</th><th>Inleg</th><th>Betaallink</th><th>Sync</th><th>Actief</th><th>Acties</th></tr></thead>
           <tbody id="admin-comp-table">
             {#each appState.competitions as c (c.id)}
               <tr>
@@ -1843,6 +1861,15 @@
                          onchange={(e) => updateCompPcsUrl(c.id, e.currentTarget.value)}>
                 </td>
                 <td>
+                  <select class="form-select form-select-sm" style="min-width:150px; font-size:0.75rem;"
+                          title="Tijdzone van de koers: PCS-starttijden zijn lokale tijd. Na wijzigen opnieuw importeren."
+                          onchange={(e) => updateCompField(c.id, 'timezone', e.currentTarget.value)}>
+                    {#each TIMEZONES.some(t => t.id === (c.timezone || 'Europe/Amsterdam')) ? TIMEZONES : [{ id: c.timezone, label: c.timezone }, ...TIMEZONES] as tz (tz.id)}
+                      <option value={tz.id} selected={tz.id === (c.timezone || 'Europe/Amsterdam')}>{tz.label}</option>
+                    {/each}
+                  </select>
+                </td>
+                <td>
                   <div class="input-group input-group-sm" style="width:90px;">
                     <span class="input-group-text" style="font-size:0.75rem;">€</span>
                     <input type="number" class="form-control form-control-sm" value={c.entry_fee ?? ''} min="1" max="999" placeholder="—"
@@ -1868,7 +1895,7 @@
                 </td>
               </tr>
             {:else}
-              <tr><td colspan="11" class="text-muted">Geen rondes</td></tr>
+              <tr><td colspan="13" class="text-muted">Geen rondes</td></tr>
             {/each}
           </tbody>
         </table>

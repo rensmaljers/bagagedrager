@@ -18,7 +18,7 @@ PCS heeft de site omgebouwd. Oude URL's (`race/<slug>/<jaar>/stage-N`, `/startli
 - **Etappelijst** (`_shared/pcs-race-parse.ts`): `/stages` is nu een lege statistiekpagina. `parseStageNav` haalt de etappes uit het etappemenu (`<option value="race/<slug>-<jaar>-stage-N/stages">Stage N | A - B</option>`); `parseStageInfo` leest per etappepagina Date / Start time / Distance / Parcours type-icoon / Departure / Arrival / Vertical meters / Profile score. `sync-pcs-race` valt hierop terug als de oude tabel leeg is.
 - **Uitvallers**: `/results/dropouts` redirect naar de uitslag en de nieuwe dropouts-statistiek is leeg (JS/nog niet gevuld). `auto-dns-check` gebruikt daarom `parseStartlistDropouts`: de startlijst markeert uitvallers als `NAAM (DNF #9)` / `(DNS #12)`. Oude pagina blijft vangnet.
 - **Startlijst**: ongewijzigd (`ul.startlist_v4`), werkt nog.
-- **Starttijden zijn lokale tijd van de koers**, terwijl `sync-pcs-race` ze als CET/CEST interpreteert (`cetOffsetForDate`). Voor races buiten Midden-Europa (bv. Tour of Guangxi, UTC+8) liggen deadlines dan uren te laat → na import controleren/corrigeren.
+- **Starttijden zijn lokale tijd van de koers.** `sync-pcs-race` rekent ze om met `competitions.timezone` (IANA, standaard `Europe/Amsterdam`; migratie `20261006150000_competition_timezone`) via `_shared/tz.ts` → `localToUtc` (getest, incl. zomer/wintertijd). Admin kiest de tijdzone per ronde in het Rondes-overzicht; na wijzigen opnieuw importeren. PCS geeft starttijden sinds de ombouw als `10:30:00` (met seconden) — beide paden pakken de eerste twee delen.
 
 ## De gedeelde parser — gebruik altijd deze
 

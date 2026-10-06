@@ -2,6 +2,7 @@ import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.46/deno-dom-wasm.ts
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { fetchPcsPage } from "../_shared/pcs-fetch.ts";
 import { parseStageInfo, parseStageNav } from "../_shared/pcs-race-parse.ts";
+import { localToUtc } from "../_shared/tz.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,22 +15,6 @@ const PCS_HEADERS = {
   "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
   "Accept-Language": "en-US,en;q=0.5",
 };
-
-// PCS tijden zijn in CET/CEST — bepaal juiste UTC offset voor een datum
-function cetOffsetForDate(dateISO: string): string {
-  // CEST (UTC+2): laatste zondag maart t/m laatste zondag oktober
-  const d = new Date(dateISO + "T12:00:00Z");
-  const year = d.getFullYear();
-  // Laatste zondag van maart
-  const marchLast = new Date(Date.UTC(year, 2, 31));
-  marchLast.setUTCDate(31 - marchLast.getUTCDay());
-  // Laatste zondag van oktober
-  const octLast = new Date(Date.UTC(year, 9, 31));
-  octLast.setUTCDate(31 - octLast.getUTCDay());
-  // CEST als datum valt in zomertijd
-  if (d >= marchLast && d < octLast) return "+02:00";
-  return "+01:00";
-}
 
 function mapStageType(iconClass: string, name: string): string {
   const n = name.toLowerCase();
@@ -286,7 +271,7 @@ Deno.serve(async (req) => {
 
     // Check of het een eendagskoers is
     const { data: comp } = await adminClient
-      .from("competitions").select("is_one_day,name").eq("id", competition_id).single();
+      .from("competitions").select("is_one_day,name,timezone").eq("id", competition_id).single();
 
     // Startlijst-only sync: bijwerken zonder etappes/race-info aan te raken
     if (startlist_only) {
@@ -443,8 +428,9 @@ Deno.serve(async (req) => {
 
         const startTimeStr = info.startTime || "10:00";
         const timeParts = startTimeStr.split(":");
-        const timeFormatted = timeParts.length === 2 ? `${timeParts[0].padStart(2, "0")}:${timeParts[1].padStart(2, "0")}` : "12:00";
-        const startTime = new Date(`${dateISO}T${timeFormatted}:00${cetOffsetForDate(dateISO)}`);
+        // PCS geeft sinds de ombouw "10:30:00" (met seconden) — eerste twee delen
+        const timeFormatted = timeParts.length >= 2 ? `${timeParts[0].padStart(2, "0")}:${timeParts[1].padStart(2, "0")}` : "12:00";
+        const startTime = localToUtc(dateISO, timeFormatted, comp?.timezone);
         const distance_km = info.distance ? parseFloat(info.distance) || null : null;
         const durationHours = distance_km ? (distance_km / 40) + 1 : 6;
         const estimatedEnd = new Date(startTime.getTime() + durationHours * 3600 * 1000);
@@ -791,12 +777,13 @@ Deno.serve(async (req) => {
       let timeStr = "12:00";
       if (hasRealTime) {
         const timeParts = rawTime.split(":");
-        if (timeParts.length === 2) {
+        if (timeParts.length >= 2) {
           timeStr = `${timeParts[0].padStart(2, "0")}:${timeParts[1].padStart(2, "0")}`;
         }
       }
       const dateStr = s.date && s.date.match(/^\d{4}-\d{2}-\d{2}$/) ? s.date : `${raceYear}-01-01`;
-      const startTime = new Date(`${dateStr}T${timeStr}:00${cetOffsetForDate(dateStr)}`);
+      // Lokale koerstijd → UTC via de tijdzone van de ronde (competitions.timezone)
+      const startTime = localToUtc(dateStr, timeStr, comp?.timezone);
       if (isNaN(startTime.getTime())) {
         log.push(`⚠️ Etappe ${s.stage_number}: ongeldige datum "${s.date}" / tijd "${timeStr}", overgeslagen`);
         continue;
