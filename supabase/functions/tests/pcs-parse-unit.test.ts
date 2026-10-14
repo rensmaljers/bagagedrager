@@ -105,3 +105,32 @@ Deno.test("unit-layout: startlijst (geen tijden) → duidelijke fout", () => {
   const doc = new DOMParser().parseFromString(html, "text/html")!;
   assertThrows(() => parseStagePage(doc), Error, "startlijst");
 });
+
+// Tour of Guangxi 2026: kleinere koers, andere kolomnamen. De per-moment-tabellen
+// hebben "res_pnt" i.p.v. "pnt" en de General-tabel geen "pnt_won" — eerst werden
+// daardoor alle punten/bergpunten 0. Etappe 1 had geen KOM-tabblad (geen klim).
+// Verwachte totalen gecontroleerd tegen het PCS-puntenklassement na etappe 2
+// (Magnier 15+10=25, Kanter 8+7=15, Dversnes 12).
+Deno.test("unit-layout Guangxi et. 1: punten uit res_pnt (2 tussensprints + finish), geen KOM-tab", () => {
+  const rs = parseStagePage(fixture("pcs-unit-guangxi-2026-stage-1.html"));
+  assertEquals(rs.length, 151);
+  assertEquals([bySlug(rs, "paul-magnier").points, bySlug(rs, "paul-magnier").bonification_seconds], [15, 10]);
+  // Won beide tussensprints: 6+6 punten, 3″+3″ bonificatie
+  assertEquals([bySlug(rs, "fredrik-dversnes").points, bySlug(rs, "fredrik-dversnes").bonification_seconds], [12, 6]);
+  assertEquals(bySlug(rs, "neilson-powless").points, 8);
+  assertEquals(rs.filter(r => r.points > 0).length, 13);
+  assertEquals(rs.filter(r => r.mountain_points > 0).length, 0);
+  assertEquals(rs.filter(r => r.dnf).length, 2);
+});
+
+Deno.test("unit-layout Guangxi et. 2: punten én bergpunten uit res_pnt; Stage-kolom pnt (PCS-punten) genegeerd", () => {
+  const rs = parseStagePage(fixture("pcs-unit-guangxi-2026-stage-2.html"));
+  const biesterbos = bySlug(rs, "frits-biesterbos");
+  // De Stage-tabel toont 50 in kolom pnt (PCS-rankingpunten) — dat mag géén sprintpunten worden
+  assertEquals([biesterbos.finish_position, biesterbos.points, biesterbos.bonification_seconds], [1, 15, 10]);
+  assertEquals([bySlug(rs, "afonso-eulalio").mountain_points, bySlug(rs, "afonso-eulalio").points], [10, 0]);
+  assertEquals(bySlug(rs, "rudy-porter").mountain_points, 6);
+  assertEquals([bySlug(rs, "jhonatan-narvaez").points, bySlug(rs, "jhonatan-narvaez").bonification_seconds], [6, 3]);
+  assertEquals(rs.filter(r => r.mountain_points > 0).length, 3);
+  assertEquals(rs.filter(r => r.bonification_seconds > 0).length, 9);
+});

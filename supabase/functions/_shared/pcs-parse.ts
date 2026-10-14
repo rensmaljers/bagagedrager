@@ -393,7 +393,9 @@ function findResult(results: StageResult[], slug: string | null, bib: number): S
 }
 
 // Punten van vandaag uit een klassement: bij voorkeur kolom pnt_won van de
-// General-tabel; ontbreekt die, dan de som van kolom pnt over de Today-tabellen.
+// General-tabel; ontbreekt die, dan de som van kolom res_pnt/pnt over de Today-tabellen.
+// Ontbreekt het hele klassement-tabblad (bv. geen beklimming → geen KOM-tab), dan
+// blijft alles 0 — terecht.
 function unitClassificationPoints(doc: any, keywords: string[], results: StageResult[], field: "points" | "mountain_points") {
   const general = contTables(doc, topNavId(doc, keywords))[0];
   const gCols = general ? unitColumns(general) : {};
@@ -409,9 +411,14 @@ function unitClassificationPoints(doc: any, keywords: string[], results: StageRe
   }
   for (const table of contTables(doc, todayNavId(doc, keywords))) {
     const cols = unitColumns(table);
-    if (cols.pnt === undefined) continue;
+    // Puntenkolom per moment heet per koers anders: "pnt" (Vuelta 2026) of
+    // "res_pnt" (Tour of Guangxi 2026 — daar ontbrak ook pnt_won, waardoor eerst
+    // álle punten/bergpunten 0 werden). res_pnt eerst: als beide er staan is pnt
+    // vermoedelijk PCS-rankingpunten (zoals in de Stage-tabel).
+    const ptsCol = cols.res_pnt ?? cols.pnt;
+    if (ptsCol === undefined) continue;
     for (const { cells, row } of unitRows(table)) {
-      const pts = parseInt(cells[cols.pnt]?.textContent?.trim() || "") || 0;
+      const pts = parseInt(cells[ptsCol]?.textContent?.trim() || "") || 0;
       if (pts <= 0) continue;
       const bib = cols.bib !== undefined ? parseInt(cells[cols.bib]?.textContent?.trim() || "") || 0 : 0;
       const r = findResult(results, rowSlug(row), bib);
