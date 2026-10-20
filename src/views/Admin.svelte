@@ -378,6 +378,26 @@
     } catch (e: any) { toast(e.message, 'error'); }
   }
 
+  // Jaar bewerken (bv. een ronde die per ongeluk onder het verkeerde jaar is aangemaakt).
+  // Bepaalt de sortering en groepering per jaar in de spelergeschiedenis.
+  async function updateCompYear(compId: number, input: HTMLInputElement) {
+    const comp = appState.competitions.find((c: any) => c.id === compId);
+    const year = parseInt(input.value);
+    if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+      toast('Ongeldig jaar', 'warning');
+      input.value = String(comp?.year ?? '');
+      return;
+    }
+    try {
+      await supaPatch('competitions', `id=eq.${compId}`, { year });
+      if (comp) comp.year = year;
+      toast(`Jaar aangepast naar ${year}`, 'success');
+    } catch (e: any) {
+      toast(e.message, 'error');
+      input.value = String(comp?.year ?? '');
+    }
+  }
+
   async function toggleCompActive(compId: number, active: boolean) {
     try {
       await supaPatch('competitions', `id=eq.${compId}`, { is_active: active });
@@ -1839,7 +1859,11 @@
                   <input type="text" class="form-control form-control-sm comp-name-input" value={c.name}
                          data-comp-id={c.id} style="min-width:140px;" onchange={(e) => renameComp(c.id, e.currentTarget.value)}>
                 </td>
-                <td>{c.year}</td>
+                <td>
+                  <input type="number" class="form-control form-control-sm tnum" value={c.year} min="2000" max="2100" step="1"
+                         style="width:72px;" aria-label="Jaar van {c.name}"
+                         onchange={(e) => updateCompYear(c.id, e.currentTarget)}>
+                </td>
                 <td>
                   <select class="form-select form-select-sm" style="min-width:110px;"
                           onchange={(e) => updateCompField(c.id, 'scoring_mode', e.currentTarget.value)}>
