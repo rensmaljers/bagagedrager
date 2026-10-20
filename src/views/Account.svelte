@@ -14,6 +14,7 @@
   import { toast } from '../lib/utils';
   import { updateNotificationButton } from '../lib/notifications';
   import Spelregels from './Spelregels.svelte';
+  import PlayerHistory from './PlayerHistory.svelte';
 
   // Opent het feedbackformulier onderaan de app (FeedbackBar) en scrolt ernaartoe
   function openFeedback() {
@@ -270,6 +271,14 @@
     </div>
   </div>
   <div class="col-md-6">
+    {#if appState.session?.user?.id}
+      <div class="card mb-3">
+        <div class="card-header"><h5 class="mb-0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg> Mijn geschiedenis</h5></div>
+        <div class="card-body">
+          <PlayerHistory userId={appState.session.user.id} showLabel={false} />
+        </div>
+      </div>
+    {/if}
     <div class="card">
       <div class="card-header"><h5 class="mb-0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg> Spelregels</h5></div>
       <div class="card-body" style="font-size:0.83rem; line-height:1.7;">

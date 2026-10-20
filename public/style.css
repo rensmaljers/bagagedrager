@@ -2655,6 +2655,7 @@ tbody:not(.expanded) .standings-extra { display: none; }
 /* Geschiedenis: categorie → koers (uitklapbaar, <details>) → editie per jaar.
    Chips volgen het trui-systeem; op mobiel compacter zodat 4 chips op één regel passen. */
 .pm-hist-summary { text-transform: none; letter-spacing: 0; font-family: inherit; font-weight: 500; }
+.pm-hist-summary-top { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.25rem; }
 .pm-hist-cat {
   font-size: 0.68rem; font-weight: 700; color: var(--text-muted);
   margin: 0.75rem 0 0.25rem; padding-left: 0.15rem;
