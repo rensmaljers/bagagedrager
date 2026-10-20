@@ -2652,6 +2652,26 @@ tbody:not(.expanded) .standings-extra { display: none; }
 }
 .pm-pick-pts { font-weight: 700; font-variant-numeric: tabular-nums; }
 .pm-actions { margin-top: 1.25rem; display: flex; justify-content: flex-end; }
+/* Geschiedenis (eindposities per ronde) — chips volgen het trui-systeem */
+.pm-hist-summary { text-transform: none; letter-spacing: 0; font-family: inherit; font-weight: 500; }
+.pm-hist-row { padding: 0.55rem 0.15rem; border-bottom: 1px solid var(--border); }
+.pm-hist-row:last-child { border-bottom: none; }
+.pm-hist-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+.pm-hist-name { font-size: 0.84rem; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pm-hist-meta { font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; }
+.pm-hist-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin-top: 0.35rem; }
+.pm-hist-chip.jersey-gc       { --jcol: var(--jaune);    --jink: var(--jaune-ink); }
+.pm-hist-chip.jersey-points   { --jcol: var(--vert);     --jink: var(--vert-ink); }
+.pm-hist-chip.jersey-mountain { --jcol: var(--pois);     --jink: var(--pois-ink); }
+.pm-hist-chip.jersey-game     { --jcol: var(--wit-edge); --jink: var(--wit-ink); }
+.pm-hist-chip {
+  font-size: 0.72rem; padding: 0.12rem 0.5rem; border-radius: 999px;
+  border: 1px solid var(--border); box-shadow: inset 3px 0 0 0 var(--jcol);
+  color: var(--text-muted);
+}
+.pm-hist-chip strong { color: var(--text); font-weight: 700; }
+.pm-hist-chip.won { background: var(--jcol); border-color: var(--jcol); color: var(--jink); box-shadow: none; }
+.pm-hist-chip.won strong { color: var(--jink); }
 
 /* Renner-modal */
 .rm-head { display: flex; gap: 1rem; align-items: flex-start; margin-bottom: 0.4rem; }
