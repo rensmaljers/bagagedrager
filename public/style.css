@@ -2652,26 +2652,48 @@ tbody:not(.expanded) .standings-extra { display: none; }
 }
 .pm-pick-pts { font-weight: 700; font-variant-numeric: tabular-nums; }
 .pm-actions { margin-top: 1.25rem; display: flex; justify-content: flex-end; }
-/* Geschiedenis (eindposities per ronde) — chips volgen het trui-systeem */
+/* Geschiedenis: categorie → koers (uitklapbaar, <details>) → editie per jaar.
+   Chips volgen het trui-systeem; op mobiel compacter zodat 4 chips op één regel passen. */
 .pm-hist-summary { text-transform: none; letter-spacing: 0; font-family: inherit; font-weight: 500; }
-.pm-hist-row { padding: 0.55rem 0.15rem; border-bottom: 1px solid var(--border); }
-.pm-hist-row:last-child { border-bottom: none; }
+.pm-hist-cat {
+  font-size: 0.68rem; font-weight: 700; color: var(--text-muted);
+  margin: 0.75rem 0 0.25rem; padding-left: 0.15rem;
+}
+.pm-hist-race { border-bottom: 1px solid var(--border); }
+.pm-hist-race summary {
+  display: flex; align-items: center; gap: 0.5rem; cursor: pointer; list-style: none;
+  padding: 0.55rem 0.15rem; min-height: 40px;
+}
+.pm-hist-race summary::-webkit-details-marker { display: none; }
+.pm-hist-race summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.pm-hist-chevron {
+  width: 0.5rem; height: 0.5rem; flex: none; margin-left: 0.15rem;
+  border-right: 2px solid var(--text-muted); border-bottom: 2px solid var(--text-muted);
+  transform: rotate(45deg) translateY(-2px); transition: transform var(--dur) var(--ease);
+}
+.pm-hist-race[open] .pm-hist-chevron { transform: rotate(-135deg) translateY(-1px); }
+.pm-hist-name { font-size: 0.84rem; font-weight: 600; min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pm-hist-meta { font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; display: inline-flex; align-items: center; gap: 0.3rem; }
+.pm-hist-row { padding: 0.35rem 0.15rem 0.55rem 0.75rem; border-top: 1px dashed var(--border); }
 .pm-hist-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
-.pm-hist-name { font-size: 0.84rem; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pm-hist-meta { font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; }
-.pm-hist-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin-top: 0.35rem; }
+.pm-hist-year { font-size: 0.78rem; font-weight: 700; }
+.pm-hist-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; margin-top: 0.3rem; }
 .pm-hist-chip.jersey-gc       { --jcol: var(--jaune);    --jink: var(--jaune-ink); }
 .pm-hist-chip.jersey-points   { --jcol: var(--vert);     --jink: var(--vert-ink); }
 .pm-hist-chip.jersey-mountain { --jcol: var(--pois);     --jink: var(--pois-ink); }
 .pm-hist-chip.jersey-game     { --jcol: var(--wit-edge); --jink: var(--wit-ink); }
 .pm-hist-chip {
-  font-size: 0.72rem; padding: 0.12rem 0.5rem; border-radius: 999px;
+  font-size: 0.72rem; padding: 0.12rem 0.5rem; border-radius: 999px; white-space: nowrap;
   border: 1px solid var(--border); box-shadow: inset 3px 0 0 0 var(--jcol);
   color: var(--text-muted);
 }
 .pm-hist-chip strong { color: var(--text); font-weight: 700; }
 .pm-hist-chip.won { background: var(--jcol); border-color: var(--jcol); color: var(--jink); box-shadow: none; }
 .pm-hist-chip.won strong { color: var(--jink); }
+@media (max-width: 480px) {
+  .pm-hist-chips { gap: 0.25rem; }
+  .pm-hist-chip { font-size: 0.66rem; padding: 0.1rem 0.4rem; }
+}
 
 /* Renner-modal */
 .rm-head { display: flex; gap: 1rem; align-items: flex-start; margin-bottom: 0.4rem; }

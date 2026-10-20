@@ -319,6 +319,14 @@
     { id: 'Africa/Kigali', label: 'Rwanda' },
   ];
 
+  // Categorie van een ronde (competitions.category) — groepering in de spelergeschiedenis
+  const CATEGORIES = [
+    { id: 'grote_ronde', label: 'Grote ronde' },
+    { id: 'worldtour', label: 'WorldTour' },
+    { id: 'klassieker', label: 'Klassiekers' },
+    { id: 'vrouwen', label: 'Vrouwenkoers' },
+  ];
+
   async function updateCompField(compId: number, field: string, value: any) {
     try {
       await supaPatch('competitions', `id=eq.${compId}`, { [field]: value || null });
@@ -1837,6 +1845,13 @@
                           onchange={(e) => updateCompField(c.id, 'scoring_mode', e.currentTarget.value)}>
                     <option value="grand_tour" selected={c.scoring_mode !== 'classic'}>Grote ronde</option>
                     <option value="classic" selected={c.scoring_mode === 'classic'}>Klassieker</option>
+                  </select>
+                  <select class="form-select form-select-sm mt-1" style="min-width:110px; font-size:0.72rem;"
+                          title="Categorie — groepering in de spelergeschiedenis"
+                          onchange={(e) => updateCompField(c.id, 'category', e.currentTarget.value)}>
+                    {#each CATEGORIES as cat (cat.id)}
+                      <option value={cat.id} selected={cat.id === (c.category || 'worldtour')}>{cat.label}</option>
+                    {/each}
                   </select>
                   <label class="form-check mt-1" style="font-size:0.7rem;">
                     <input type="checkbox" class="form-check-input" checked={c.is_one_day}

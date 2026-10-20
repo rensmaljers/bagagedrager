@@ -107,6 +107,7 @@ export type Database = {
       }
       competitions: {
         Row: {
+          category: string
           color: string | null
           competition_type: string
           country_flag: string | null
@@ -126,6 +127,7 @@ export type Database = {
           year: number
         }
         Insert: {
+          category?: string
           color?: string | null
           competition_type: string
           country_flag?: string | null
@@ -145,6 +147,7 @@ export type Database = {
           year: number
         }
         Update: {
+          category?: string
           color?: string | null
           competition_type?: string
           country_flag?: string | null
