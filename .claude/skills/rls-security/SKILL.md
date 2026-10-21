@@ -29,7 +29,7 @@ De oude INSERT-policy checkte alleen `auth.uid()=user_id` — een directe REST-I
 - **`assign_random_riders(stage_id)`** — het Rad: random renner die tot de competitie behoort, niet-DNF, niet al gebruikt door die speler; `is_random=true`.
 - **`admin_upsert_pick` / `admin_delete_pick`** — checkt `profiles.is_admin` van de caller; werkt ook op locked stages.
 
-Leidende definities: **migratie 077** (voegt audit-logging toe via `set_config('audit.source', ...)` + trigger `log_pick_change` → `pick_audit_log`). Wijzig je een pick-RPC: herdefinieer vanuit 077, niet vanuit een oudere versie.
+Leidende definities: **migratie 077** voor `withdraw_pick`/`admin_upsert_pick`/`admin_delete_pick`; `submit_pick`/`assign_random_riders`/`admin_add_participant` sinds **`20261021130000_stage_riders_check`** (deelname- en DNS-checks uit `20261006120000`, startlijst-check uit 038 hersteld) (voegt audit-logging toe via `set_config('audit.source', ...)` + trigger `log_pick_change` → `pick_audit_log`). Wijzig je een pick-RPC: herdefinieer vanuit 077, niet vanuit een oudere versie.
 
 ## Profiles-guard-trigger (073)
 

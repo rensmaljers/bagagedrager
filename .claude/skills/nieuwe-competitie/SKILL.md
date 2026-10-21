@@ -61,7 +61,7 @@ PCS-bibs zijn vóór de koers placeholders uit DOM-volgorde en wisselen per sync
 Eén competitie met `competition_type='classic'`, `is_one_day=true`, `scoring_mode='classic'`; elke `stages`-rij = één koers met eigen `stages.pcs_url` (migratie 024). Startlijst per koers in **`stage_riders`** (migratie 038, PK `(stage_id, rider_id)`):
 
 - **Geen `stage_riders`-rijen voor een etappe = volledige competitie-startlijst geldt** (grote rondes blijven zo werken).
-- Wél rijen → bedoeld: `submit_pick` weigert renners buiten die subset en het Rad (`assign_random_riders`) kiest alleen daaruit. **Bekend probleem (okt 2026):** die server-side controle stond alleen in migratie 038 en is in migratie 051 weggevallen (latere herdefinities, ook de leidende `20261006120000_deelname_inschrijving`, hebben hem niet). Het Rad kan bij klassiekers dus een renner toewijzen die die dag niet start. Herstellen vóór de volgende klassiekers-campagne.
+- Wél rijen → `submit_pick` weigert renners buiten die subset ("Deze renner start niet in deze etappe"), en het Rad (`assign_random_riders`) en `admin_add_participant` kiezen alleen daaruit. (Deze server-side check was in migratie 051 weggevallen en is hersteld in `20261021130000_stage_riders_check`; de keuzelijst in de app filtert los daarvan ook.)
 - Import-flow: per etappe PCS-URL zetten (Etappes-tab) → `syncStageFromPcs` per koers.
 
 ## Datamodel-spiekbrief
