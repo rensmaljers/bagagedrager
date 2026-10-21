@@ -1,7 +1,7 @@
 import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.46/deno-dom-wasm.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { fetchPcsPage } from "../_shared/pcs-fetch.ts";
-import { mapStageType, parseStageInfo, parseStageNav } from "../_shared/pcs-race-parse.ts";
+import { findProfileImage, mapStageType, parseRaceInfoHtml, parseStageInfo, parseStageNav, pcsRaceBase } from "../_shared/pcs-race-parse.ts";
 import { localToUtc } from "../_shared/tz.ts";
 
 const corsHeaders = {
@@ -9,13 +9,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
-
-const PCS_HEADERS = {
-  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-  "Accept-Language": "en-US,en;q=0.5",
-};
-
 
 async function fetchPCS(url: string): Promise<any> {
   const res = await fetchPcsPage(url);
@@ -109,16 +102,8 @@ async function fetchStageDetails(stages: any[]): Promise<{ profiles: Record<numb
       const html = await res.text();
       const doc = new DOMParser().parseFromString(html, "text/html");
       // Profiel-afbeelding
-      if (doc) {
-        const imgs = doc.querySelectorAll("img");
-        for (const img of imgs) {
-          const src = img.getAttribute("src") || "";
-          if (src.includes("profile")) {
-            profiles[s.stage_number] = src.startsWith("http") ? src : `https://www.procyclingstats.com/${src}`;
-            break;
-          }
-        }
-      }
+      const profile = doc ? findProfileImage(doc) : null;
+      if (profile) profiles[s.stage_number] = profile;
       // Starttijd uit ruwe HTML
       const timeMatch = html.match(/Start\s*time[^]*?(\d{1,2}:\d{2})/i);
       if (timeMatch) startTimes[s.stage_number] = timeMatch[1];
@@ -268,7 +253,7 @@ Deno.serve(async (req) => {
       if (!pcs_url || !pcs_url.includes("procyclingstats.com")) {
         return new Response(JSON.stringify({ error: "Geen geldige PCS URL voor deze ronde" }), { status: 400, headers: corsHeaders });
       }
-      const baseUrl = pcs_url.replace(/\/$/, "").replace(/\/(stages|startlist|gc|general-classification|stage-\d+|results?|resuts?|overview)$/, "");
+      const baseUrl = pcsRaceBase(pcs_url);
       const log: string[] = [];
 
       log.push("🚴 Startlijst ophalen van PCS...");
@@ -347,33 +332,11 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ error: "Geen PCS URL ingesteld voor deze etappe" }), { status: 400, headers: corsHeaders });
       }
 
-      const stageBaseUrl = stage.pcs_url.replace(/\/$/, "").replace(/\/(stages|startlist|gc|stage-\d+|results?|resuts)$/, "");
+      const stageBaseUrl = pcsRaceBase(stage.pcs_url);
       const stageYear = parseInt(stageBaseUrl.match(/\/(\d{4})/)?.[1] || String(new Date().getFullYear()));
       const log: string[] = [];
 
       // Helper: parse race-info (zelfde als hieronder)
-      function parseSingleRaceInfo(rawHtml: string) {
-        const get = (label: string) => {
-          const re = new RegExp(label + '[":]*\\s*(?:</div>)?\\s*<div[^>]*>\\s*([^<]+)', 'i');
-          const m = rawHtml.match(re);
-          return m ? m[1].trim() : null;
-        };
-        return {
-          date: get('Startdate') || get('Date'),
-          startTime: get('Start time'),
-          avgSpeed: get('Avg\\.\\s*speed winner') || get('Avg\\.\\s*speed'),
-          classification: get('Classification'),
-          raceCategory: get('Race category'),
-          distance: get('Distance') || get('Total distance'),
-          parcoursType: get('Parcours type'),
-          profileScore: get('ProfileScore'),
-          verticalMeters: get('Vertical meters'),
-          departure: get('Departure'),
-          arrival: get('Arrival'),
-          startlistQuality: get('Startlist quality score'),
-          avgTemperature: get('Avg\\.\\s*temperature'),
-        };
-      }
 
       // 1. Race-info ophalen
       log.push(`📅 Race-info ophalen voor ${stage.name}...`);
@@ -382,14 +345,14 @@ Deno.serve(async (req) => {
         if (!pcsRes.ok) throw new Error(`PCS gaf status ${pcsRes.status}`);
         const rawHtml = await pcsRes.text();
         const overviewDoc = new DOMParser().parseFromString(rawHtml, "text/html");
-        let info = parseSingleRaceInfo(rawHtml);
+        let info = parseRaceInfoHtml(rawHtml);
 
         // Probeer /result pagina voor extra info
         if (!info.startTime && !info.departure) {
           try {
             const resultRes = await fetchPcsPage(stageBaseUrl + "/result");
             if (resultRes.ok) {
-              const resultInfo = parseSingleRaceInfo(await resultRes.text());
+              const resultInfo = parseRaceInfoHtml(await resultRes.text());
               for (const key of Object.keys(resultInfo) as (keyof typeof resultInfo)[]) {
                 if (!info[key] && resultInfo[key]) (info as any)[key] = resultInfo[key];
               }
@@ -426,17 +389,7 @@ Deno.serve(async (req) => {
         const estimatedEnd = new Date(startTime.getTime() + durationHours * 3600 * 1000);
 
         // Profiel-afbeelding
-        let profileUrl = null;
-        if (overviewDoc) {
-          const imgs = overviewDoc.querySelectorAll("img");
-          for (const img of imgs) {
-            const src = img.getAttribute("src") || "";
-            if (src.includes("profile")) {
-              profileUrl = src.startsWith("http") ? src : `https://www.procyclingstats.com/${src}`;
-              break;
-            }
-          }
-        }
+        const profileUrl = overviewDoc ? findProfileImage(overviewDoc) : null;
 
         // Stage updaten
         const updateData: any = {
@@ -547,7 +500,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Ongeldige PCS URL" }), { status: 400, headers: corsHeaders });
     }
 
-    const baseUrl = pcs_url.replace(/\/$/, "").replace(/\/(stages|startlist|gc|general-classification|stage-\d+|results?|resuts?|overview)$/, "");
+    const baseUrl = pcsRaceBase(pcs_url);
     const raceYear = parseInt(baseUrl.match(/\/(\d{4})/)?.[1] || String(new Date().getFullYear()));
 
     const log: string[] = [];
@@ -557,30 +510,6 @@ Deno.serve(async (req) => {
     let stages: any[] = [];
     let stagesFromNav = false; // nieuwe PCS-layout: details al per etappe opgehaald
 
-    // Helper: parse alle race-info uit ruwe PCS HTML
-    function parseRaceInfo(rawHtml: string) {
-      const get = (label: string) => {
-        // PCS structuur: <div>Label:</div><div>Value</div>
-        const re = new RegExp(label + '[":]*\\s*(?:</div>)?\\s*<div[^>]*>\\s*([^<]+)', 'i');
-        const m = rawHtml.match(re);
-        return m ? m[1].trim() : null;
-      };
-      return {
-        date: get('Startdate') || get('Date'),
-        startTime: get('Start time'),
-        avgSpeed: get('Avg\\.\\s*speed winner') || get('Avg\\.\\s*speed'),
-        classification: get('Classification'),
-        raceCategory: get('Race category'),
-        distance: get('Distance') || get('Total distance'),
-        parcoursType: get('Parcours type'),
-        profileScore: get('ProfileScore'),
-        verticalMeters: get('Vertical meters'),
-        departure: get('Departure'),
-        arrival: get('Arrival'),
-        startlistQuality: get('Startlist quality score'),
-        avgTemperature: get('Avg\\.\\s*temperature'),
-      };
-    }
 
     if (comp?.is_one_day) {
       // Eendagskoers: haal alle info van de race-overzichtspagina
@@ -590,7 +519,7 @@ Deno.serve(async (req) => {
         const rawHtml = await pcsRes.text();
         const overviewDoc = new DOMParser().parseFromString(rawHtml, "text/html");
 
-        let info = parseRaceInfo(rawHtml);
+        let info = parseRaceInfoHtml(rawHtml);
 
         // Als de overzichtspagina weinig info heeft, probeer de /result pagina
         if (!info.startTime && !info.departure) {
@@ -598,7 +527,7 @@ Deno.serve(async (req) => {
             const resultRes = await fetchPcsPage(baseUrl + "/result");
             if (resultRes.ok) {
               const resultHtml = await resultRes.text();
-              const resultInfo = parseRaceInfo(resultHtml);
+              const resultInfo = parseRaceInfoHtml(resultHtml);
               // Vul ontbrekende velden aan
               for (const key of Object.keys(resultInfo) as (keyof typeof resultInfo)[]) {
                 if (!info[key] && resultInfo[key]) (info as any)[key] = resultInfo[key];
@@ -634,17 +563,7 @@ Deno.serve(async (req) => {
         const distance_km = info.distance ? parseFloat(info.distance) || null : null;
 
         // Profiel-afbeelding
-        let profileUrl = null;
-        if (overviewDoc) {
-          const imgs = overviewDoc.querySelectorAll("img");
-          for (const img of imgs) {
-            const src = img.getAttribute("src") || "";
-            if (src.includes("profile")) {
-              profileUrl = src.startsWith("http") ? src : `https://www.procyclingstats.com/${src}`;
-              break;
-            }
-          }
-        }
+        const profileUrl = overviewDoc ? findProfileImage(overviewDoc) : null;
 
         stages = [{
           stage_number: 1,
@@ -693,13 +612,7 @@ Deno.serve(async (req) => {
               try {
                 const stageDoc = await fetchPCS(`https://www.procyclingstats.com/${ns._href}`);
                 info = parseStageInfo(stageDoc);
-                for (const img of stageDoc.querySelectorAll("img")) {
-                  const src = img.getAttribute("src") || "";
-                  if (src.includes("profile")) {
-                    profileUrl = src.startsWith("http") ? src : `https://www.procyclingstats.com/${src}`;
-                    break;
-                  }
-                }
+                profileUrl = findProfileImage(stageDoc);
               } catch (e) {
                 log.push(`⚠️ Etappe ${ns.stage_number}: details niet opgehaald (${(e as Error).message})`);
               }
@@ -723,7 +636,7 @@ Deno.serve(async (req) => {
         }
         log.push(`✅ ${stages.length} etappes gevonden`);
       } catch (e) {
-        log.push(`⚠️ Etappes: ${e.message}`);
+        log.push(`⚠️ Etappes: ${(e as Error).message}`);
       }
     }
 
@@ -740,7 +653,7 @@ Deno.serve(async (req) => {
       await saveShirts(adminClient, shirts);
       log.push(`✅ ${riders.length} renners + ${Object.keys(shirts).length} team shirts gevonden`);
     } catch (e) {
-      log.push(`⚠️ Startlijst: ${e.message}`);
+      log.push(`⚠️ Startlijst: ${(e as Error).message}`);
     }
 
     // 3. Fetch stage details (profielen + starttijden)
@@ -754,7 +667,7 @@ Deno.serve(async (req) => {
         stageStartTimes = details.startTimes;
         log.push(`✅ ${Object.keys(stageProfiles).length} profielen, ${Object.keys(stageStartTimes).length} starttijden`);
       } catch (e) {
-        log.push(`⚠️ Details: ${e.message}`);
+        log.push(`⚠️ Details: ${(e as Error).message}`);
       }
     }
 
@@ -905,6 +818,6 @@ Deno.serve(async (req) => {
     });
 
   } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: corsHeaders });
+    return new Response(JSON.stringify({ error: (e as Error).message }), { status: 500, headers: corsHeaders });
   }
 });

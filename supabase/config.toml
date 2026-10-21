@@ -33,6 +33,9 @@ verify_jwt = false
 [functions.auto-remind]
 verify_jwt = false
 
+[functions.auto-join-remind]
+verify_jwt = false
+
 [functions.test-push]
 verify_jwt = false
 

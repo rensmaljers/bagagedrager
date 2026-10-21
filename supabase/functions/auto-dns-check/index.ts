@@ -3,6 +3,7 @@ import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.46/deno-dom-wasm.ts
 import { fetchPcsPage } from "../_shared/pcs-fetch.ts";
 import { parseDropoutsPage, parseStartlistDropouts } from "../_shared/pcs-dropouts.ts";
 import { importVapidPrivateKey, sendPush } from "../_shared/webpush.ts";
+import { pcsRaceBase } from "../_shared/pcs-race-parse.ts";
 
 // Draait elke 30 minuten (cron, migratie 072). Vóór elke etappe checken we of
 // alle gepickte renners nog opstappen: de uitvallers uit de PCS-startlijst worden geparset,
@@ -15,7 +16,6 @@ const VAPID_PUBLIC_KEY = "BHodiDUcQDWpi3kcE5Y6zWPslv5Gzw50tups7rev8hd98zAlMiUHnT
 const VAPID_SUBJECT = "https://hdkvirtytljnuawcmoui.supabase.co";
 const WINDOW_MS = 3 * 3600 * 1000; // check etappes met een deadline binnen 3 uur
 
-const STRIP_SUFFIX = /\/(stages|startlist|gc|general-classification|stage-\d+|prologue|results?|resuts?|overview|dropouts)$/;
 
 Deno.serve(async (req: Request) => {
   const { data: expectedSecret } = await createClient(
@@ -56,7 +56,7 @@ Deno.serve(async (req: Request) => {
       // Dropouts per competitie maar één keer ophalen
       let dropouts = dropoutsByComp.get(stage.competition_id);
       if (!dropouts) {
-        const base = comp.pcs_url.replace(/\/$/, "").replace(STRIP_SUFFIX, "");
+        const base = pcsRaceBase(comp.pcs_url);
         // Sinds de PCS-ombouw (eind sept 2026) is de dropouts-pagina leeg; de
         // startlijst markeert uitvallers ("(DNF #9)"). Oude pagina als vangnet.
         const res = await fetchPcsPage(`${base}/startlist`);

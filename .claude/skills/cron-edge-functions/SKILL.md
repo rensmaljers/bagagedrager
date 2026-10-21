@@ -9,7 +9,7 @@ Twee categorieën functies, twee auth-patronen. Kies bij een nieuwe functie eers
 
 ## Categorie 1: cron-aangeroepen (x-cron-secret)
 
-`auto-rad`, `auto-sync`, `auto-remind`, `auto-notify-results`, `auto-dns-check`, `cron-refresh-specialties`, `email-remind` (cron uit).
+`auto-rad`, `auto-sync`, `auto-remind`, `auto-join-remind`, `auto-notify-results`, `auto-dns-check`, `cron-refresh-specialties`, `email-remind` (cron uit).
 
 Auth-patroon (bovenin elke functie):
 ```ts
@@ -55,6 +55,7 @@ Schedules worden herhaaldelijk aangepast; de **hoogst genummerde migratie met `c
 | `auto-lock-stages` | */15 | 079 | **pure SQL UPDATE**, geen edge function |
 | `auto-notify-results` | */15 | 079 | |
 | `auto-remind` | */30 | 060 | |
+| `auto-join-remind` | `20 * * * *` | 20261021120000_join_remind | inschrijf-pushes (open + laatste kans) |
 | `auto-sync-ochtend` / `-middag` | 9:00 / 16:00 UTC | 060 | body `{}` = alle etappes vandaag |
 | `auto-sync-eta` | */15 | 072 | body `{"mode":"eta"}` — synct pas na `estimated_end_time`+20 min |
 | `auto-dns-check` | */30 | 072 | |

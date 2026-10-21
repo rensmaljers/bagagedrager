@@ -3,7 +3,7 @@
 //   deno test --allow-read supabase/functions/tests/
 import { assertEquals } from "jsr:@std/assert";
 import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.46/deno-dom-wasm.ts";
-import { mapStageType, parseStageInfo, parseStageNav } from "../_shared/pcs-race-parse.ts";
+import { findProfileImage, mapStageType, parseRaceInfoHtml, parseStageInfo, parseStageNav, pcsRaceBase } from "../_shared/pcs-race-parse.ts";
 
 function fixture(name: string) {
   const html = Deno.readTextFileSync(new URL(`./fixtures/${name}`, import.meta.url));
@@ -59,4 +59,35 @@ Deno.test("etappetype: alleen het losse p1..p5-token telt (niet mg_rp4)", () => 
   assertEquals(mapStageType("icon profile p4", "A - B"), "mountain");
   assertEquals(mapStageType("", "Stage 1 (ITT) | Monaco - Monaco"), "tt");
   assertEquals(mapStageType("icon profile p1", "Stage 3 (TTT) | A - B"), "ttt");
+});
+
+Deno.test("pcsRaceBase: alles na het jaar eraf (één definitie voor import en uitvallers-check)", () => {
+  const b = "https://www.procyclingstats.com/race/tour-de-france/2026";
+  for (const u of [b, b + "/", b + "/stages", b + "/startlist", b + "/stage-12", b + "/prologue", b + "/dropouts", b + "/gc", b + "/result", b + "/overview"]) {
+    assertEquals(pcsRaceBase(u), b, u);
+  }
+  assertEquals(pcsRaceBase("https://www.procyclingstats.com/race/tour-de-pologne/2026//"), "https://www.procyclingstats.com/race/tour-de-pologne/2026");
+});
+
+Deno.test("findProfileImage: eerste profiel-afbeelding, absoluut gemaakt", () => {
+  const doc = new DOMParser().parseFromString(`<html><body><img src="images/shirts/x.png">
+    <img src="images/profiles/ab/cd/stage-1-profile.jpg"><img src="images/profiles/zz.jpg"></body></html>`, "text/html")!;
+  assertEquals(findProfileImage(doc), "https://www.procyclingstats.com/images/profiles/ab/cd/stage-1-profile.jpg");
+  assertEquals(findProfileImage(new DOMParser().parseFromString("<html><body></body></html>", "text/html")!), null);
+});
+
+Deno.test("parseRaceInfoHtml: nieuwe layout — vertrek/aankomst in een link, 'Profile score'", () => {
+  const html = Deno.readTextFileSync(new URL("./fixtures/pcs-stage-info-guangxi-2026-stage-1.html", import.meta.url));
+  const info = parseRaceInfoHtml(html);
+  assertEquals([info.date, info.startTime, info.distance], ["13 October 2026", "10:30:00", "149.4"]);
+  // Met de oude regex waren deze drie null (waarde staat in <a href="location/…">)
+  assertEquals([info.departure, info.arrival, info.profileScore], ["Chongzuo", "Chongzuo", "22"]);
+  assertEquals([info.verticalMeters, info.classification], ["768", "2.UWT"]);
+});
+
+Deno.test("parseRaceInfoHtml: oude layout blijft werken", () => {
+  const html = `<div>Date:</div><div>29 March 2026</div><div>Start time:</div><div>11:15</div>
+    <div>Departure:</div><div>Gent</div><div>ProfileScore:</div><div>31</div>`;
+  const info = parseRaceInfoHtml(html);
+  assertEquals([info.date, info.startTime, info.departure, info.profileScore], ["29 March 2026", "11:15", "Gent", "31"]);
 });

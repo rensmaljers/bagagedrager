@@ -27,7 +27,7 @@ Tests: `supabase/functions/tests/webpush.test.ts` — o.a. de **RFC 8291 Appendi
 
 ### VAPID-keys
 
-- **Public key hardcoded op 5 plekken identiek**: `src/lib/config.ts` (export `VAPID_PUBLIC_KEY`) + lokale const in `auto-remind`, `auto-notify-results`, `auto-dns-check`, `test-push`. Wijzig je hem: alle vijf.
+- **Public key hardcoded op 6 plekken identiek**: `src/lib/config.ts` (export `VAPID_PUBLIC_KEY`) + lokale const in `auto-remind`, `auto-notify-results`, `auto-dns-check`, `auto-join-remind`, `test-push`. Wijzig je hem: alle zes.
 - **Private key**: secret `VAPID_PRIVATE_KEY` (`supabase secrets`). Ontbreekt hij → functie geeft 500.
 - `VAPID_SUBJECT` hardcoded = de Supabase project-URL.
 
@@ -41,13 +41,14 @@ Tests: `supabase/functions/tests/webpush.test.ts` — o.a. de **RFC 8291 Appendi
 
 `push`-event: `showNotification(data.title, { body, icon/badge: '/favicon.ico', data:{url} })`. `notificationclick`: focust bestaand venster (`client.navigate(url)`) of `openWindow(url)`. Payload-contract is dus `{ title, body, url }` — houd push-functies daaraan.
 
-## De vier push-versturende functies
+## De push-versturende functies
 
 | Functie | Trigger | Bericht |
 |---|---|---|
 | `auto-remind` | cron */30, deadline over 30–90 min, geen pick | "⏰ Keuze deadline nadert" → `/#pick` |
 | `auto-notify-results` | cron */10, uitslag binnen (`locked`, resultaten aanwezig) | **gepersonaliseerd** per speler |
 | `auto-dns-check` | cron */30, deadline < 3u, PCS-dropout gevonden | "⚠️ <renner> stapt niet op" → `/#pick` |
+| `auto-join-remind` | cron elk uur (:20), actieve nog niet gestarte ronde met etappes | eenmalig "📣 Inschrijving geopend" en binnen 24 u vóór start "⏳ Laatste kans" → `/#dashboard`, alleen aan actieve niet-AI spelers die nog niet ingeschreven zijn (vlaggen `competitions.join_open_notified_at`/`join_reminder_sent_at`; logica getest in `_shared/join-remind.ts`) |
 | `test-push` | admin handmatig (CORS-functie) | testmelding naar eigen subs |
 
 Personalisatie in `auto-notify-results` (`payloadForUser`): leest `stage_picks_public` (renner, positie, spelpunten, dnf/is_late/is_random) + `general_classification` (nieuwe positie); `scoring_mode === "classic"` → "het spelklassement", anders "het AK"; stage 0 heet "Proloog".

@@ -121,3 +121,47 @@ export function mapStageType(iconClass: string, name: string): string {
   if (p === "2") return "sprint";
   return "flat";
 }
+
+// PCS-basis-URL van een ronde/koers: alles na het jaar weg ("…/tour-de-france/2026/stages"
+// → "…/tour-de-france/2026"). Eén definitie voor sync-pcs-race (3 plekken) en auto-dns-check.
+const PCS_SUFFIX = /\/(stages|startlist|gc|general-classification|stage-\d+|prologue|results?|resuts?|overview|dropouts)$/;
+export function pcsRaceBase(url: string): string {
+  return url.trim().replace(/\/+$/, "").replace(PCS_SUFFIX, "");
+}
+
+// Eerste profiel-afbeelding op een PCS-pagina (absoluut gemaakt), of null
+export function findProfileImage(doc: any): string | null {
+  for (const img of [...doc.querySelectorAll("img")] as any[]) {
+    const src = img.getAttribute("src") || "";
+    if (src.includes("profile")) return src.startsWith("http") ? src : `https://www.procyclingstats.com/${src}`;
+  }
+  return null;
+}
+
+// Race-info als label/waarde-paren uit ruwe PCS-HTML (eendagskoers- en klassiekers-pad
+// van sync-pcs-race). Regex i.p.v. DOM omdat beide paden de ruwe HTML al hebben.
+// Werkt op oude én nieuwe layout: de waarde mag in een link staan (nieuw:
+// <div><a href="location/chongzuo">Chongzuo</a></div>) en "Profile score" heet in de
+// nieuwe layout zo i.p.v. "ProfileScore".
+export function parseRaceInfoHtml(rawHtml: string) {
+  const get = (label: string) => {
+    const re = new RegExp(label + '[":]*\\s*(?:</div>)?\\s*<div[^>]*>\\s*(?:<a[^>]*>\\s*)?([^<]+)', 'i');
+    const m = rawHtml.match(re);
+    return m ? m[1].trim() : null;
+  };
+  return {
+    date: get('Startdate') || get('Date'),
+    startTime: get('Start time'),
+    avgSpeed: get('Avg\\.\\s*speed winner') || get('Avg\\.\\s*speed'),
+    classification: get('Classification'),
+    raceCategory: get('Race category'),
+    distance: get('Distance') || get('Total distance'),
+    parcoursType: get('Parcours type'),
+    profileScore: get('ProfileScore') || get('Profile score'),
+    verticalMeters: get('Vertical meters'),
+    departure: get('Departure'),
+    arrival: get('Arrival'),
+    startlistQuality: get('Startlist quality score'),
+    avgTemperature: get('Avg\\.\\s*temperature'),
+  };
+}

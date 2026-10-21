@@ -93,6 +93,7 @@ Cron-jobs (pg_cron + pg_net, zie `cron.job`):
 - `auto-rad` (*/10 min) — Rad van Fortuin na deadline (`rad_assigned`-vlag voorkomt dubbel draaien)
 - `auto-lock-stages` (*/10 min) — pure SQL UPDATE, geen edge function
 - `auto-remind` (*/30 min) — push naar spelers zonder pick, 30–90 min voor deadline (`reminder_sent`-vlag)
+- `auto-join-remind` (elk uur, :20) — inschrijf-pushes per actieve, nog niet gestarte ronde: "Inschrijving geopend" + "Laatste kans" (24 u vóór start) aan wie nog niet ingeschreven is (vlaggen op `competitions`, migratie `20261021120000_join_remind`)
 - `auto-notify-results` (*/10 min) — **gepersonaliseerde** push zodra een uitslag binnen is (eigen renner + spelpunten + nieuwe positie; `results_notified`-vlag, migratie 068)
 - `auto-sync-ochtend/-middag` (9:00/16:00 UTC) — PCS-resultaten syncen (correctie-pass/vangnet)
 - `auto-sync-eta` (*/15 min, body `{"mode":"eta"}`) — synct een etappe zodra `estimated_end_time` + 20 min verstreken is en er nog geen resultaten zijn; skipt daarna. Uitslag staat ~20 min na de finish binnen (migratie 072)
