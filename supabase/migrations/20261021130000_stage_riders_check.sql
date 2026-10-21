@@ -1,5 +1,5 @@
 -- ============================================
--- Klassiekers: startlijst per koers (stage_riders) weer afdwingen
+-- Klassiekers: startlijst per koers (stage_riders) leidend
 -- ============================================
 -- Migratie 038 liet submit_pick en het Rad alleen renners van de etappe-eigen
 -- startlijst toe (klassiekers: niet elke renner start in elke koers). Vanaf 051
@@ -11,8 +11,16 @@
 --   * submit_pick           — weigert renners buiten de etappe-startlijst
 --   * assign_random_riders  — Rad kiest alleen uit de etappe-startlijst
 --   * admin_add_participant — te-late Rad-picks per gestarte etappe idem
+--     (behoudt zijn eigen, eenvoudigere DNF-regel: alleen riders.dnf)
 -- Geen stage_riders-rijen voor een etappe = volledige competitie-startlijst
--- (grote rondes ongewijzigd). Verder 1-op-1 gelijk aan de vorige versie.
+-- (grote rondes ongewijzigd).
+--
+-- Tweede wijziging (besluit okt 2026): heeft een etappe een eigen startlijst, dan
+-- is die óók leidend boven de DNF-blokkade uit 052/053. Bij klassiekers staat elke
+-- koers op zich: wie in Milaan-Sanremo uitvalt start een week later gewoon in de
+-- Ronde van Vlaanderen, maar werd tot nu toe voor de hele competitie geblokkeerd.
+-- Zonder eigen startlijst (grote rondes) blijft "eenmaal DNF = niet meer kiesbaar".
+-- "Elke renner één keer per competitie" geldt overal ongewijzigd.
 
 CREATE OR REPLACE FUNCTION submit_pick(p_stage_id int, p_rider_id int)
 RETURNS jsonb
@@ -85,7 +93,9 @@ BEGIN
       AND s.competition_id = v_comp_id
   ) INTO v_is_dnf;
 
-  IF v_is_dnf THEN
+  -- DNF-blokkade alleen zonder eigen etappe-startlijst (grote rondes); bij een
+  -- startlijst (klassiekers) is die leidend en is de check hierboven al gedaan
+  IF v_is_dnf AND NOT EXISTS (SELECT 1 FROM stage_riders WHERE stage_id = p_stage_id) THEN
     RAISE EXCEPTION 'Deze renner heeft de koers verlaten (DNF) en kan niet meer gekozen worden';
   END IF;
 
@@ -143,23 +153,27 @@ BEGIN
     SELECT r.id INTO v_rider_id
     FROM riders r
     WHERE r.competition_id = v_comp_id
-      AND r.dnf = false
       AND (
-        NOT EXISTS (SELECT 1 FROM stage_riders WHERE stage_id = p_stage_id)
-        OR r.id IN (SELECT rider_id FROM stage_riders WHERE stage_id = p_stage_id)
+        -- Eigen etappe-startlijst (klassiekers): die is leidend, ook na eerdere DNF
+        r.id IN (SELECT rider_id FROM stage_riders WHERE stage_id = p_stage_id)
+        OR (
+          -- Geen startlijst (grote rondes): volledige lijst minus uitvallers
+          NOT EXISTS (SELECT 1 FROM stage_riders WHERE stage_id = p_stage_id)
+          AND r.dnf = false
+          AND NOT EXISTS (
+            SELECT 1 FROM stage_results sr
+            JOIN stages s ON s.id = sr.stage_id
+            WHERE sr.rider_id = r.id
+              AND sr.dnf = true
+              AND s.competition_id = v_comp_id
+          )
+        )
       )
       AND r.id NOT IN (
         SELECT pk.rider_id FROM picks pk
         JOIN stages st ON st.id = pk.stage_id
         WHERE pk.user_id = v_user.user_id
           AND st.competition_id = v_comp_id
-      )
-      AND NOT EXISTS (
-        SELECT 1 FROM stage_results sr
-        JOIN stages s ON s.id = sr.stage_id
-        WHERE sr.rider_id = r.id
-          AND sr.dnf = true
-          AND s.competition_id = v_comp_id
       )
     ORDER BY random()
     LIMIT 1;
@@ -211,10 +225,9 @@ BEGIN
     SELECT r.id INTO v_rider_id
     FROM riders r
     WHERE r.competition_id = p_competition_id
-      AND r.dnf = false
       AND (
-        NOT EXISTS (SELECT 1 FROM stage_riders WHERE stage_id = v_stage.id)
-        OR r.id IN (SELECT rider_id FROM stage_riders WHERE stage_id = v_stage.id)
+        r.id IN (SELECT rider_id FROM stage_riders WHERE stage_id = v_stage.id)
+        OR (NOT EXISTS (SELECT 1 FROM stage_riders WHERE stage_id = v_stage.id) AND r.dnf = false)
       )
       AND r.id NOT IN (
         SELECT pk.rider_id FROM picks pk

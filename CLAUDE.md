@@ -78,7 +78,7 @@ De klassementen zitten in de views `general_classification` en `stage_picks_publ
 - DNF/DNS/OTL = same GC penalty as late; 0 points in all other classifications
 - **Geannuleerde/gestaakte rit zonder uitslag** (besluit 24 aug 2026, Vuelta rit 3/hagel): telt in geen enkel klassement mee (geen punten, geen straftijd — volgt vanzelf uit lege `stage_results`); picks blijven staan en de gekozen renner blijft verbruikt. Operationeel: `estimated_end_time` op NULL zetten zodat auto-sync-eta de rit overslaat en de admin-pushes stoppen.
 - Bonification seconds stored per rider in `stage_results.bonification_seconds` (scraped from PCS or entered manually by admin). NOT derived from finish position.
-- Klassiekers: één competitie met meerdere "etappes" (koersen) en per-etappe startlijsten in `stage_riders`
+- Klassiekers: één competitie met meerdere "etappes" (koersen) en per-etappe startlijsten in `stage_riders`. **Die startlijst is leidend** (migratie `20261021130000_stage_riders_check`): `submit_pick`, het Rad en `admin_add_participant` kiezen alleen daaruit, en een DNF in een eerdere koers blokkeert dan níet (wel bij grote rondes zonder eigen startlijst). Renners die PCS op de koers-startlijst als DNS markeert, koppelt `sync-pcs-race` niet in `stage_riders`.
 - Nieuwe ronde/competitie opzetten: zie skill `nieuwe-competitie`
 
 ## RLS (sinds migratie 058, gehardend in 073/074) — zie skill `rls-security`

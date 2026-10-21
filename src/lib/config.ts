@@ -51,4 +51,5 @@ export const TEAMS: Record<string, { abbr: string; color: string; color2: string
 // vastgelegd bij "Ik doe mee" (competition_participants.rules_version) —
 // verhoog bij elke inhoudelijke regelwijziging.
 // 2026-10-06.2: inleg bij DNS wordt niet terugbetaald
-export const RULES_VERSION = '2026-10-06.2';
+// 2026-10-21: klassiekers — startlijst per koers leidend, eerdere DNF weer kiesbaar
+export const RULES_VERSION = '2026-10-21';

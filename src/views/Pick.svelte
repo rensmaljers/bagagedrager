@@ -180,6 +180,14 @@
     return (set && set.size > 0) ? appState.riders.filter((r: any) => set.has(r.id)) : appState.riders;
   });
 
+  // Uitvallers die in déze etappe geblokkeerd zijn. Heeft de etappe een eigen
+  // startlijst (klassiekers), dan is die leidend: wie erop staat mag, ook na een
+  // DNF in een eerdere koers (zelfde regel als submit_pick, migratie 20261021130000).
+  const stageDnfIds = $derived.by(() => {
+    const set = selectedStageId != null ? appState.stageRiders[selectedStageId] : null;
+    return (set && set.size > 0) ? new Set<number>() : appState.dnfRiderIds;
+  });
+
   const teamOptions = $derived([...new Set(stageRiderList.map((r: any) => r.team))].sort());
   const nationalityOptions = $derived([...new Set(stageRiderList.map((r: any) => r.nationality).filter(Boolean))].sort());
 
@@ -191,7 +199,7 @@
       (norm(r.name).includes(q) || norm(r.team).includes(q)) &&
       (!teamFilter || r.team === teamFilter) &&
       (!nationalityFilter || r.nationality === nationalityFilter) &&
-      (!hideUsed || (!usedInOtherStages.has(r.id) && !appState.dnfRiderIds.has(r.id)))
+      (!hideUsed || (!usedInOtherStages.has(r.id) && !stageDnfIds.has(r.id)))
     );
   });
 
@@ -236,8 +244,8 @@
   // Beschikbaarheids-teller
   const availability = $derived.by(() => {
     const total = stageRiderList.length;
-    const dnf = stageRiderList.filter((r: any) => appState.dnfRiderIds.has(r.id)).length;
-    const used = stageRiderList.filter((r: any) => usedInOtherStages.has(r.id) && !appState.dnfRiderIds.has(r.id)).length;
+    const dnf = stageRiderList.filter((r: any) => stageDnfIds.has(r.id)).length;
+    const used = stageRiderList.filter((r: any) => usedInOtherStages.has(r.id) && !stageDnfIds.has(r.id)).length;
     return { total, dnf, used, available: total - used - dnf };
   });
 
@@ -669,7 +677,7 @@
         <div class="row g-2">
           {#each group.riders as r (r.id)}
             {@const used = usedInOtherStages.has(r.id)}
-            {@const dnf = appState.dnfRiderIds.has(r.id)}
+            {@const dnf = stageDnfIds.has(r.id)}
             {@const blocked = used || dnf}
             {@const selected = r.id === appState.selectedRiderId}
             {@const isCurrent = r.id === currentPickRiderId}

@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { fetchPcsPage } from "../_shared/pcs-fetch.ts";
 import { findProfileImage, mapStageType, parseRaceInfoHtml, parseStageInfo, parseStageNav, pcsRaceBase } from "../_shared/pcs-race-parse.ts";
 import { localToUtc } from "../_shared/tz.ts";
+import { parseStartlistDropouts } from "../_shared/pcs-dropouts.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -424,6 +425,11 @@ Deno.serve(async (req) => {
       try {
         const startDoc = await fetchPCS(stageBaseUrl + "/startlist");
         const result = parseStartlist(startDoc);
+        // Renners die PCS op de startlijst van déze koers als uitvaller markeert
+        // ("NAAM (DNS)") horen niet in stage_riders: die startlijst is leidend voor
+        // kiezen en het Rad (migratie 20261021130000), ook boven een eerdere DNF.
+        const dropoutSlugs = new Set(parseStartlistDropouts(startDoc).map((d) => d.pcs_slug));
+        if (dropoutSlugs.size) log.push(`🚫 ${dropoutSlugs.size} renner(s) gemarkeerd als niet-starter — niet gekoppeld aan deze koers`);
         shirts = result.shirts;
         await saveShirts(adminClient, shirts);
         log.push(`✅ ${result.riders.length} renners + ${Object.keys(shirts).length} team shirts gevonden`);
@@ -458,12 +464,12 @@ Deno.serve(async (req) => {
               const { data: inserted } = await adminClient
                 .from("riders").insert({ ...enriched, ...r, bib_number: nextBib, competition_id })
                 .select("id").maybeSingle();
-              if (inserted?.id) stageRiderIds.push(inserted.id);
+              if (inserted?.id && !dropoutSlugs.has(r.pcs_slug)) stageRiderIds.push(inserted.id);
               ridersSaved++;
             } else {
               // Update naam/team (bib_number behouden — is intern)
               await adminClient.from("riders").update({ name: r.name, team: r.team, pcs_slug: r.pcs_slug }).eq("id", existing.id);
-              stageRiderIds.push(existing.id);
+              if (!dropoutSlugs.has(r.pcs_slug)) stageRiderIds.push(existing.id);
               ridersUpdated++;
             }
           } catch (e) {

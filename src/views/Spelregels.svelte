@@ -25,6 +25,8 @@
 </ul>
 <p class="mb-2"><strong>Klassiekers</strong> <span class="badge bg-secondary" style="font-size:0.65rem;">Monumenten, etc.</span></p>
 <ul class="ps-3 mb-2">
+  <li>Je kiest per koers uit de <strong>startlijst van die koers</strong>. Wie niet start, kun je niet kiezen — ook het Rad kiest alleen uit de startlijst.</li>
+  <li>Een renner die in een eerdere koers uitviel (DNF), mag je in een volgende koers <strong>gewoon weer kiezen</strong> als hij daar start. Elke renner blijft wel maar 1x te gebruiken.</li>
   <li>Punten op basis van <strong>finishpositie</strong>:</li>
 </ul>
 <table class="table table-sm mb-2" style="font-size:0.78rem; max-width:340px; margin-left:1rem;">

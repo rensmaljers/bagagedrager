@@ -64,3 +64,7 @@ Een finisher heeft altijd een `finish_position` én `time_seconds > 0` (zie pcs-
 - Verander je de straf/dnf-semantiek, doe het op **beide** views consistent (GC + stage_picks_public), anders wijken klassement-totaal en per-etappe-weergave af.
 - Een finisher met `time_seconds = 0` zou nu als "niet gefinisht" gelden — dat hoort niet voor te komen (parser geeft finishers altijd > 0), maar houd het in gedachten bij handmatige invoer.
 - Test een view-wijziging altijd live: `supabase db query "select * from general_classification where competition_id=<id> order by total_time limit 5" --linked`.
+
+## Klassiekers: startlijst leidend boven DNF (okt 2026)
+
+Heeft een etappe eigen `stage_riders`, dan bepaalt die wie kiesbaar is (`submit_pick`, Rad, `admin_add_participant` — leidend `20261021130000_stage_riders_check`). De DNF-blokkade uit 052/053 (`riders.dnf` of een `stage_results.dnf` in de competitie) geldt dan niet: een uitvaller uit een eerdere koers mag in de volgende koers weer gekozen worden als hij start. Zonder eigen startlijst (grote rondes) blijft eenmaal DNF = niet meer kiesbaar. De keuzelijst volgt dezelfde regel (`stageDnfIds` in Pick.svelte). Straf/punten van een DNF in de koers zelf veranderen niet.
